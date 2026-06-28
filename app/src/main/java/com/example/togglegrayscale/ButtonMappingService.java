@@ -303,8 +303,8 @@ public class ButtonMappingService extends AccessibilityService {
             case 20: // Subir Brillo (Dimmer)
                 adjustBrightness(10);
                 break;
-            case 21: // Alternar Brillo A/B
-                toggleBrightnessAB();
+            case 21: // Alternar Brillo A/B/C
+                toggleBrightnessABC();
                 break;
         }
     }
@@ -824,15 +824,29 @@ public class ButtonMappingService extends AccessibilityService {
         });
     }
 
-    private void toggleBrightnessAB() {
+    private void toggleBrightnessABC() {
         handler.post(new Runnable() {
             @Override
             public void run() {
                 SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                 int cur = prefs.getInt("dimmer_brightness_pct", 50);
                 int stateA = prefs.getInt("brightness_state_a", 80);
-                int stateB = prefs.getInt("brightness_state_b", 20);
-                int next = (Math.abs(cur - stateA) < Math.abs(cur - stateB)) ? stateB : stateA;
+                int stateB = prefs.getInt("brightness_state_b", 50);
+                int stateC = prefs.getInt("brightness_state_c", 20);
+                
+                int diffA = Math.abs(cur - stateA);
+                int diffB = Math.abs(cur - stateB);
+                int diffC = Math.abs(cur - stateC);
+                
+                int next;
+                if (diffA <= diffB && diffA <= diffC) {
+                    next = stateB;
+                } else if (diffB <= diffA && diffB <= diffC) {
+                    next = stateC;
+                } else {
+                    next = stateA;
+                }
+                
                 prefs.edit().putInt("dimmer_brightness_pct", next).apply();
                 Log.d(TAG, "Toggled brightness to: " + next + "%");
                 if (isDimmerActive && dimmerOverlayView != null) {

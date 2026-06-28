@@ -67,6 +67,9 @@ public class QuickMenuActivity extends Activity {
     private TextView btnBrightnessBDec;
     private TextView btnBrightnessBInc;
     private TextView txtBrightnessB;
+    private TextView btnBrightnessCDec;
+    private TextView btnBrightnessCInc;
+    private TextView txtBrightnessC;
     private TextView btnApplyBrightness;
     private LinearLayout panelButtonConfig;
     
@@ -160,6 +163,9 @@ public class QuickMenuActivity extends Activity {
         btnBrightnessBDec    = findViewById(R.id.btn_brightness_b_dec);
         btnBrightnessBInc    = findViewById(R.id.btn_brightness_b_inc);
         txtBrightnessB       = findViewById(R.id.txt_brightness_b);
+        btnBrightnessCDec    = findViewById(R.id.btn_brightness_c_dec);
+        btnBrightnessCInc    = findViewById(R.id.btn_brightness_c_inc);
+        txtBrightnessC       = findViewById(R.id.txt_brightness_c);
         btnApplyBrightness   = findViewById(R.id.btn_apply_brightness);
 
         // Button Config UI
@@ -340,12 +346,22 @@ public class QuickMenuActivity extends Activity {
         }
         if (btnBrightnessBDec != null) {
             btnBrightnessBDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_b", 20, -5, 0, 100); }
+                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_b", 50, -5, 0, 100); }
             });
         }
         if (btnBrightnessBInc != null) {
             btnBrightnessBInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_b", 20, 5, 0, 100); }
+                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_b", 50, 5, 0, 100); }
+            });
+        }
+        if (btnBrightnessCDec != null) {
+            btnBrightnessCDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_c", 20, -5, 0, 100); }
+            });
+        }
+        if (btnBrightnessCInc != null) {
+            btnBrightnessCInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_c", 20, 5, 0, 100); }
             });
         }
         if (btnApplyBrightness != null) {
@@ -1061,7 +1077,8 @@ public class QuickMenuActivity extends Activity {
         SharedPreferences prefs = getOverlayPrefs();
         int brightnessPct = prefs.getInt("dimmer_brightness_pct", 50);
         int stateA = prefs.getInt("brightness_state_a", 80);
-        int stateB = prefs.getInt("brightness_state_b", 20);
+        int stateB = prefs.getInt("brightness_state_b", 50);
+        int stateC = prefs.getInt("brightness_state_c", 20);
         boolean active = prefs.getBoolean(ButtonMappingService.KEY_DIMMER, false);
 
         if (sliderBrightness != null) {
@@ -1075,6 +1092,9 @@ public class QuickMenuActivity extends Activity {
         }
         if (txtBrightnessB != null) {
             txtBrightnessB.setText(stateB + "%");
+        }
+        if (txtBrightnessC != null) {
+            txtBrightnessC.setText(stateC + "%");
         }
         if (btnApplyBrightness != null) {
             btnApplyBrightness.setText(active ? "[ Desactivar Dimmer ]" : "[ Activar Dimmer ]");
