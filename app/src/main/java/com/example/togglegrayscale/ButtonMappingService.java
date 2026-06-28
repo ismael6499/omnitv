@@ -202,6 +202,12 @@ public class ButtonMappingService extends AccessibilityService {
                     showClockOverlay();
                 }
                 break;
+            case "ACTION_SET_DIMMER_BRIGHTNESS":
+                if (extras != null) {
+                    int pVal = extras.getInt("pct", 50);
+                    setDimmerBrightness(pVal);
+                }
+                break;
             case "ACTION_TOGGLE_DIMMER": toggleDimmer(); break;
             case "ACTION_TOGGLE_CINE_MODE": toggleCineMode(); break;
             case "ACTION_SHOW_SYSTEM_INFO": showSystemInfoOverlay(); break;
@@ -290,6 +296,15 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case 18: // Pausar y Apagar Pantalla
                 pauseMediaAndBlackScreen();
+                break;
+            case 19: // Bajar Brillo (Dimmer)
+                adjustBrightness(-10);
+                break;
+            case 20: // Subir Brillo (Dimmer)
+                adjustBrightness(10);
+                break;
+            case 21: // Alternar Brillo A/B
+                toggleBrightnessAB();
                 break;
         }
     }
@@ -743,12 +758,17 @@ public class ButtonMappingService extends AccessibilityService {
                 try {
                     WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
                     if (wm == null) { isDimmerActive = false; return; }
+                    
+                    SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    int brightnessPct = prefs.getInt("dimmer_brightness_pct", 50);
+                    int alphaVal = (int) ((100 - brightnessPct) * 2.55);
+
                     dimmerOverlayView = new View(ButtonMappingService.this);
-                    dimmerOverlayView.setBackgroundColor(Color.argb(128, 0, 0, 0));
+                    dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
                     wm.addView(dimmerOverlayView, overlayMatchParams());
                     dimmerShowRetries = 0; // Reset retries on success
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_DIMMER, true).apply();
-                    Log.d(TAG, "Dimmer overlay shown");
+                    Log.d(TAG, "Dimmer overlay shown at " + brightnessPct + "% brightness");
                 } catch (Exception e) {
                     isDimmerActive = false;
                     Log.e(TAG, "Error showing dimmer overlay", e);
@@ -762,6 +782,64 @@ public class ButtonMappingService extends AccessibilityService {
                             }
                         }, 1000);
                     }
+                }
+            }
+        });
+    }
+
+    public void setDimmerBrightness(final int pct) {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                prefs.edit().putInt("dimmer_brightness_pct", pct).apply();
+                if (isDimmerActive && dimmerOverlayView != null) {
+                    int alphaVal = (int) ((100 - pct) * 2.55);
+                    dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+                } else if (!isDimmerActive) {
+                    showDimmerOverlay();
+                }
+            }
+        });
+    }
+
+    private void adjustBrightness(final int delta) {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                int cur = prefs.getInt("dimmer_brightness_pct", 50);
+                int next = cur + delta;
+                if (next < 0) next = 0;
+                if (next > 100) next = 100;
+                prefs.edit().putInt("dimmer_brightness_pct", next).apply();
+                Log.d(TAG, "Adjusted brightness to: " + next + "%");
+                if (isDimmerActive && dimmerOverlayView != null) {
+                    int alphaVal = (int) ((100 - next) * 2.55);
+                    dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+                } else {
+                    showDimmerOverlay();
+                }
+            }
+        });
+    }
+
+    private void toggleBrightnessAB() {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                int cur = prefs.getInt("dimmer_brightness_pct", 50);
+                int stateA = prefs.getInt("brightness_state_a", 80);
+                int stateB = prefs.getInt("brightness_state_b", 20);
+                int next = (Math.abs(cur - stateA) < Math.abs(cur - stateB)) ? stateB : stateA;
+                prefs.edit().putInt("dimmer_brightness_pct", next).apply();
+                Log.d(TAG, "Toggled brightness to: " + next + "%");
+                if (isDimmerActive && dimmerOverlayView != null) {
+                    int alphaVal = (int) ((100 - next) * 2.55);
+                    dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+                } else {
+                    showDimmerOverlay();
                 }
             }
         });

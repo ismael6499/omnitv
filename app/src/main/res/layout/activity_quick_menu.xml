@@ -67,6 +67,40 @@
                 android:gravity="center" android:focusable="true" android:clickable="true" android:visibility="gone" />
         </LinearLayout>
 
+        <!-- Brightness config sub-panel -->
+        <LinearLayout android:id="@+id/panel_brightness" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Ajustar Brillo de Pantalla (Dimmer):" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="8dp" android:paddingStart="4dp" />
+            <SeekBar android:id="@+id/slider_brightness" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:max="100" android:progress="100"
+                android:focusable="true" android:clickable="true" android:layout_marginBottom="8dp" />
+            <TextView android:id="@+id/txt_brightness_pct" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Nivel: 100%" android:textColor="#FFFFFF"
+                android:textSize="14sp" android:gravity="center" android:layout_marginBottom="12dp" />
+
+            <!-- Predefined State A -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Brillo Predefinido A:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_brightness_a_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_brightness_a" android:layout_width="60dp" android:layout_height="wrap_content" android:text="80%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_brightness_a_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <!-- Predefined State B -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Brillo Predefinido B:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_brightness_b_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_brightness_b" android:layout_width="60dp" android:layout_height="wrap_content" android:text="20%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_brightness_b_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <TextView android:id="@+id/btn_apply_brightness" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+        </LinearLayout>
+
         <!-- Blue light level sub-panel with slider (SeekBar) -->
         <LinearLayout android:id="@+id/panel_blue_light" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:orientation="vertical"

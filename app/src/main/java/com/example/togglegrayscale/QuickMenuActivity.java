@@ -48,13 +48,26 @@ public class QuickMenuActivity extends Activity {
         "Salida de Audio",
         "Pantalla Espejo",
         "Recientes",
-        "Pausar y Apagar Pantalla"
+        "Pausar y Apagar Pantalla",
+        "Bajar Brillo (Dimmer)",
+        "Subir Brillo (Dimmer)",
+        "Alternar Brillo A/B"
     };
 
     private LinearLayout menuContainer;
     private LinearLayout panelTimer;
     private LinearLayout panelCine;
     private LinearLayout panelBlueLight;
+    private LinearLayout panelBrightness;
+    private SeekBar sliderBrightness;
+    private TextView txtBrightnessPct;
+    private TextView btnBrightnessADec;
+    private TextView btnBrightnessAInc;
+    private TextView txtBrightnessA;
+    private TextView btnBrightnessBDec;
+    private TextView btnBrightnessBInc;
+    private TextView txtBrightnessB;
+    private TextView btnApplyBrightness;
     private LinearLayout panelButtonConfig;
     
     private TextView btnCancelTimer;
@@ -136,6 +149,18 @@ public class QuickMenuActivity extends Activity {
         // SeekBar UI
         sliderBlueLight        = findViewById(R.id.slider_blue_light);
         txtBlueLightPct        = findViewById(R.id.txt_blue_light_pct);
+
+        // Brightness UI
+        panelBrightness      = findViewById(R.id.panel_brightness);
+        sliderBrightness     = findViewById(R.id.slider_brightness);
+        txtBrightnessPct     = findViewById(R.id.txt_brightness_pct);
+        btnBrightnessADec    = findViewById(R.id.btn_brightness_a_dec);
+        btnBrightnessAInc    = findViewById(R.id.btn_brightness_a_inc);
+        txtBrightnessA       = findViewById(R.id.txt_brightness_a);
+        btnBrightnessBDec    = findViewById(R.id.btn_brightness_b_dec);
+        btnBrightnessBInc    = findViewById(R.id.btn_brightness_b_inc);
+        txtBrightnessB       = findViewById(R.id.txt_brightness_b);
+        btnApplyBrightness   = findViewById(R.id.btn_apply_brightness);
 
         // Button Config UI
         panelButtonConfig    = findViewById(R.id.panel_button_config);
@@ -265,6 +290,70 @@ public class QuickMenuActivity extends Activity {
                         return true;
                     }
                     return false;
+                }
+            });
+        }
+
+        // SeekBar (Brightness / Dimmer)
+        if (sliderBrightness != null) {
+            SharedPreferences op = getOverlayPrefs();
+            int currentPct = op.getInt("dimmer_brightness_pct", 50);
+            sliderBrightness.setProgress(currentPct);
+            if (txtBrightnessPct != null) txtBrightnessPct.setText("Nivel: " + currentPct + "%");
+
+            sliderBrightness.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    if (txtBrightnessPct != null) txtBrightnessPct.setText("Nivel: " + progress + "%");
+                    android.os.Bundle b = new android.os.Bundle();
+                    b.putInt("pct", progress);
+                    sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
+                    getOverlayPrefs().edit().putInt("dimmer_brightness_pct", progress).apply();
+                }
+                @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+                @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+            });
+
+            // Capturar la tecla Back directamente en el slider
+            sliderBrightness.setOnKeyListener(new View.OnKeyListener() {
+                @Override
+                public boolean onKey(View v, int keyCode, KeyEvent event) {
+                    if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_DOWN) {
+                        closeSubPanels();
+                        buildMenu();
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
+
+        if (btnBrightnessADec != null) {
+            btnBrightnessADec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_a", 80, -5, 0, 100); }
+            });
+        }
+        if (btnBrightnessAInc != null) {
+            btnBrightnessAInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_a", 80, 5, 0, 100); }
+            });
+        }
+        if (btnBrightnessBDec != null) {
+            btnBrightnessBDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_b", 20, -5, 0, 100); }
+            });
+        }
+        if (btnBrightnessBInc != null) {
+            btnBrightnessBInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_b", 20, 5, 0, 100); }
+            });
+        }
+        if (btnApplyBrightness != null) {
+            btnApplyBrightness.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    toggleOverlay(ButtonMappingService.KEY_DIMMER, "ACTION_TOGGLE_DIMMER");
+                    updateBrightnessConfigPanel();
+                    buildMenu();
                 }
             });
         }
@@ -568,6 +657,7 @@ public class QuickMenuActivity extends Activity {
         panelTimer.setVisibility(View.GONE);
         panelCine.setVisibility(View.GONE);
         panelBlueLight.setVisibility(View.GONE);
+        if (panelBrightness != null) panelBrightness.setVisibility(View.GONE);
         if (panelButtonConfig != null) panelButtonConfig.setVisibility(View.GONE);
         if (panelClockConfig != null) panelClockConfig.setVisibility(View.GONE);
         openSubPanel = null;
@@ -654,7 +744,21 @@ public class QuickMenuActivity extends Activity {
                 }
                 break;
             case "dimmer":
-                toggleOverlay(ButtonMappingService.KEY_DIMMER, "ACTION_TOGGLE_DIMMER");
+                SharedPreferences dPrefs = getOverlayPrefs();
+                boolean isDimmerOn = dPrefs.getBoolean(ButtonMappingService.KEY_DIMMER, false);
+                if (!isDimmerOn) {
+                    sendServiceAction("ACTION_TOGGLE_DIMMER");
+                }
+                if ("brightness_config".equals(openSubPanel)) {
+                    closeSubPanels();
+                } else {
+                    closeSubPanels();
+                    panelBrightness.setVisibility(View.VISIBLE);
+                    openSubPanel = "brightness_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateBrightnessConfigPanel();
+                    if (sliderBrightness != null) sliderBrightness.requestFocus();
+                }
                 buildMenu();
                 break;
             case "grayscale":
@@ -736,7 +840,10 @@ public class QuickMenuActivity extends Activity {
                 return "Luz Azul  Filtro Luz Azul  [" + (pct == 0 ? "OFF" : pct + "%") + "]";
             }
             case "clock":        return fmtToggle("Reloj  Reloj en Pantalla  (tap=configurar)", op.getBoolean(ButtonMappingService.KEY_CLOCK,  false));
-            case "dimmer":       return fmtToggle("Noche  Dimmer de Pantalla",  op.getBoolean(ButtonMappingService.KEY_DIMMER, false));
+            case "dimmer": {
+                int pct = op.getInt("dimmer_brightness_pct", 50);
+                return fmtToggle("Noche  Dimmer de Pantalla (" + pct + "%)", op.getBoolean(ButtonMappingService.KEY_DIMMER, false));
+            }
             case "grayscale":    return fmtToggle("B/N  Escala de Grises",      isGrayscaleOn());
             case "cine_mode":    return fmtToggle("Cine  Modo Cine",            op.getBoolean(ButtonMappingService.KEY_CINE_MODE, false));
             case "screen_off":   return "Sleep  Apagar Pantalla";
@@ -948,6 +1055,45 @@ public class QuickMenuActivity extends Activity {
         getOverlayPrefs().edit().putInt(key, next).apply();
         updateClockConfigPanel();
         sendServiceAction("ACTION_UPDATE_CLOCK");
+    }
+
+    private void updateBrightnessConfigPanel() {
+        SharedPreferences prefs = getOverlayPrefs();
+        int brightnessPct = prefs.getInt("dimmer_brightness_pct", 50);
+        int stateA = prefs.getInt("brightness_state_a", 80);
+        int stateB = prefs.getInt("brightness_state_b", 20);
+        boolean active = prefs.getBoolean(ButtonMappingService.KEY_DIMMER, false);
+
+        if (sliderBrightness != null) {
+            sliderBrightness.setProgress(brightnessPct);
+        }
+        if (txtBrightnessPct != null) {
+            txtBrightnessPct.setText("Nivel: " + brightnessPct + "%");
+        }
+        if (txtBrightnessA != null) {
+            txtBrightnessA.setText(stateA + "%");
+        }
+        if (txtBrightnessB != null) {
+            txtBrightnessB.setText(stateB + "%");
+        }
+        if (btnApplyBrightness != null) {
+            btnApplyBrightness.setText(active ? "[ Desactivar Dimmer ]" : "[ Activar Dimmer ]");
+        }
+    }
+
+    private void adjustBrightnessIntPref(String key, int def, int delta, int min, int max) {
+        int cur = getOverlayPrefs().getInt(key, def);
+        int next = cur + delta;
+        if (next < min) next = min;
+        if (next > max) next = max;
+        getOverlayPrefs().edit().putInt(key, next).apply();
+        updateBrightnessConfigPanel();
+        
+        if ("dimmer_brightness_pct".equals(key)) {
+            android.os.Bundle b = new android.os.Bundle();
+            b.putInt("pct", next);
+            sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
+        }
     }
 
     private void showClockPickerDialog(final String configKey, final String[] items, int currentSelection) {
