@@ -610,13 +610,13 @@ public class ButtonMappingService extends AccessibilityService {
                     SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                     int colorIdx = prefs.getInt("clock_text_color_idx", 0);
                     int bgIdx = prefs.getInt("clock_bg_color_idx", 0);
-                    int alphaIdx = prefs.getInt("clock_bg_alpha_pct", 2);
+                    int alphaPct = prefs.getInt("clock_bg_alpha_pct", 35);
                     int posIdx = prefs.getInt("clock_position_idx", 0);
 
                     int sizeSp = prefs.getInt("clock_size_sp", 16);
                     int paddingDp = prefs.getInt("clock_padding_dp", 12);
-                    int xPct = prefs.getInt("clock_pos_x_pct", 5);
-                    int yPct = prefs.getInt("clock_pos_y_pct", 5);
+                    int xDp = prefs.getInt("clock_pos_x_dp", 16);
+                    int yDp = prefs.getInt("clock_pos_y_dp", 16);
 
                     int[] textColors = {0xFFFFFFFF, 0xFF000000, 0xFFFFFF00, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF};
                     int textColor = textColors[colorIdx >= 0 && colorIdx < textColors.length ? colorIdx : 0];
@@ -626,13 +626,12 @@ public class ButtonMappingService extends AccessibilityService {
                         {80, 80, 80},
                         {15, 15, 40}
                     };
-                    int[] alphaValues = {0, 64, 90, 128, 192, 255};
-                    int alphaVal = alphaValues[alphaIdx >= 0 && alphaIdx < alphaValues.length ? alphaIdx : 2];
 
                     int bgColor;
-                    if (bgIdx == 3 || alphaVal == 0) {
+                    if (bgIdx == 3 || alphaPct == 0) {
                         bgColor = Color.TRANSPARENT;
                     } else {
+                        int alphaVal = (int) (alphaPct * 2.55);
                         int[] rgb = bgRGBs[bgIdx >= 0 && bgIdx < bgRGBs.length ? bgIdx : 0];
                         bgColor = Color.argb(alphaVal, rgb[0], rgb[1], rgb[2]);
                     }
@@ -647,16 +646,13 @@ public class ButtonMappingService extends AccessibilityService {
                     int gravity = positions[posIdx >= 0 && posIdx < positions.length ? posIdx : 0];
 
                     android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
-                    int screenWidth = dm.widthPixels;
-                    int screenHeight = dm.heightPixels;
 
-                    // Convert padding from dp to pixels
+                    // Convert padding, x offset, and y offset from dp to pixels
                     int paddingPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, paddingDp, dm);
                     int paddingPxHalf = paddingPx / 2;
 
-                    // Convert xPct and yPct to pixels
-                    int offsetX = (int) (screenWidth * (xPct / 100.0));
-                    int offsetY = (int) (screenHeight * (yPct / 100.0));
+                    int offsetX = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, xDp, dm);
+                    int offsetY = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, yDp, dm);
 
                     TextView tv = new TextView(ButtonMappingService.this);
                     tv.setTextColor(textColor);

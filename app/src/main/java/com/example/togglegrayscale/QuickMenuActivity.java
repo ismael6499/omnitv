@@ -78,7 +78,9 @@ public class QuickMenuActivity extends Activity {
     private LinearLayout panelClockConfig;
     private TextView btnClockTextColor;
     private TextView btnClockBgColor;
-    private TextView btnClockAlpha;
+    private TextView btnClockAlphaDec;
+    private TextView btnClockAlphaInc;
+    private TextView txtClockAlpha;
     private TextView btnClockPosition;
     private TextView btnClockSizeDec;
     private TextView btnClockSizeInc;
@@ -147,7 +149,9 @@ public class QuickMenuActivity extends Activity {
         panelClockConfig     = findViewById(R.id.panel_clock_config);
         btnClockTextColor    = findViewById(R.id.btn_clock_text_color);
         btnClockBgColor      = findViewById(R.id.btn_clock_bg_color);
-        btnClockAlpha        = findViewById(R.id.btn_clock_alpha);
+        btnClockAlphaDec     = findViewById(R.id.btn_clock_alpha_dec);
+        btnClockAlphaInc     = findViewById(R.id.btn_clock_alpha_inc);
+        txtClockAlpha        = findViewById(R.id.txt_clock_alpha);
         btnClockPosition     = findViewById(R.id.btn_clock_position);
         btnClockSizeDec      = findViewById(R.id.btn_clock_size_dec);
         btnClockSizeInc      = findViewById(R.id.btn_clock_size_inc);
@@ -391,22 +395,22 @@ public class QuickMenuActivity extends Activity {
         }
         if (btnClockXDec != null) {
             btnClockXDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustClockIntPref("clock_pos_x_pct", 5, -1, 0, 100); }
+                @Override public void onClick(View v) { adjustClockIntPref("clock_pos_x_dp", 16, -2, 0, 500); }
             });
         }
         if (btnClockXInc != null) {
             btnClockXInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustClockIntPref("clock_pos_x_pct", 5, 1, 0, 100); }
+                @Override public void onClick(View v) { adjustClockIntPref("clock_pos_x_dp", 16, 2, 0, 500); }
             });
         }
         if (btnClockYDec != null) {
             btnClockYDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustClockIntPref("clock_pos_y_pct", 5, -1, 0, 100); }
+                @Override public void onClick(View v) { adjustClockIntPref("clock_pos_y_dp", 16, -2, 0, 500); }
             });
         }
         if (btnClockYInc != null) {
             btnClockYInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustClockIntPref("clock_pos_y_pct", 5, 1, 0, 100); }
+                @Override public void onClick(View v) { adjustClockIntPref("clock_pos_y_dp", 16, 2, 0, 500); }
             });
         }
         if (btnClockTextColor != null) {
@@ -427,13 +431,14 @@ public class QuickMenuActivity extends Activity {
                 }
             });
         }
-        if (btnClockAlpha != null) {
-            btnClockAlpha.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt("clock_bg_alpha_pct", 2);
-                    showClockPickerDialog("clock_bg_alpha_pct", CLOCK_ALPHA_NAMES, cur);
-                }
+        if (btnClockAlphaDec != null) {
+            btnClockAlphaDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustClockIntPref("clock_bg_alpha_pct", 35, -5, 0, 100); }
+            });
+        }
+        if (btnClockAlphaInc != null) {
+            btnClockAlphaInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustClockIntPref("clock_bg_alpha_pct", 35, 5, 0, 100); }
             });
         }
         if (btnClockPosition != null) {
@@ -894,25 +899,25 @@ public class QuickMenuActivity extends Activity {
         SharedPreferences prefs = getOverlayPrefs();
         int colorIdx = prefs.getInt("clock_text_color_idx", 0);
         int bgIdx = prefs.getInt("clock_bg_color_idx", 0);
-        int alphaIdx = prefs.getInt("clock_bg_alpha_pct", 2);
+        int alphaPct = prefs.getInt("clock_bg_alpha_pct", 35);
         int posIdx = prefs.getInt("clock_position_idx", 0);
         
         int sizeSp = prefs.getInt("clock_size_sp", 16);
         int paddingDp = prefs.getInt("clock_padding_dp", 12);
-        int posX = prefs.getInt("clock_pos_x_pct", 5);
-        int posY = prefs.getInt("clock_pos_y_pct", 5);
+        int posX = prefs.getInt("clock_pos_x_dp", 16);
+        int posY = prefs.getInt("clock_pos_y_dp", 16);
         
         boolean active = prefs.getBoolean(ButtonMappingService.KEY_CLOCK, false);
 
         if (btnClockTextColor != null) btnClockTextColor.setText("   Color Letra:  " + CLOCK_COLOR_NAMES[colorIdx]);
         if (btnClockBgColor != null) btnClockBgColor.setText("   Color Fondo:  " + CLOCK_BG_NAMES[bgIdx]);
-        if (btnClockAlpha != null) btnClockAlpha.setText("   Transparencia Fondo:  " + CLOCK_ALPHA_NAMES[alphaIdx]);
         if (btnClockPosition != null) btnClockPosition.setText("   Posición Base:  " + CLOCK_POSITION_NAMES[posIdx]);
         
+        if (txtClockAlpha != null) txtClockAlpha.setText(alphaPct + "%");
         if (txtClockSize != null) txtClockSize.setText(sizeSp + "sp");
         if (txtClockPad != null) txtClockPad.setText(paddingDp + "dp");
-        if (txtClockX != null) txtClockX.setText(posX + "%");
-        if (txtClockY != null) txtClockY.setText(posY + "%");
+        if (txtClockX != null) txtClockX.setText(posX + "dp");
+        if (txtClockY != null) txtClockY.setText(posY + "dp");
         
         if (btnApplyClock != null) btnApplyClock.setText(active ? "[ Desactivar Reloj ]" : "[ Activar Reloj ]");
     }
