@@ -150,8 +150,8 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
-    private final ButtonState muteState = new ButtonState("mute", 1, 7, 8, 2, 1000);
-    private final ButtonState youtube190State = new ButtonState("youtube_190", 5, 4, 0, 3, 2000);
+    private final ButtonState muteState = new ButtonState("mute", 1, 7, 8, 2, 500);
+    private final ButtonState youtube190State = new ButtonState("youtube_190", 5, 4, 3, 18, 500);
     private final ButtonState youtube189State = new ButtonState("youtube_189", 5, 0, 0, 4, 2000);
 
     @Override
@@ -165,7 +165,7 @@ public class ButtonMappingService extends AccessibilityService {
             @Override
             public void run() {
                 if (prefs.getBoolean(KEY_BLUE_LIGHT, false)) showBlueLightOverlay();
-                if (prefs.getBoolean(KEY_CLOCK, false)) showClockOverlay();
+                if (prefs.getBoolean(KEY_CLOCK, true)) showClockOverlay();
                 if (prefs.getBoolean(KEY_DIMMER, false)) showDimmerOverlay();
             }
         }, 500);
@@ -610,11 +610,11 @@ public class ButtonMappingService extends AccessibilityService {
                     SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                     int colorIdx = prefs.getInt("clock_text_color_idx", 0);
                     int bgIdx = prefs.getInt("clock_bg_color_idx", 0);
-                    int alphaPct = prefs.getInt("clock_bg_alpha_pct", 35);
+                    int alphaPct = prefs.getInt("clock_bg_alpha_pct", 1);
                     int posIdx = prefs.getInt("clock_position_idx", 0);
 
-                    int sizeSp = prefs.getInt("clock_size_sp", 16);
-                    int paddingDp = prefs.getInt("clock_padding_dp", 12);
+                    int sizeSp = prefs.getInt("clock_size_sp", 10);
+                    int paddingDp = prefs.getInt("clock_padding_dp", 3);
                     int xDp = prefs.getInt("clock_pos_x_dp", 16);
                     int yDp = prefs.getInt("clock_pos_y_dp", 16);
 
