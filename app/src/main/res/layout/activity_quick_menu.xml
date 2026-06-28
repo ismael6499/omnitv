@@ -130,10 +130,17 @@
             <TextView android:id="@+id/btn_clock_position" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
             
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Transparencia Fondo:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Fondo:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
                 <TextView android:id="@+id/btn_clock_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
                 <TextView android:id="@+id/txt_clock_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="35%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
                 <TextView android:id="@+id/btn_clock_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_clock_text_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_clock_text_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="100%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_clock_text_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
             </LinearLayout>
 
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">

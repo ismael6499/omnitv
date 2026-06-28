@@ -611,6 +611,7 @@ public class ButtonMappingService extends AccessibilityService {
                     int colorIdx = prefs.getInt("clock_text_color_idx", 0);
                     int bgIdx = prefs.getInt("clock_bg_color_idx", 0);
                     int alphaPct = prefs.getInt("clock_bg_alpha_pct", 1);
+                    int textAlphaPct = prefs.getInt("clock_text_alpha_pct", 100);
                     int posIdx = prefs.getInt("clock_position_idx", 0);
 
                     int sizeSp = prefs.getInt("clock_size_sp", 10);
@@ -619,7 +620,9 @@ public class ButtonMappingService extends AccessibilityService {
                     int yDp = prefs.getInt("clock_pos_y_dp", 16);
 
                     int[] textColors = {0xFFFFFFFF, 0xFF000000, 0xFFFFFF00, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF};
-                    int textColor = textColors[colorIdx >= 0 && colorIdx < textColors.length ? colorIdx : 0];
+                    int rawColor = textColors[colorIdx >= 0 && colorIdx < textColors.length ? colorIdx : 0];
+                    int textAlphaVal = (int) (textAlphaPct * 2.55);
+                    int textColor = (rawColor & 0x00FFFFFF) | (textAlphaVal << 24);
 
                     int[][] bgRGBs = {
                         {0, 0, 0},

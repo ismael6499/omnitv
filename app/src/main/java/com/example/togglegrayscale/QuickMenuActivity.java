@@ -81,6 +81,9 @@ public class QuickMenuActivity extends Activity {
     private TextView btnClockAlphaDec;
     private TextView btnClockAlphaInc;
     private TextView txtClockAlpha;
+    private TextView btnClockTextAlphaDec;
+    private TextView btnClockTextAlphaInc;
+    private TextView txtClockTextAlpha;
     private TextView btnClockPosition;
     private TextView btnClockSizeDec;
     private TextView btnClockSizeInc;
@@ -152,6 +155,9 @@ public class QuickMenuActivity extends Activity {
         btnClockAlphaDec     = findViewById(R.id.btn_clock_alpha_dec);
         btnClockAlphaInc     = findViewById(R.id.btn_clock_alpha_inc);
         txtClockAlpha        = findViewById(R.id.txt_clock_alpha);
+        btnClockTextAlphaDec = findViewById(R.id.btn_clock_text_alpha_dec);
+        btnClockTextAlphaInc = findViewById(R.id.btn_clock_text_alpha_inc);
+        txtClockTextAlpha    = findViewById(R.id.txt_clock_text_alpha);
         btnClockPosition     = findViewById(R.id.btn_clock_position);
         btnClockSizeDec      = findViewById(R.id.btn_clock_size_dec);
         btnClockSizeInc      = findViewById(R.id.btn_clock_size_inc);
@@ -439,6 +445,16 @@ public class QuickMenuActivity extends Activity {
         if (btnClockAlphaInc != null) {
             btnClockAlphaInc.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { adjustClockIntPref("clock_bg_alpha_pct", 35, 5, 0, 100); }
+            });
+        }
+        if (btnClockTextAlphaDec != null) {
+            btnClockTextAlphaDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustClockIntPref("clock_text_alpha_pct", 100, -5, 0, 100); }
+            });
+        }
+        if (btnClockTextAlphaInc != null) {
+            btnClockTextAlphaInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustClockIntPref("clock_text_alpha_pct", 100, 5, 0, 100); }
             });
         }
         if (btnClockPosition != null) {
@@ -900,6 +916,7 @@ public class QuickMenuActivity extends Activity {
         int colorIdx = prefs.getInt("clock_text_color_idx", 0);
         int bgIdx = prefs.getInt("clock_bg_color_idx", 0);
         int alphaPct = prefs.getInt("clock_bg_alpha_pct", 35);
+        int textAlphaPct = prefs.getInt("clock_text_alpha_pct", 100);
         int posIdx = prefs.getInt("clock_position_idx", 0);
         
         int sizeSp = prefs.getInt("clock_size_sp", 16);
@@ -914,6 +931,7 @@ public class QuickMenuActivity extends Activity {
         if (btnClockPosition != null) btnClockPosition.setText("   Posición Base:  " + CLOCK_POSITION_NAMES[posIdx]);
         
         if (txtClockAlpha != null) txtClockAlpha.setText(alphaPct + "%");
+        if (txtClockTextAlpha != null) txtClockTextAlpha.setText(textAlphaPct + "%");
         if (txtClockSize != null) txtClockSize.setText(sizeSp + "sp");
         if (txtClockPad != null) txtClockPad.setText(paddingDp + "dp");
         if (txtClockX != null) txtClockX.setText(posX + "dp");
