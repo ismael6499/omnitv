@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#80000000" android:clickable="true" android:focusable="true">
+    <LinearLayout android:layout_width="390dp" android:layout_height="match_parent"
+        android:layout_gravity="end" android:background="#1A1C22" android:orientation="vertical"
+        android:elevation="8dp" android:clickable="true" android:focusable="true">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Quick Actions" android:textColor="#FFFFFF" android:textSize="22sp"
+            android:textStyle="bold" android:layout_marginTop="32dp" android:layout_marginBottom="16dp"
+            android:paddingStart="24dp" />
+        <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_weight="1" android:scrollbars="vertical">
+            <LinearLayout android:id="@+id/menu_container" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:orientation="vertical"
+                android:paddingStart="16dp" android:paddingEnd="16dp"
+                android:paddingTop="8dp" android:paddingBottom="16dp" />
+        </ScrollView>
+
+        <!-- Timer sub-panel (Presets + Custom) -->
+        <LinearLayout android:id="@+id/panel_timer" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Presets de duracion:" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:layout_marginBottom="6dp">
+                <TextView android:id="@+id/btn_5m" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="5m" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="4dp" />
+                <TextView android:id="@+id/btn_15m" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="15m" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="4dp" />
+                <TextView android:id="@+id/btn_30m" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="30m" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="4dp" />
+                <TextView android:id="@+id/btn_45m" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="45m" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:layout_marginBottom="12dp">
+                <TextView android:id="@+id/btn_1h" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="1h" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="4dp" />
+                <TextView android:id="@+id/btn_2h" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="2h" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="4dp" />
+                <TextView android:id="@+id/btn_2h30m" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="2h30" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="4dp" />
+                <TextView android:id="@+id/btn_3h" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="3h" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <!-- Custom Timer inputs -->
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Custom Timer:" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="10dp">
+                <TextView android:id="@+id/btn_hours_dec" android:layout_width="32dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_custom_hours" android:layout_width="48dp" android:layout_height="wrap_content" android:text="0h" android:textColor="#FFFFFF" android:textSize="15sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_hours_inc" android:layout_width="32dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                
+                <View android:layout_width="16dp" android:layout_height="1dp" />
+
+                <TextView android:id="@+id/btn_mins_dec" android:layout_width="32dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_custom_mins" android:layout_width="48dp" android:layout_height="wrap_content" android:text="00m" android:textColor="#FFFFFF" android:textSize="15sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_mins_inc" android:layout_width="32dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                
+                <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+                
+                <TextView android:id="@+id/btn_start_custom_timer" android:layout_width="wrap_content" android:layout_height="36dp" android:background="@drawable/card_background" android:text="  Iniciar  " android:textColor="#4CAF50" android:textSize="13sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <TextView android:id="@+id/btn_cancel_timer" android:layout_width="match_parent"
+                android:layout_height="42dp" android:background="@drawable/card_background"
+                android:text="X  Cancelar Timer" android:textColor="#FF6B6B" android:textSize="14sp"
+                android:gravity="center" android:focusable="true" android:clickable="true" android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Blue light level sub-panel with slider (SeekBar) -->
+        <LinearLayout android:id="@+id/panel_blue_light" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Ajustar Filtro Luz Azul:" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="8dp" android:paddingStart="4dp" />
+            <SeekBar android:id="@+id/slider_blue_light" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:max="80" android:progress="0"
+                android:focusable="true" android:clickable="true" android:layout_marginBottom="8dp" />
+            <TextView android:id="@+id/txt_blue_light_pct" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Nivel: 0%" android:textColor="#FFFFFF"
+                android:textSize="14sp" android:gravity="center" android:layout_marginBottom="4dp" />
+        </LinearLayout>
+
+        <!-- Cine config sub-panel -->
+        <LinearLayout android:id="@+id/panel_cine" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Configurar Modo Cine:" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+            <TextView android:id="@+id/btn_cine_blue_light_config" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_cine_dimmer_config" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_cine_timer_config" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_apply_cine" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+        </LinearLayout>
+
+        <!-- Button config sub-panel -->
+        <LinearLayout android:id="@+id/panel_button_config" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:id="@+id/txt_config_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Configurar Botón:" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+            <TextView android:id="@+id/btn_config_click_1" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_config_click_2" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_config_click_3" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_config_long" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tiempo Sostenido:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_config_duration_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_config_duration" android:layout_width="60dp" android:layout_height="wrap_content" android:text="1.0s" android:textColor="#FFFFFF" android:textSize="15sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_config_duration_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Clock config sub-panel -->
+        <LinearLayout android:id="@+id/panel_clock_config" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Configurar Reloj en Pantalla:" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+            <TextView android:id="@+id/btn_clock_text_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_clock_bg_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_clock_alpha" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_clock_position" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tamaño Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_clock_size_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_clock_size" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16sp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_clock_size_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Padding (Margen Int):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_clock_pad_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_clock_pad" android:layout_width="60dp" android:layout_height="wrap_content" android:text="12dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_clock_pad_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar X (%):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_clock_x_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_clock_x" android:layout_width="60dp" android:layout_height="wrap_content" android:text="5%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_clock_x_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar Y (%):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_clock_y_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_clock_y" android:layout_width="60dp" android:layout_height="wrap_content" android:text="5%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_clock_y_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <TextView android:id="@+id/btn_apply_clock" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
