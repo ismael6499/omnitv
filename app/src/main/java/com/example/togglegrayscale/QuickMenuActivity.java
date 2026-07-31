@@ -721,26 +721,18 @@ public class QuickMenuActivity extends Activity {
                 }
             });
         }
-        if (btnStillWatchingIntervalDec != null) {
-            btnStillWatchingIntervalDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { cycleStillWatchingInterval(-1); }
-            });
-        }
-        if (btnStillWatchingIntervalInc != null) {
-            btnStillWatchingIntervalInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { cycleStillWatchingInterval(1); }
-            });
-        }
-        if (btnStillWatchingTimeoutDec != null) {
-            btnStillWatchingTimeoutDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { cycleStillWatchingTimeout(-1); }
-            });
-        }
-        if (btnStillWatchingTimeoutInc != null) {
-            btnStillWatchingTimeoutInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { cycleStillWatchingTimeout(1); }
-            });
-        }
+        setupAutoRepeatStepButton(btnStillWatchingIntervalDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_INTERVAL, 30, step, 1, 500); }
+        });
+        setupAutoRepeatStepButton(btnStillWatchingIntervalInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_INTERVAL, 30, step, 1, 500); }
+        });
+        setupAutoRepeatStepButton(btnStillWatchingTimeoutDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, 30, step, 1, 300); }
+        });
+        setupAutoRepeatStepButton(btnStillWatchingTimeoutInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, 30, step, 1, 300); }
+        });
         if (btnStillWatchingActionType != null) {
             btnStillWatchingActionType.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { cycleStillWatchingAction(); }
@@ -751,46 +743,33 @@ public class QuickMenuActivity extends Activity {
                 @Override public void onClick(View v) { cycleStillWatchingPosition(); }
             });
         }
-        if (btnStillWatchingAlphaDec != null) {
-            btnStillWatchingAlphaDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85, -5, 10, 100); }
-            });
-        }
-        if (btnStillWatchingAlphaInc != null) {
-            btnStillWatchingAlphaInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85, 5, 10, 100); }
-            });
-        }
-        if (btnStillWatchingSizeDec != null) {
-            btnStillWatchingSizeDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_SIZE, 14, -1, 10, 28); }
-            });
-        }
-        if (btnStillWatchingSizeInc != null) {
-            btnStillWatchingSizeInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_SIZE, 14, 1, 10, 28); }
-            });
-        }
-        if (btnStillWatchingXDec != null) {
-            btnStillWatchingXDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_X, 16, -4, 0, 300); }
-            });
-        }
-        if (btnStillWatchingXInc != null) {
-            btnStillWatchingXInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_X, 16, 4, 0, 300); }
-            });
-        }
-        if (btnStillWatchingYDec != null) {
-            btnStillWatchingYDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_Y, 16, -4, 0, 300); }
-            });
-        }
-        if (btnStillWatchingYInc != null) {
-            btnStillWatchingYInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_Y, 16, 4, 0, 300); }
-            });
-        }
+        setupAutoRepeatStepButton(btnStillWatchingAlphaDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85, step, 1, 100); }
+        });
+        setupAutoRepeatStepButton(btnStillWatchingAlphaInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85, step, 1, 100); }
+        });
+
+        setupAutoRepeatStepButton(btnStillWatchingSizeDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_SIZE, 14, step, 8, 36); }
+        });
+        setupAutoRepeatStepButton(btnStillWatchingSizeInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_SIZE, 14, step, 8, 36); }
+        });
+
+        setupAutoRepeatStepButton(btnStillWatchingXDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_X, 16, step, 0, 500); }
+        });
+        setupAutoRepeatStepButton(btnStillWatchingXInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_X, 16, step, 0, 500); }
+        });
+
+        setupAutoRepeatStepButton(btnStillWatchingYDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_Y, 16, step, 0, 500); }
+        });
+        setupAutoRepeatStepButton(btnStillWatchingYInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_Y, 16, step, 0, 500); }
+        });
         if (btnApplyStillWatching != null) {
             btnApplyStillWatching.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -1812,30 +1791,40 @@ public class QuickMenuActivity extends Activity {
         if (btnApplyStillWatching != null) btnApplyStillWatching.setText(active ? "[ Desactivar ¿Sigues viendo? ]" : "[ Activar ¿Sigues viendo? ]");
     }
 
-    private void cycleStillWatchingInterval(int dir) {
-        int[] options = {5, 10, 15, 30, 45, 60, 90, 120};
-        int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_INTERVAL, 30);
-        int idx = 3;
-        for (int i = 0; i < options.length; i++) {
-            if (options[i] == cur) { idx = i; break; }
-        }
-        idx = (idx + dir + options.length) % options.length;
-        getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_INTERVAL, options[idx]).apply();
-        updateStillWatchingConfigPanel();
-        sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+    private interface StepAdjuster {
+        void adjust(int step);
     }
 
-    private void cycleStillWatchingTimeout(int dir) {
-        int[] options = {10, 15, 20, 30, 45, 60};
-        int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, 30);
-        int idx = 3;
-        for (int i = 0; i < options.length; i++) {
-            if (options[i] == cur) { idx = i; break; }
-        }
-        idx = (idx + dir + options.length) % options.length;
-        getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, options[idx]).apply();
-        updateStillWatchingConfigPanel();
-        sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+    private void setupAutoRepeatStepButton(final View view, final int dir, final StepAdjuster adjuster) {
+        if (view == null) return;
+
+        view.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                adjuster.adjust(dir * 1);
+                view.requestFocus();
+            }
+        });
+
+        view.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                        int repeat = event.getRepeatCount();
+                        if (repeat > 0) {
+                            int step = 1;
+                            if (repeat > 20) step = 10;
+                            else if (repeat > 8) step = 5;
+                            adjuster.adjust(dir * step);
+                            view.requestFocus();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        });
     }
 
     private void cycleStillWatchingAction() {
