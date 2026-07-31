@@ -1443,7 +1443,12 @@ public class ButtonMappingService extends AccessibilityService {
         dismissStillWatchingPrompt();
         SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int action = prefs.getInt(KEY_STILL_WATCHING_ACTION, 0);
-        Log.d(TAG, "Still watching timeout expired! Executing timeout action: " + action);
+        Log.d(TAG, "Still watching timeout expired! Executing timeout action: " + action + " and deactivating feature.");
+
+        // Automatically turn off still_watching so it does not loop while user is inactive/asleep
+        prefs.edit().putBoolean(KEY_STILL_WATCHING, false).apply();
+        stopStillWatchingTimer();
+
         if (action == 0) {
             pauseMedia();
         } else if (action == 1) {
@@ -1451,7 +1456,6 @@ public class ButtonMappingService extends AccessibilityService {
         } else if (action == 2) {
             performGlobalAction(GLOBAL_ACTION_BACK);
         }
-        startStillWatchingTimer();
     }
 
     private void pauseMedia() {
