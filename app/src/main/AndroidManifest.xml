@@ -9,6 +9,20 @@
         <package android:name="com.google.android.youtube" />
         <package android:name="com.netflix.ninja" />
         <package android:name="com.netflix.mediaclient" />
+        <package android:name="com.disney.disneyplus" />
+        <package android:name="com.disney.disneyplus.tv" />
+        <package android:name="com.teamsmart.videomanager.tv" />
+        <package android:name="com.liskovsoft.videomanager.tv" />
+        <package android:name="com.liskovsoft.smarttubetv.beta" />
+        <package android:name="com.google.android.youtube.tvmusic" />
+        <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="com.amazon.amazonvideo.livingroom" />
+        <package android:name="com.amazon.avod.thirdpartyclient" />
+        <package android:name="com.max" />
+        <package android:name="com.stremio.one" />
+        <package android:name="com.plexapp.android" />
+        <package android:name="com.paramountplus.android.tv" />
+        <package android:name="com.apple.atve.amazon.trusted" />
     </queries>
     
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />

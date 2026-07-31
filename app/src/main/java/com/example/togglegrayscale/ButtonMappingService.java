@@ -21,6 +21,8 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 import android.widget.TextView;
 import java.util.Date;
 import java.util.Locale;
@@ -45,6 +47,16 @@ public class ButtonMappingService extends AccessibilityService {
     static final String KEY_CLOCK = "clock";
     static final String KEY_DIMMER = "dimmer";
     static final String KEY_CINE_MODE = "cine_mode";
+    static final String KEY_STILL_WATCHING = "still_watching";
+    static final String KEY_STILL_WATCHING_INTERVAL = "still_watching_interval";
+    static final String KEY_STILL_WATCHING_TIMEOUT = "still_watching_timeout";
+    static final String KEY_STILL_WATCHING_ACTION = "still_watching_action";
+    static final String KEY_STILL_WATCHING_POS = "still_watching_pos";
+    static final String KEY_STILL_WATCHING_ALPHA = "still_watching_alpha";
+    static final String KEY_STILL_WATCHING_SIZE = "still_watching_size";
+    static final String KEY_STILL_WATCHING_PAD = "still_watching_pad";
+    static final String KEY_STILL_WATCHING_X = "still_watching_x";
+    static final String KEY_STILL_WATCHING_Y = "still_watching_y";
 
     private boolean isBlueLightActive = false;
     private View blueLightOverlayView = null;
@@ -56,6 +68,35 @@ public class ButtonMappingService extends AccessibilityService {
     private boolean isDimmerActive = false;
     private View dimmerOverlayView = null;
 
+    private boolean isStillWatchingActive = false;
+    private boolean isStillWatchingPromptActive = false;
+    private View stillWatchingOverlayView = null;
+    private int stillWatchingCountdownSeconds = 30;
+
+    private final Runnable stillWatchingIntervalRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isStillWatchingActive) {
+                showStillWatchingPrompt();
+            }
+        }
+    };
+
+    private final Runnable stillWatchingCountdownRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isStillWatchingPromptActive && stillWatchingOverlayView != null) {
+                stillWatchingCountdownSeconds--;
+                if (stillWatchingCountdownSeconds <= 0) {
+                    onStillWatchingTimeoutExpired();
+                } else {
+                    updateStillWatchingPromptText();
+                    handler.postDelayed(this, 1000);
+                }
+            }
+        }
+    };
+
     private View systemInfoOverlayView = null;
 
     private int clockShowRetries = 0;
@@ -66,7 +107,7 @@ public class ButtonMappingService extends AccessibilityService {
         @Override
         public void run() {
             updateClockText();
-            handler.postDelayed(this, 60000);
+            handler.postDelayed(this, 1000);
         }
     };
 
@@ -154,12 +195,367 @@ public class ButtonMappingService extends AccessibilityService {
     private final ButtonState youtube190State = new ButtonState("youtube_190", 5, 4, 3, 18, 500);
     private final ButtonState youtube189State = new ButtonState("youtube_189", 5, 0, 0, 4, 2000);
 
+    private long lastAutoPauseTime = 0;
+    private long lastCountdownDetectTime = 0;
+    private static final java.util.regex.Pattern TIME_PATTERN = 
+        java.util.regex.Pattern.compile("(\\d?\\d:\\d\\d(:\\d\\d)?)\\s*(/|of|de)\\s*(\\d?\\d:\\d\\d(:\\d\\d)?)", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    private final Runnable autoPauseCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                checkAutoPause();
+            } catch (Exception e) {
+                Log.e(TAG, "Error in autoPauseCheckRunnable", e);
+            }
+            handler.postDelayed(this, 2000);
+        }
+    };
+
+    private static class ScreenInfo {
+        final java.util.ArrayList<String> texts = new java.util.ArrayList<>();
+        boolean isProgressBarNearEnd = false;
+    }
+
+    private void checkAutoPause() {
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int mode = op.getInt("auto_pause_mode", 0);
+        Log.d(TAG, "checkAutoPause tick: mode=" + mode);
+        if (mode == 0) return; // Disabled
+
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastAutoPauseTime < 20000) { // 20s cooldown
+            return;
+        }
+
+        java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = getWindows();
+        Log.d(TAG, "checkAutoPause: windows count=" + (windows != null ? windows.size() : "null"));
+        if (windows == null || windows.isEmpty()) {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            Log.d(TAG, "checkAutoPause: fallback root=" + (root != null ? root.getPackageName() : "null"));
+            if (root != null) {
+                processRootNode(root, mode, now);
+                root.recycle();
+            }
+            return;
+        }
+
+        for (android.view.accessibility.AccessibilityWindowInfo window : windows) {
+            AccessibilityNodeInfo root = window.getRoot();
+            Log.d(TAG, "checkAutoPause: window root=" + (root != null ? root.getPackageName() : "null"));
+            if (root != null) {
+                boolean processed = processRootNode(root, mode, now);
+                root.recycle();
+                if (processed) {
+                    break;
+                }
+            }
+        }
+    }
+
+    private boolean processRootNode(AccessibilityNodeInfo root, int mode, long now) {
+        CharSequence pkgSeq = root.getPackageName();
+        if (pkgSeq == null) return false;
+        String pkg = pkgSeq.toString();
+
+        if (isExcludedPackage(pkg)) return false;
+
+        boolean isKnownStreaming = pkg.contains("youtube")
+                || pkg.contains("netflix")
+                || pkg.contains("disney")
+                || pkg.contains("smarttube")
+                || pkg.contains("amazonvideo")
+                || pkg.contains("primevideo")
+                || pkg.contains("max")
+                || pkg.contains("stremio")
+                || pkg.contains("plex")
+                || pkg.contains("paramountplus");
+
+        boolean musicActive = (audioManager != null && audioManager.isMusicActive());
+        
+        if (!isKnownStreaming && !musicActive) {
+            return false;
+        }
+
+        ScreenInfo info = new ScreenInfo();
+        scanScreen(root, info);
+
+        Log.d(TAG, "processRootNode: pkg=" + pkg + ", texts count=" + info.texts.size() + ", isBarNearEnd=" + info.isProgressBarNearEnd);
+
+        if (info.texts.isEmpty() && !info.isProgressBarNearEnd) {
+            return false;
+        }
+
+        // Print texts for debugging
+        Log.d(TAG, "checkAutoPause matched window: pkg=" + pkg + ", mode=" + mode + ", texts=" + info.texts);
+
+        // 1. Check countdown
+        if (checkAutoplayCountdown(info.texts)) {
+            lastCountdownDetectTime = now;
+            Log.d(TAG, "Auto pause: countdown detected!");
+            triggerAutoPause();
+            return true;
+        }
+
+        // 2. Check ProgressBar near end
+        if (info.isProgressBarNearEnd) {
+            Log.d(TAG, "Auto pause: ProgressBar near end detected!");
+            triggerAutoPause();
+            return true;
+        }
+
+        // 3. Check time text near end
+        for (String text : info.texts) {
+            if (checkTimeText(text)) {
+                Log.d(TAG, "Auto pause: Time text near end detected: " + text);
+                triggerAutoPause();
+                return true;
+            }
+        }
+
+        // 4. Check safety transition pause
+        if (now - lastCountdownDetectTime < 15000) {
+            for (String text : info.texts) {
+                if (checkTimeTextAtStart(text)) {
+                    Log.d(TAG, "Auto pause: Safety pause triggered for start of video: " + text);
+                    triggerAutoPause();
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    private boolean isExcludedPackage(String pkg) {
+        if (pkg == null) return true;
+        return pkg.equals("com.example.togglegrayscale")
+                || pkg.equals("com.google.android.tvlauncher")
+                || pkg.equals("com.google.android.apps.tv.launcherx")
+                || pkg.equals("com.android.launcher")
+                || pkg.equals("com.android.tv.settings")
+                || pkg.equals("com.google.android.tv.settings")
+                || pkg.equals("com.android.systemui")
+                || pkg.equals("com.google.android.inputmethod.latin")
+                || pkg.equals("com.android.providers.media")
+                || pkg.equals("android");
+    }
+
+    private void scanScreen(AccessibilityNodeInfo node, ScreenInfo info) {
+        if (node == null) return;
+
+        // Check SeekBar/ProgressBar range info
+        if (node.getClassName() != null) {
+            String className = node.getClassName().toString();
+            if (className.contains("SeekBar") || className.contains("ProgressBar")) {
+                AccessibilityNodeInfo.RangeInfo range = node.getRangeInfo();
+                if (range != null) {
+                    float max = range.getMax();
+                    float current = range.getCurrent();
+                    if (max > 0) {
+                        if (max == 100.0f || max == 1.0f) {
+                            float ratio = current / max;
+                            if (ratio > 0.985f && ratio < 1.0f) {
+                                info.isProgressBarNearEnd = true;
+                            }
+                        } else if (max > 100.0f) {
+                            float remaining = max - current;
+                            if (remaining > 0 && remaining <= 10) {
+                                info.isProgressBarNearEnd = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Collect texts
+        CharSequence txtSeq = node.getText();
+        if (txtSeq != null && txtSeq.length() > 0) {
+            info.texts.add(txtSeq.toString().toLowerCase(Locale.ROOT));
+        }
+        CharSequence descSeq = node.getContentDescription();
+        if (descSeq != null && descSeq.length() > 0) {
+            info.texts.add(descSeq.toString().toLowerCase(Locale.ROOT));
+        }
+
+        // Recurse children
+        int count = node.getChildCount();
+        for (int i = 0; i < count; i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                scanScreen(child, info);
+                child.recycle();
+            }
+        }
+    }
+
+    private boolean checkTimeText(String str) {
+        if (str == null || str.isEmpty()) return false;
+        java.util.regex.Matcher m = TIME_PATTERN.matcher(str);
+        if (m.find()) {
+            String currentStr = m.group(1);
+            String totalStr = m.group(4);
+            int currentSecs = parseTimeToSeconds(currentStr);
+            int totalSecs = parseTimeToSeconds(totalStr);
+            if (currentSecs > 0 && totalSecs > 0) {
+                int remaining = totalSecs - currentSecs;
+                if (remaining >= 2 && remaining <= 12) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean checkTimeTextAtStart(String str) {
+        if (str == null || str.isEmpty()) return false;
+        java.util.regex.Matcher m = TIME_PATTERN.matcher(str);
+        if (m.find()) {
+            String currentStr = m.group(1);
+            int currentSecs = parseTimeToSeconds(currentStr);
+            if (currentSecs >= 0 && currentSecs <= 3) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean checkAutoplayCountdown(java.util.ArrayList<String> texts) {
+        boolean hasMediaKeyword = false;
+        boolean hasCountdownDigit = false;
+        
+        for (String text : texts) {
+            // Direct match with regex
+            if (text.matches(".*(siguiente|next|autoplay|reproducir|comienza|starts?|canción|cancion)\\s*(en|in)?\\s*\\d+\\s*(s|seg|segundos|seconds)?.*")) {
+                Log.d(TAG, "Autoplay countdown matched regex: " + text);
+                return true;
+            }
+            
+            if (text.contains("cancelar") || text.contains("cancel") 
+                    || text.contains("reproducir ahora") || text.contains("play now")) {
+                Log.d(TAG, "Autoplay countdown matched cancel/play now button: " + text);
+                return true;
+            }
+            
+            if (text.contains("siguiente") || text.contains("next") 
+                    || text.contains("canción") || text.contains("cancion")
+                    || text.contains("reproducir") || text.contains("play")) {
+                hasMediaKeyword = true;
+            }
+            
+            String trimmed = text.trim();
+            if (trimmed.length() >= 1 && trimmed.length() <= 2) {
+                try {
+                    int val = Integer.parseInt(trimmed);
+                    if (val >= 1 && val <= 15) {
+                        hasCountdownDigit = true;
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        
+        if (hasMediaKeyword && hasCountdownDigit) {
+            Log.d(TAG, "Autoplay countdown matched keyword + digit combination");
+            return true;
+        }
+        
+        return false;
+    }
+
+    private boolean checkKeywords(String str) {
+        if (str == null || str.isEmpty()) return false;
+        String lower = str.toLowerCase(Locale.ROOT);
+        return lower.contains("siguiente episodio")
+                || lower.contains("next episode")
+                || lower.contains("siguiente video")
+                || lower.contains("next video")
+                || lower.contains("reproducir siguiente")
+                || lower.contains("play next")
+                || (lower.contains("siguiente en") && (lower.contains("segundos") || lower.contains("seg")))
+                || (lower.contains("next in") && (lower.contains("seconds") || lower.contains("sec")))
+                || lower.contains("comenzará en")
+                || lower.contains("starts in");
+    }
+
+    private int parseTimeToSeconds(String timeStr) {
+        if (timeStr == null) return -1;
+        String[] parts = timeStr.split(":");
+        try {
+            if (parts.length == 2) {
+                int mins = Integer.parseInt(parts[0].trim());
+                int secs = Integer.parseInt(parts[1].trim());
+                return mins * 60 + secs;
+            } else if (parts.length == 3) {
+                int hours = Integer.parseInt(parts[0].trim());
+                int mins = Integer.parseInt(parts[1].trim());
+                int secs = Integer.parseInt(parts[2].trim());
+                return hours * 3600 + mins * 60 + secs;
+            }
+        } catch (NumberFormatException ignored) {}
+        return -1;
+    }
+
+    private void triggerAutoPause() {
+        lastAutoPauseTime = SystemClock.elapsedRealtime();
+        Log.d(TAG, "Executing Auto Pause!");
+
+        // Send KEYCODE_MEDIA_PAUSE
+        try {
+            if (audioManager != null) {
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE));
+                Log.d(TAG, "Sent KEYCODE_MEDIA_PAUSE for auto pause");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to send media pause key", e);
+        }
+
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+
+        // Turn screen black if configured
+        boolean turnBlack = op.getBoolean("auto_pause_black_screen", false);
+        if (turnBlack) {
+            showBlackScreen();
+        }
+
+        // Adjust mode/counters
+        int mode = op.getInt("auto_pause_mode", 0);
+        if (mode == 1) {
+            op.edit().putInt("auto_pause_mode", 0).apply();
+            Log.d(TAG, "Auto pause mode set to Disabled (was Once)");
+        } else if (mode == 3) {
+            int count = op.getInt("auto_pause_custom_count", 1);
+            if (count > 1) {
+                op.edit().putInt("auto_pause_custom_count", count - 1).apply();
+                Log.d(TAG, "Auto pause count decremented to: " + (count - 1));
+            } else {
+                op.edit().putInt("auto_pause_mode", 0).putInt("auto_pause_custom_count", 0).apply();
+                Log.d(TAG, "Auto pause count reached 0, mode set to Disabled");
+            }
+        }
+    }
+
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
         Log.d(TAG, "Service connected and ready to intercept keys");
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        
+        try {
+            android.accessibilityservice.AccessibilityServiceInfo info = getServiceInfo();
+            if (info != null) {
+                info.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
+                info.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS;
+                info.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS;
+                setServiceInfo(info);
+                Log.d(TAG, "AccessibilityServiceInfo configured programmatically.");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to set AccessibilityServiceInfo programmatically", e);
+        }
+
         final SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         handler.postDelayed(new Runnable() {
             @Override
@@ -167,8 +563,12 @@ public class ButtonMappingService extends AccessibilityService {
                 if (prefs.getBoolean(KEY_BLUE_LIGHT, false)) showBlueLightOverlay();
                 if (prefs.getBoolean(KEY_CLOCK, true)) showClockOverlay();
                 if (prefs.getBoolean(KEY_DIMMER, false)) showDimmerOverlay();
+                if (prefs.getBoolean(KEY_STILL_WATCHING, false)) startStillWatchingTimer();
             }
         }, 500);
+
+        // Start auto-pause checker
+        handler.postDelayed(autoPauseCheckRunnable, 2000);
     }
 
     @Override
@@ -209,11 +609,16 @@ public class ButtonMappingService extends AccessibilityService {
                 }
                 break;
             case "ACTION_TOGGLE_DIMMER": toggleDimmer(); break;
+            case "ACTION_TOGGLE_STILL_WATCHING": toggleStillWatching(); break;
+            case "ACTION_UPDATE_STILL_WATCHING": updateStillWatching(); break;
             case "ACTION_TOGGLE_CINE_MODE": toggleCineMode(); break;
             case "ACTION_SHOW_SYSTEM_INFO": showSystemInfoOverlay(); break;
             case "ACTION_REBOOT": rebootDevice(); break;
-            case "ACTION_OPEN_AUDIO": openAudioSettings(); break;
-            case "ACTION_OPEN_SCREEN_MIRROR": openScreenMirror(); break;
+            case "ACTION_OPEN_SYSTEM": openSystemSettings(); break;
+            case "ACTION_OPEN_BLUETOOTH": openBluetoothSettings(); break;
+            case "ACTION_OPEN_DEVELOPER_OPTIONS": openDeveloperOptions(); break;
+            case "ACTION_CYCLE_BRIGHTNESS": cycleBrightness(); break;
+            case "ACTION_PAUSE_AND_SCREEN_OFF": pauseMediaAndBlackScreen(); break;
             case "ACTION_OPEN_RECENTS":
                 handler.postDelayed(new Runnable() {
                     @Override public void run() { performGlobalAction(GLOBAL_ACTION_RECENTS); }
@@ -283,16 +688,8 @@ public class ButtonMappingService extends AccessibilityService {
             case 14: // Reiniciar Chromecast
                 rebootDevice();
                 break;
-            case 15: // Salida de Audio
-                openAudioSettings();
-                break;
-            case 16: // Pantalla Espejo
-                openScreenMirror();
-                break;
-            case 17: // Recientes
-                handler.postDelayed(new Runnable() {
-                    @Override public void run() { performGlobalAction(GLOBAL_ACTION_RECENTS); }
-                }, 300);
+            case 15: // Ajustes del Sistema
+                openSystemSettings();
                 break;
             case 18: // Pausar y Apagar Pantalla
                 pauseMediaAndBlackScreen();
@@ -303,8 +700,11 @@ public class ButtonMappingService extends AccessibilityService {
             case 20: // Subir Brillo (Dimmer)
                 adjustBrightness(10);
                 break;
-            case 21: // Alternar Brillo A/B/C
-                toggleBrightnessABC();
+            case 21: // Ciclar Brillo
+                cycleBrightness();
+                break;
+            case 22: // ¿Sigues viendo? (Inactividad)
+                toggleStillWatching();
                 break;
         }
     }
@@ -325,6 +725,7 @@ public class ButtonMappingService extends AccessibilityService {
         hideClockOverlay();
         hideDimmerOverlay();
         dismissSystemInfoOverlay();
+        stopStillWatchingTimer();
         handler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }
@@ -464,34 +865,43 @@ public class ButtonMappingService extends AccessibilityService {
     private void openBluetoothSettings() {
         try {
             Intent intent = new Intent();
-            intent.setClassName("com.android.tv.settings", "com.android.tv.settings.accessories.AddAccessoryActivity");
+            intent.setClassName("com.android.tv.settings", "com.android.tv.settings.accessories.AccessoriesActivity");
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            Log.d(TAG, "Successfully opened Bluetooth Settings (Add Accessory)");
-        } catch (Exception e1) {
-            Log.w(TAG, "Failed to open AddAccessoryActivity, trying general Bluetooth settings...", e1);
+            Log.d(TAG, "Successfully opened Bluetooth Settings (AccessoriesActivity)");
+        } catch (Exception e0) {
+            Log.w(TAG, "Failed AccessoriesActivity, trying AddAccessoryActivity...", e0);
             try {
-                Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+                Intent intent = new Intent();
+                intent.setClassName("com.android.tv.settings", "com.android.tv.settings.accessories.AddAccessoryActivity");
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent);
-                Log.d(TAG, "Successfully opened Bluetooth Settings (Standard)");
-            } catch (Exception e2) {
-                Log.w(TAG, "Failed standard Bluetooth settings, trying TV Settings activity...", e2);
+                Log.d(TAG, "Successfully opened Bluetooth Settings (Add Accessory)");
+            } catch (Exception e1) {
+                Log.w(TAG, "Failed to open AddAccessoryActivity, trying general Bluetooth settings...", e1);
                 try {
-                    Intent intent = new Intent();
-                    intent.setClassName("com.android.tv.settings", "com.android.tv.settings.connectivity.setup.ConnectBluetoothActivity");
+                    Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     startActivity(intent);
-                    Log.d(TAG, "Successfully opened Bluetooth Settings (ConnectBluetoothActivity)");
-                } catch (Exception e3) {
-                    Log.w(TAG, "Failed ConnectBluetoothActivity, trying general settings...", e3);
+                    Log.d(TAG, "Successfully opened Bluetooth Settings (Standard)");
+                } catch (Exception e2) {
+                    Log.w(TAG, "Failed standard Bluetooth settings, trying TV Settings activity...", e2);
                     try {
-                        Intent intent = new Intent(Settings.ACTION_SETTINGS);
+                        Intent intent = new Intent();
+                        intent.setClassName("com.android.tv.settings", "com.android.tv.settings.connectivity.setup.ConnectBluetoothActivity");
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(intent);
-                        Log.d(TAG, "Successfully opened General Settings");
-                    } catch (Exception e4) {
-                        Log.e(TAG, "Failed to open any settings activity", e4);
+                        Log.d(TAG, "Successfully opened Bluetooth Settings (ConnectBluetoothActivity)");
+                    } catch (Exception e3) {
+                        Log.w(TAG, "Failed ConnectBluetoothActivity, trying general settings...", e3);
+                        try {
+                            Intent intent = new Intent(Settings.ACTION_SETTINGS);
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                            Log.d(TAG, "Successfully opened General Settings");
+                        } catch (Exception e4) {
+                            Log.e(TAG, "Failed to open any settings activity", e4);
+                        }
                     }
                 }
             }
@@ -517,20 +927,27 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void toggleBlueLight() {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-        int currentPct = op.getInt("blue_light_pct", 0);
-        int nextPct = currentPct == 0 ? 30 : 0; // Default toggle a 30%
-        setBlueLightPct(nextPct);
+        boolean active = op.getBoolean(KEY_BLUE_LIGHT, false);
+        if (active) {
+            setBlueLightPct(0);
+        } else {
+            int lastPct = op.getInt("blue_light_pct", 50);
+            if (lastPct == 0) lastPct = 50;
+            setBlueLightPct(lastPct);
+        }
     }
 
     private void setBlueLightLevel(int level) {
         // Compatibilidad para atrás
-        int pct = level == 1 ? 20 : level == 2 ? 45 : level == 3 ? 70 : 0;
+        int pct = level == 1 ? 200 : level == 2 ? 450 : level == 3 ? 700 : 0;
         setBlueLightPct(pct);
     }
 
     private void setBlueLightPct(int pct) {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-        op.edit().putInt("blue_light_pct", pct).apply();
+        if (pct > 0) {
+            op.edit().putInt("blue_light_pct", pct).apply();
+        }
         if (pct == 0) {
             op.edit().putBoolean(KEY_BLUE_LIGHT, false).apply();
             hideBlueLightOverlay();
@@ -549,22 +966,20 @@ public class ButtonMappingService extends AccessibilityService {
                     WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
                     if (wm == null) { isBlueLightActive = false; return; }
                     
+                    // Calculamos alpha basado en % de 1000 (máximo 150 para que no tape completamente la pantalla)
+                    int alpha = (int) ((pct / 1000.0f) * 150);
+                    if (alpha < 1) alpha = 1;
+                    
                     if (blueLightOverlayView != null) {
-                        wm.removeView(blueLightOverlayView);
-                        blueLightOverlayView = null;
+                        blueLightOverlayView.setBackgroundColor(Color.argb(alpha, 240, 120, 0));
+                    } else {
+                        blueLightOverlayView = new View(ButtonMappingService.this);
+                        blueLightOverlayView.setBackgroundColor(Color.argb(alpha, 240, 120, 0)); // Tono naranja cálido y suave
+                        wm.addView(blueLightOverlayView, overlayMatchParams());
                     }
-
-                    // Calculamos alpha basado en % (máximo 150 para que no tape completamente la pantalla)
-                    int alpha = (int) ((pct / 100.0f) * 150);
-                    if (alpha < 10) alpha = 10; // Nivel mínimo muy suave
-                    
-                    blueLightOverlayView = new View(ButtonMappingService.this);
-                    blueLightOverlayView.setBackgroundColor(Color.argb(alpha, 240, 120, 0)); // Tono naranja cálido y suave
-                    
-                    wm.addView(blueLightOverlayView, overlayMatchParams());
                     blueLightShowRetries = 0; // Reset retries on success
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_BLUE_LIGHT, true).apply();
-                    Log.d(TAG, "Blue light overlay shown pct: " + pct + "% (alpha=" + alpha + ")");
+                    Log.d(TAG, "Blue light overlay shown pct: " + pct + " (alpha=" + alpha + ")");
                 } catch (Exception e) {
                     isBlueLightActive = false;
                     Log.e(TAG, "Error showing blue light overlay", e);
@@ -574,7 +989,7 @@ public class ButtonMappingService extends AccessibilityService {
                         handler.postDelayed(new Runnable() {
                             @Override
                             public void run() {
-                                showBlueLightOverlayPct(pct);
+                                  showBlueLightOverlayPct(pct);
                             }
                         }, 1000);
                     }
@@ -585,8 +1000,8 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void showBlueLightOverlay() {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-        int pct = op.getInt("blue_light_pct", 30);
-        showBlueLightOverlayPct(pct == 0 ? 30 : pct);
+        int pct = op.getInt("blue_light_pct", 50);
+        showBlueLightOverlayPct(pct == 0 ? 50 : pct);
     }
 
     private void hideBlueLightOverlay() {
@@ -697,9 +1112,19 @@ public class ButtonMappingService extends AccessibilityService {
                     p.y = offsetY;
 
                     wm.addView(clockOverlayView, p);
+
+                    if (isDimmerActive && dimmerOverlayView != null) {
+                        try {
+                            wm.removeView(dimmerOverlayView);
+                        } catch (Exception ignored) {}
+                        try {
+                            wm.addView(dimmerOverlayView, overlayMatchParams());
+                        } catch (Exception ignored) {}
+                    }
+
                     clockShowRetries = 0; // Reset retries on success
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_CLOCK, true).apply();
-                    handler.postDelayed(clockUpdateRunnable, 60000);
+                    handler.postDelayed(clockUpdateRunnable, 1000);
                     Log.d(TAG, "Clock overlay shown");
                 } catch (Exception e) {
                     isClockActive = false;
@@ -824,31 +1249,41 @@ public class ButtonMappingService extends AccessibilityService {
         });
     }
 
-    private void toggleBrightnessABC() {
+    private void cycleBrightness() {
         handler.post(new Runnable() {
             @Override
             public void run() {
                 SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                 int cur = prefs.getInt("dimmer_brightness_pct", 50);
-                int stateA = prefs.getInt("brightness_state_a", 80);
-                int stateB = prefs.getInt("brightness_state_b", 50);
-                int stateC = prefs.getInt("brightness_state_c", 20);
+                String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
                 
-                int diffA = Math.abs(cur - stateA);
-                int diffB = Math.abs(cur - stateB);
-                int diffC = Math.abs(cur - stateC);
+                String[] parts = levelsStr.split(",");
+                if (parts.length == 0) return;
                 
-                int next;
-                if (diffA <= diffB && diffA <= diffC) {
-                    next = stateB;
-                } else if (diffB <= diffA && diffB <= diffC) {
-                    next = stateC;
-                } else {
-                    next = stateA;
+                int[] levels = new int[parts.length];
+                for (int i = 0; i < parts.length; i++) {
+                    try {
+                        levels[i] = Integer.parseInt(parts[i].trim());
+                    } catch (Exception e) {
+                        levels[i] = 50;
+                    }
                 }
                 
+                int closestIdx = 0;
+                int minDiff = Math.abs(cur - levels[0]);
+                for (int i = 1; i < levels.length; i++) {
+                    int diff = Math.abs(cur - levels[i]);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestIdx = i;
+                    }
+                }
+                
+                int nextIdx = (closestIdx + 1) % levels.length;
+                int next = levels[nextIdx];
+                
                 prefs.edit().putInt("dimmer_brightness_pct", next).apply();
-                Log.d(TAG, "Toggled brightness to: " + next + "%");
+                Log.d(TAG, "Cycled brightness from " + cur + "% to " + next + "%");
                 if (isDimmerActive && dimmerOverlayView != null) {
                     int alphaVal = (int) ((100 - next) * 2.55);
                     dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
@@ -874,6 +1309,158 @@ public class ButtonMappingService extends AccessibilityService {
                 } catch (Exception e) { Log.e(TAG, "Error hiding dimmer overlay", e); }
             }
         });
+    }
+
+    // ── ¿Sigues viendo? (Inactividad) ───────────────────────────────────────
+
+    private void toggleStillWatching() {
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        boolean nextState = !prefs.getBoolean(KEY_STILL_WATCHING, false);
+        prefs.edit().putBoolean(KEY_STILL_WATCHING, nextState).apply();
+        if (nextState) {
+            startStillWatchingTimer();
+        } else {
+            stopStillWatchingTimer();
+        }
+    }
+
+    private void updateStillWatching() {
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        boolean enabled = prefs.getBoolean(KEY_STILL_WATCHING, false);
+        if (enabled) {
+            startStillWatchingTimer();
+        } else {
+            stopStillWatchingTimer();
+        }
+    }
+
+    private void startStillWatchingTimer() {
+        stopStillWatchingTimer();
+        isStillWatchingActive = true;
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int intervalMin = prefs.getInt(KEY_STILL_WATCHING_INTERVAL, 30);
+        long delayMs = intervalMin * 60 * 1000L;
+        handler.postDelayed(stillWatchingIntervalRunnable, delayMs);
+        Log.d(TAG, "Still watching timer started for " + intervalMin + " minutes.");
+    }
+
+    private void stopStillWatchingTimer() {
+        isStillWatchingActive = false;
+        handler.removeCallbacks(stillWatchingIntervalRunnable);
+        dismissStillWatchingPrompt();
+    }
+
+    private void showStillWatchingPrompt() {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm == null) return;
+                    dismissStillWatchingPrompt();
+
+                    SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    stillWatchingCountdownSeconds = prefs.getInt(KEY_STILL_WATCHING_TIMEOUT, 30);
+                    int pos = prefs.getInt(KEY_STILL_WATCHING_POS, 0);
+                    int alpha = prefs.getInt(KEY_STILL_WATCHING_ALPHA, 85);
+                    int textSizeSp = prefs.getInt(KEY_STILL_WATCHING_SIZE, 14);
+                    int padDp = prefs.getInt(KEY_STILL_WATCHING_PAD, 14);
+                    int offsetX = prefs.getInt(KEY_STILL_WATCHING_X, 16);
+                    int offsetY = prefs.getInt(KEY_STILL_WATCHING_Y, 16);
+
+                    float density = getResources().getDisplayMetrics().density;
+
+                    TextView tv = new TextView(ButtonMappingService.this);
+                    tv.setTextColor(Color.WHITE);
+                    tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp);
+                    tv.setTypeface(Typeface.DEFAULT_BOLD);
+                    int padPxHorizontal = Math.round((padDp + 4) * density);
+                    int padPxVertical = Math.round(padDp * density);
+                    tv.setPadding(padPxHorizontal, padPxVertical, padPxHorizontal, padPxVertical);
+
+                    int bgAlphaPx = (int) (alpha * 2.55);
+                    tv.setBackgroundColor(Color.argb(bgAlphaPx, 20, 24, 33));
+
+                    stillWatchingOverlayView = tv;
+                    isStillWatchingPromptActive = true;
+
+                    updateStillWatchingPromptText();
+
+                    WindowManager.LayoutParams p = new WindowManager.LayoutParams(
+                            WindowManager.LayoutParams.WRAP_CONTENT,
+                            WindowManager.LayoutParams.WRAP_CONTENT,
+                            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                            PixelFormat.TRANSLUCENT
+                    );
+
+                    switch (pos) {
+                        case 0: p.gravity = Gravity.TOP | Gravity.START; break;
+                        case 1: p.gravity = Gravity.TOP | Gravity.END; break;
+                        case 2: p.gravity = Gravity.BOTTOM | Gravity.START; break;
+                        case 3: p.gravity = Gravity.BOTTOM | Gravity.END; break;
+                        case 4: p.gravity = Gravity.CENTER; break;
+                        default: p.gravity = Gravity.TOP | Gravity.START; break;
+                    }
+
+                    p.x = Math.round(offsetX * density);
+                    p.y = Math.round(offsetY * density);
+
+                    wm.addView(stillWatchingOverlayView, p);
+                    handler.postDelayed(stillWatchingCountdownRunnable, 1000);
+                    Log.d(TAG, "Still watching prompt shown");
+                } catch (Exception e) { Log.e(TAG, "Error showing still watching prompt", e); }
+            }
+        });
+    }
+
+    private void updateStillWatchingPromptText() {
+        if (stillWatchingOverlayView instanceof TextView) {
+            TextView tv = (TextView) stillWatchingOverlayView;
+            tv.setText("📺 ¿Sigues viendo?\nPresiona OK o Atrás para continuar (" + stillWatchingCountdownSeconds + "s)");
+        }
+    }
+
+    private void dismissStillWatchingPrompt() {
+        isStillWatchingPromptActive = false;
+        handler.removeCallbacks(stillWatchingCountdownRunnable);
+        if (stillWatchingOverlayView == null) return;
+        final View v = stillWatchingOverlayView;
+        stillWatchingOverlayView = null;
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm != null) wm.removeView(v);
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    private void onStillWatchingTimeoutExpired() {
+        dismissStillWatchingPrompt();
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int action = prefs.getInt(KEY_STILL_WATCHING_ACTION, 0);
+        Log.d(TAG, "Still watching timeout expired! Executing timeout action: " + action);
+        if (action == 0) {
+            pauseMedia();
+        } else if (action == 1) {
+            pauseMediaAndBlackScreen();
+        } else if (action == 2) {
+            performGlobalAction(GLOBAL_ACTION_BACK);
+        }
+        startStillWatchingTimer();
+    }
+
+    private void pauseMedia() {
+        try {
+            if (audioManager != null) {
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE));
+            }
+        } catch (Exception e) { Log.e(TAG, "Failed to pause media", e); }
     }
 
     // ── System info overlay ──────────────────────────────────────────────────
@@ -968,8 +1555,8 @@ public class ButtonMappingService extends AccessibilityService {
         if (isCineActive) {
             // Activar overlays de Cine
             if (cp.getBoolean("cine_blue_light", true) && !isBlueLightActive) {
-                int pct = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).getInt("blue_light_pct", 30);
-                showBlueLightOverlayPct(pct == 0 ? 30 : pct);
+                int pct = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).getInt("blue_light_pct", 50);
+                showBlueLightOverlayPct(pct == 0 ? 50 : pct);
             }
             if (cp.getBoolean("cine_dimmer", false) && !isDimmerActive) showDimmerOverlay();
             int timerMins = cp.getInt("cine_timer", 0);
@@ -1006,27 +1593,39 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
-    private void openAudioSettings() {
+    private void openSystemSettings() {
         try {
-            Intent intent = new Intent(Settings.ACTION_SOUND_SETTINGS);
+            Intent intent = new Intent();
+            intent.setClassName("com.android.tv.settings", "com.android.tv.settings.MainSettings");
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            Log.d(TAG, "Opened audio settings");
-        } catch (Exception e) { Log.e(TAG, "Failed to open audio settings", e); }
-    }
-
-    private void openScreenMirror() {
-        String[] actions = {"android.settings.CAST_SETTINGS", Settings.ACTION_DISPLAY_SETTINGS};
-        for (String action : actions) {
+            Log.d(TAG, "Successfully opened System Settings (MainSettings)");
+        } catch (Exception e) {
             try {
-                Intent intent = new Intent(action);
+                Intent intent = new Intent(Settings.ACTION_SETTINGS);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent);
-                Log.d(TAG, "Opened screen mirror via: " + action);
-                return;
             } catch (Exception ignored) {}
         }
-        Log.e(TAG, "Failed to open screen mirror settings");
+    }
+
+    private void openDeveloperOptions() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            Log.d(TAG, "Successfully opened Developer Options via standard Action");
+        } catch (Exception e) {
+            try {
+                Intent intent = new Intent();
+                intent.setClassName("com.android.tv.settings", "com.android.tv.settings.system.development.DevelopmentActivity");
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+                Log.d(TAG, "Successfully opened Developer Options via DevelopmentActivity class");
+            } catch (Exception e2) {
+                Log.e(TAG, "Failed to open Developer Options", e2);
+            }
+        }
     }
 
     @Override
@@ -1035,6 +1634,20 @@ public class ButtonMappingService extends AccessibilityService {
         int action = event.getAction();
 
         Log.d(TAG, "onKeyEvent: keyCode=" + keyCode + ", action=" + action);
+
+        // 0. Intercept prompt response keys for ¿Sigues viendo?
+        if (isStillWatchingPromptActive) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                    || keyCode == KeyEvent.KEYCODE_ENTER
+                    || keyCode == KeyEvent.KEYCODE_BACK
+                    || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    dismissStillWatchingPrompt();
+                    startStillWatchingTimer();
+                }
+                return true;
+            }
+        }
 
         // 1. If black screen is active, intercept wake-up logic first
         if (isBlackScreenActive) {

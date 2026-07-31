@@ -77,36 +77,45 @@
                 android:layout_marginBottom="8dp" android:paddingStart="4dp" />
             <SeekBar android:id="@+id/slider_brightness" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:max="100" android:progress="100"
-                android:focusable="true" android:clickable="true" android:layout_marginBottom="8dp" />
+                android:focusable="true" android:clickable="true" android:layout_marginBottom="8dp"
+                android:nextFocusUp="@+id/slider_brightness" />
             <TextView android:id="@+id/txt_brightness_pct" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:text="Nivel: 100%" android:textColor="#FFFFFF"
                 android:textSize="14sp" android:gravity="center" android:layout_marginBottom="12dp" />
+            <com.example.togglegrayscale.MaxHeightScrollView
+                android:id="@+id/scroll_brightness_levels"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fadeScrollbars="false"
+                android:scrollbars="vertical">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
-            <!-- Predefined State A -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Brillo Predefinido A:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_a_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_a" android:layout_width="60dp" android:layout_height="wrap_content" android:text="80%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_a_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <!-- Dynamic levels container -->
+                    <LinearLayout android:id="@+id/container_brightness_levels"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginBottom="4dp" />
 
-            <!-- Predefined State B -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Brillo Predefinido B:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_b_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_b" android:layout_width="60dp" android:layout_height="wrap_content" android:text="50%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_b_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <!-- Add level control -->
+                    <TextView android:id="@+id/btn_add_brightness_level"
+                        android:layout_width="match_parent"
+                        android:layout_height="38dp"
+                        android:background="@drawable/card_background"
+                        android:text="➕ Agregar Nivel"
+                        android:textColor="#4CAF50"
+                        android:textSize="13sp"
+                        android:gravity="center"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="8dp" />
 
-            <!-- Predefined State C -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Brillo Predefinido C:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_c_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_c" android:layout_width="60dp" android:layout_height="wrap_content" android:text="20%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_c_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
-
-            <TextView android:id="@+id/btn_apply_brightness" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    <TextView android:id="@+id/btn_apply_brightness" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+                </LinearLayout>
+            </com.example.togglegrayscale.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- Blue light level sub-panel with slider (SeekBar) -->
@@ -122,7 +131,8 @@
                 android:focusable="true" android:clickable="true" android:layout_marginBottom="8dp" />
             <TextView android:id="@+id/txt_blue_light_pct" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:text="Nivel: 0%" android:textColor="#FFFFFF"
-                android:textSize="14sp" android:gravity="center" android:layout_marginBottom="4dp" />
+                android:textSize="14sp" android:gravity="center" android:layout_marginBottom="12dp" />
+            <TextView android:id="@+id/btn_apply_blue_light" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
         </LinearLayout>
 
         <!-- Cine config sub-panel -->
@@ -137,6 +147,27 @@
             <TextView android:id="@+id/btn_cine_dimmer_config" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
             <TextView android:id="@+id/btn_cine_timer_config" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
             <TextView android:id="@+id/btn_apply_cine" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+        </LinearLayout>
+
+        <!-- Auto Pause config sub-panel -->
+        <LinearLayout android:id="@+id/panel_auto_pause" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Configurar Auto Pausa de Video:" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+            
+            <TextView android:id="@+id/btn_auto_pause_mode" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            
+            <LinearLayout android:id="@+id/layout_auto_pause_custom" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Veces Restantes:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_auto_pause_count_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_auto_pause_count" android:layout_width="60dp" android:layout_height="wrap_content" android:text="1" android:textColor="#FFFFFF" android:textSize="15sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_auto_pause_count_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <TextView android:id="@+id/btn_auto_pause_black_screen" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
         </LinearLayout>
 
         <!-- Button config sub-panel -->
@@ -214,6 +245,74 @@
             </LinearLayout>
 
             <TextView android:id="@+id/btn_apply_clock" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+        </LinearLayout>
+
+        <!-- Still Watching config sub-panel -->
+        <LinearLayout android:id="@+id/panel_still_watching" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Configurar ¿Sigues viendo? (Inactividad):" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+            
+            <TextView android:id="@+id/btn_still_watching_action_toggle" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" android:nextFocusUp="@+id/btn_still_watching_action_toggle" />
+            
+            <!-- Interval minutes -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Intervalo (Minutos):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_still_watching_interval_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_still_watching_interval" android:layout_width="60dp" android:layout_height="wrap_content" android:text="30m" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_still_watching_interval_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <!-- Timeout seconds -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tiempo Límite Resp:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_still_watching_timeout_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_still_watching_timeout" android:layout_width="60dp" android:layout_height="wrap_content" android:text="30s" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_still_watching_timeout_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <!-- Action on timeout -->
+            <TextView android:id="@+id/btn_still_watching_action_type" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+            <!-- Screen Position -->
+            <TextView android:id="@+id/btn_still_watching_position" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+            <!-- Opacity -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Fondo:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_still_watching_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_still_watching_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="85%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_still_watching_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <!-- Font/Window Size -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tamaño Cartel:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_still_watching_size_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_still_watching_size" android:layout_width="60dp" android:layout_height="wrap_content" android:text="14sp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_still_watching_size_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <!-- Offset X -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar X (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_still_watching_x_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_still_watching_x" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_still_watching_x_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <!-- Offset Y -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar Y (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_still_watching_y_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_still_watching_y" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_still_watching_y_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <TextView android:id="@+id/btn_apply_still_watching" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

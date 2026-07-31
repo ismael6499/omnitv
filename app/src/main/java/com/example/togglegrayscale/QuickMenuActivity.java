@@ -24,9 +24,11 @@ public class QuickMenuActivity extends Activity {
     private static final String KEY_ORDER = "item_order";
     private static final String[] ALL_ITEM_IDS = {
         "manage_apps", "timer", "blue_light", "clock", "dimmer", "grayscale",
-        "cine_mode", "screen_off", "audio_output",
+        "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
-        "config_mute", "config_youtube_190", "config_youtube_189"
+        "pause_screen_off", "cycle_brightness", "still_watching",
+        "config_mute", "config_youtube_190", "config_youtube_189",
+        "developer_options"
     };
 
     private static final String[] ACTION_NAMES = {
@@ -45,33 +47,51 @@ public class QuickMenuActivity extends Activity {
         "Modo Cine",
         "Info del Sistema",
         "Reiniciar Chromecast",
-        "Salida de Audio",
+        "Ajustes del Sistema",
         "Pantalla Espejo",
         "Recientes",
         "Pausar y Apagar Pantalla",
         "Bajar Brillo (Dimmer)",
         "Subir Brillo (Dimmer)",
-        "Alternar Brillo A/B"
+        "Ciclar Brillo",
+        "¿Sigues viendo?",
+        "Opciones de Desarrollador"
     };
 
     private LinearLayout menuContainer;
     private LinearLayout panelTimer;
     private LinearLayout panelCine;
     private LinearLayout panelBlueLight;
+    private TextView btnApplyBlueLight;
     private LinearLayout panelBrightness;
     private SeekBar sliderBrightness;
     private TextView txtBrightnessPct;
-    private TextView btnBrightnessADec;
-    private TextView btnBrightnessAInc;
-    private TextView txtBrightnessA;
-    private TextView btnBrightnessBDec;
-    private TextView btnBrightnessBInc;
-    private TextView txtBrightnessB;
-    private TextView btnBrightnessCDec;
-    private TextView btnBrightnessCInc;
-    private TextView txtBrightnessC;
+    private LinearLayout containerBrightnessLevels;
+    private TextView btnAddBrightnessLevel;
     private TextView btnApplyBrightness;
     private LinearLayout panelButtonConfig;
+    private LinearLayout panelAutoPause;
+
+    private LinearLayout panelStillWatching;
+    private TextView btnStillWatchingToggle;
+    private TextView btnStillWatchingIntervalDec, btnStillWatchingIntervalInc, txtStillWatchingInterval;
+    private TextView btnStillWatchingTimeoutDec, btnStillWatchingTimeoutInc, txtStillWatchingTimeout;
+    private TextView btnStillWatchingActionType;
+    private TextView btnStillWatchingPosition;
+    private TextView btnStillWatchingAlphaDec, btnStillWatchingAlphaInc, txtStillWatchingAlpha;
+    private TextView btnStillWatchingSizeDec, btnStillWatchingSizeInc, txtStillWatchingSize;
+    private TextView btnStillWatchingXDec, btnStillWatchingXInc, txtStillWatchingX;
+    private TextView btnStillWatchingYDec, btnStillWatchingYInc, txtStillWatchingY;
+    private TextView btnApplyStillWatching;
+
+    private static final String[] STILL_WATCHING_POSITIONS = {"Arriba Izquierda", "Arriba Derecha", "Abajo Izquierda", "Abajo Derecha", "Centro"};
+    private static final String[] STILL_WATCHING_ACTIONS = {"Pausar Video", "Pausar y Apagar Pantalla", "Enviar Tecla Atrás"};
+    private TextView btnAutoPauseMode;
+    private LinearLayout layoutAutoPauseCustom;
+    private TextView btnAutoPauseCountDec;
+    private TextView txtAutoPauseCount;
+    private TextView btnAutoPauseCountInc;
+    private TextView btnAutoPauseBlackScreen;
     
     private TextView btnCancelTimer;
     private TextView btnCineBlueLightConfig;
@@ -144,6 +164,15 @@ public class QuickMenuActivity extends Activity {
         btnCineDimmerConfig    = findViewById(R.id.btn_cine_dimmer_config);
         btnCineTimerConfig     = findViewById(R.id.btn_cine_timer_config);
         btnApplyCine           = findViewById(R.id.btn_apply_cine);
+        btnApplyBlueLight      = findViewById(R.id.btn_apply_blue_light);
+        
+        panelAutoPause         = findViewById(R.id.panel_auto_pause);
+        btnAutoPauseMode       = findViewById(R.id.btn_auto_pause_mode);
+        layoutAutoPauseCustom  = findViewById(R.id.layout_auto_pause_custom);
+        btnAutoPauseCountDec   = findViewById(R.id.btn_auto_pause_count_dec);
+        txtAutoPauseCount      = findViewById(R.id.txt_auto_pause_count);
+        btnAutoPauseCountInc   = findViewById(R.id.btn_auto_pause_count_inc);
+        btnAutoPauseBlackScreen = findViewById(R.id.btn_auto_pause_black_screen);
 
         // Custom timer UI
         txtCustomHours         = findViewById(R.id.txt_custom_hours);
@@ -151,22 +180,21 @@ public class QuickMenuActivity extends Activity {
 
         // SeekBar UI
         sliderBlueLight        = findViewById(R.id.slider_blue_light);
+        if (sliderBlueLight != null) {
+            sliderBlueLight.setMax(800);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP_MR1) {
+                sliderBlueLight.setKeyProgressIncrement(1);
+            }
+        }
         txtBlueLightPct        = findViewById(R.id.txt_blue_light_pct);
 
         // Brightness UI
         panelBrightness      = findViewById(R.id.panel_brightness);
         sliderBrightness     = findViewById(R.id.slider_brightness);
         txtBrightnessPct     = findViewById(R.id.txt_brightness_pct);
-        btnBrightnessADec    = findViewById(R.id.btn_brightness_a_dec);
-        btnBrightnessAInc    = findViewById(R.id.btn_brightness_a_inc);
-        txtBrightnessA       = findViewById(R.id.txt_brightness_a);
-        btnBrightnessBDec    = findViewById(R.id.btn_brightness_b_dec);
-        btnBrightnessBInc    = findViewById(R.id.btn_brightness_b_inc);
-        txtBrightnessB       = findViewById(R.id.txt_brightness_b);
-        btnBrightnessCDec    = findViewById(R.id.btn_brightness_c_dec);
-        btnBrightnessCInc    = findViewById(R.id.btn_brightness_c_inc);
-        txtBrightnessC       = findViewById(R.id.txt_brightness_c);
-        btnApplyBrightness   = findViewById(R.id.btn_apply_brightness);
+        containerBrightnessLevels = findViewById(R.id.container_brightness_levels);
+        btnAddBrightnessLevel    = findViewById(R.id.btn_add_brightness_level);
+        btnApplyBrightness       = findViewById(R.id.btn_apply_brightness);
 
         // Button Config UI
         panelButtonConfig    = findViewById(R.id.panel_button_config);
@@ -203,6 +231,30 @@ public class QuickMenuActivity extends Activity {
         btnClockYInc         = findViewById(R.id.btn_clock_y_inc);
         txtClockY            = findViewById(R.id.txt_clock_y);
         btnApplyClock        = findViewById(R.id.btn_apply_clock);
+
+        panelStillWatching          = findViewById(R.id.panel_still_watching);
+        btnStillWatchingToggle       = findViewById(R.id.btn_still_watching_action_toggle);
+        btnStillWatchingIntervalDec  = findViewById(R.id.btn_still_watching_interval_dec);
+        txtStillWatchingInterval     = findViewById(R.id.txt_still_watching_interval);
+        btnStillWatchingIntervalInc  = findViewById(R.id.btn_still_watching_interval_inc);
+        btnStillWatchingTimeoutDec   = findViewById(R.id.btn_still_watching_timeout_dec);
+        txtStillWatchingTimeout      = findViewById(R.id.txt_still_watching_timeout);
+        btnStillWatchingTimeoutInc   = findViewById(R.id.btn_still_watching_timeout_inc);
+        btnStillWatchingActionType   = findViewById(R.id.btn_still_watching_action_type);
+        btnStillWatchingPosition     = findViewById(R.id.btn_still_watching_position);
+        btnStillWatchingAlphaDec     = findViewById(R.id.btn_still_watching_alpha_dec);
+        txtStillWatchingAlpha        = findViewById(R.id.txt_still_watching_alpha);
+        btnStillWatchingAlphaInc     = findViewById(R.id.btn_still_watching_alpha_inc);
+        btnStillWatchingSizeDec      = findViewById(R.id.btn_still_watching_size_dec);
+        txtStillWatchingSize         = findViewById(R.id.txt_still_watching_size);
+        btnStillWatchingSizeInc      = findViewById(R.id.btn_still_watching_size_inc);
+        btnStillWatchingXDec         = findViewById(R.id.btn_still_watching_x_dec);
+        txtStillWatchingX            = findViewById(R.id.txt_still_watching_x);
+        btnStillWatchingXInc         = findViewById(R.id.btn_still_watching_x_inc);
+        btnStillWatchingYDec         = findViewById(R.id.btn_still_watching_y_dec);
+        txtStillWatchingY            = findViewById(R.id.txt_still_watching_y);
+        btnStillWatchingYInc         = findViewById(R.id.btn_still_watching_y_inc);
+        btnApplyStillWatching        = findViewById(R.id.btn_apply_still_watching);
 
         setupSubPanelListeners();
         buildMenu();
@@ -267,19 +319,25 @@ public class QuickMenuActivity extends Activity {
         // SeekBar (Blue light filter)
         if (sliderBlueLight != null) {
             SharedPreferences op = getOverlayPrefs();
-            int currentPct = op.getInt("blue_light_pct", 0);
+            int currentPct = op.getInt("blue_light_pct", 50);
+            if (currentPct == 0) currentPct = 50;
             sliderBlueLight.setProgress(currentPct);
-            if (txtBlueLightPct != null) txtBlueLightPct.setText("Nivel: " + currentPct + "%");
 
             sliderBlueLight.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                 @Override
                 public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    if (txtBlueLightPct != null) txtBlueLightPct.setText("Nivel: " + progress + "%");
                     android.os.Bundle b = new android.os.Bundle();
                     b.putInt("pct", progress);
                     sendServiceAction("ACTION_SET_BLUE_LIGHT_PCT", b);
                     if (progress > 0) {
                         getOverlayPrefs().edit().putInt("blue_light_pct", progress).apply();
+                    }
+                    if (txtBlueLightPct != null) {
+                        double displayPct = progress / 10.0;
+                        txtBlueLightPct.setText("Nivel: " + (progress > 0 ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : "Desactivado"));
+                    }
+                    if (btnApplyBlueLight != null) {
+                        btnApplyBlueLight.setText(progress > 0 ? "[ Desactivar Filtro ]" : "[ Activar Filtro ]");
                     }
                 }
                 @Override public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -296,6 +354,30 @@ public class QuickMenuActivity extends Activity {
                         return true;
                     }
                     return false;
+                }
+            });
+        }
+
+        if (btnApplyBlueLight != null) {
+            btnApplyBlueLight.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    SharedPreferences prefs = getOverlayPrefs();
+                    boolean active = prefs.getBoolean(ButtonMappingService.KEY_BLUE_LIGHT, false);
+                    if (active) {
+                        android.os.Bundle b = new android.os.Bundle();
+                        b.putInt("pct", 0);
+                        sendServiceAction("ACTION_SET_BLUE_LIGHT_PCT", b);
+                    } else {
+                        int lastPct = prefs.getInt("blue_light_pct", 50);
+                        if (lastPct == 0) lastPct = 50;
+                        android.os.Bundle b = new android.os.Bundle();
+                        b.putInt("pct", lastPct);
+                        sendServiceAction("ACTION_SET_BLUE_LIGHT_PCT", b);
+                    }
+                    updateBlueLightConfigPanel();
+                    btnApplyBlueLight.requestFocus();
+                    buildMenu();
                 }
             });
         }
@@ -334,34 +416,23 @@ public class QuickMenuActivity extends Activity {
             });
         }
 
-        if (btnBrightnessADec != null) {
-            btnBrightnessADec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_a", 80, -5, 0, 100); }
-            });
-        }
-        if (btnBrightnessAInc != null) {
-            btnBrightnessAInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_a", 80, 5, 0, 100); }
-            });
-        }
-        if (btnBrightnessBDec != null) {
-            btnBrightnessBDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_b", 50, -5, 0, 100); }
-            });
-        }
-        if (btnBrightnessBInc != null) {
-            btnBrightnessBInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_b", 50, 5, 0, 100); }
-            });
-        }
-        if (btnBrightnessCDec != null) {
-            btnBrightnessCDec.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_c", 20, -5, 0, 100); }
-            });
-        }
-        if (btnBrightnessCInc != null) {
-            btnBrightnessCInc.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { adjustBrightnessIntPref("brightness_state_c", 20, 5, 0, 100); }
+        if (btnAddBrightnessLevel != null) {
+            btnAddBrightnessLevel.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    SharedPreferences prefs = getOverlayPrefs();
+                    String listStr = prefs.getString("brightness_levels_list", "80,50,20");
+                    String[] parts = listStr.split(",");
+                    if (parts.length < 8) {
+                        String lastVal = parts.length > 0 ? parts[parts.length - 1] : "50";
+                        String newList = listStr + "," + lastVal;
+                        prefs.edit().putString("brightness_levels_list", newList).apply();
+                        updateBrightnessConfigPanel();
+                        btnAddBrightnessLevel.requestFocus();
+                    } else {
+                        android.widget.Toast.makeText(QuickMenuActivity.this, "Máximo 8 niveles de brillo admitidos", android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                }
             });
         }
         if (btnApplyBrightness != null) {
@@ -369,7 +440,7 @@ public class QuickMenuActivity extends Activity {
                 @Override public void onClick(View v) {
                     toggleOverlay(ButtonMappingService.KEY_DIMMER, "ACTION_TOGGLE_DIMMER");
                     updateBrightnessConfigPanel();
-                    buildMenu();
+                    btnApplyBrightness.requestFocus();
                 }
             });
         }
@@ -581,6 +652,154 @@ public class QuickMenuActivity extends Activity {
                 }
             });
         }
+
+        // Auto-pause listeners
+        if (btnAutoPauseMode != null) {
+            btnAutoPauseMode.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    SharedPreferences op = getOverlayPrefs();
+                    int cur = op.getInt("auto_pause_mode", 0);
+                    int next = (cur + 1) % 4;
+                    op.edit().putInt("auto_pause_mode", next).apply();
+                    updateAutoPauseConfigPanel();
+                    btnAutoPauseMode.requestFocus();
+                    buildMenu();
+                }
+            });
+        }
+        if (btnAutoPauseCountDec != null) {
+            btnAutoPauseCountDec.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    SharedPreferences op = getOverlayPrefs();
+                    int cur = op.getInt("auto_pause_custom_count", 1);
+                    if (cur > 1) {
+                        int next = cur - 1;
+                        op.edit().putInt("auto_pause_custom_count", next).apply();
+                        updateAutoPauseConfigPanel();
+                        buildMenu();
+                    }
+                    btnAutoPauseCountDec.requestFocus();
+                }
+            });
+        }
+        if (btnAutoPauseCountInc != null) {
+            btnAutoPauseCountInc.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    SharedPreferences op = getOverlayPrefs();
+                    int cur = op.getInt("auto_pause_custom_count", 1);
+                    int next = cur + 1;
+                    op.edit().putInt("auto_pause_custom_count", next).apply();
+                    updateAutoPauseConfigPanel();
+                    buildMenu();
+                    btnAutoPauseCountInc.requestFocus();
+                }
+            });
+        }
+        if (btnAutoPauseBlackScreen != null) {
+            btnAutoPauseBlackScreen.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    SharedPreferences op = getOverlayPrefs();
+                    boolean cur = op.getBoolean("auto_pause_black_screen", false);
+                    op.edit().putBoolean("auto_pause_black_screen", !cur).apply();
+                    updateAutoPauseConfigPanel();
+                    btnAutoPauseBlackScreen.requestFocus();
+                }
+            });
+        }
+
+        // Still Watching listeners
+        if (btnStillWatchingToggle != null) {
+            btnStillWatchingToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    toggleOverlay(ButtonMappingService.KEY_STILL_WATCHING, "ACTION_TOGGLE_STILL_WATCHING");
+                    updateStillWatchingConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
+        if (btnStillWatchingIntervalDec != null) {
+            btnStillWatchingIntervalDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { cycleStillWatchingInterval(-1); }
+            });
+        }
+        if (btnStillWatchingIntervalInc != null) {
+            btnStillWatchingIntervalInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { cycleStillWatchingInterval(1); }
+            });
+        }
+        if (btnStillWatchingTimeoutDec != null) {
+            btnStillWatchingTimeoutDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { cycleStillWatchingTimeout(-1); }
+            });
+        }
+        if (btnStillWatchingTimeoutInc != null) {
+            btnStillWatchingTimeoutInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { cycleStillWatchingTimeout(1); }
+            });
+        }
+        if (btnStillWatchingActionType != null) {
+            btnStillWatchingActionType.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { cycleStillWatchingAction(); }
+            });
+        }
+        if (btnStillWatchingPosition != null) {
+            btnStillWatchingPosition.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { cycleStillWatchingPosition(); }
+            });
+        }
+        if (btnStillWatchingAlphaDec != null) {
+            btnStillWatchingAlphaDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85, -5, 10, 100); }
+            });
+        }
+        if (btnStillWatchingAlphaInc != null) {
+            btnStillWatchingAlphaInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85, 5, 10, 100); }
+            });
+        }
+        if (btnStillWatchingSizeDec != null) {
+            btnStillWatchingSizeDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_SIZE, 14, -1, 10, 28); }
+            });
+        }
+        if (btnStillWatchingSizeInc != null) {
+            btnStillWatchingSizeInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_SIZE, 14, 1, 10, 28); }
+            });
+        }
+        if (btnStillWatchingXDec != null) {
+            btnStillWatchingXDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_X, 16, -4, 0, 300); }
+            });
+        }
+        if (btnStillWatchingXInc != null) {
+            btnStillWatchingXInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_X, 16, 4, 0, 300); }
+            });
+        }
+        if (btnStillWatchingYDec != null) {
+            btnStillWatchingYDec.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_Y, 16, -4, 0, 300); }
+            });
+        }
+        if (btnStillWatchingYInc != null) {
+            btnStillWatchingYInc.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_Y, 16, 4, 0, 300); }
+            });
+        }
+        if (btnApplyStillWatching != null) {
+            btnApplyStillWatching.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    toggleOverlay(ButtonMappingService.KEY_STILL_WATCHING, "ACTION_TOGGLE_STILL_WATCHING");
+                    updateStillWatchingConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
     }
 
     private void updateCustomTimerUI() {
@@ -676,6 +895,8 @@ public class QuickMenuActivity extends Activity {
         if (panelBrightness != null) panelBrightness.setVisibility(View.GONE);
         if (panelButtonConfig != null) panelButtonConfig.setVisibility(View.GONE);
         if (panelClockConfig != null) panelClockConfig.setVisibility(View.GONE);
+        if (panelAutoPause != null) panelAutoPause.setVisibility(View.GONE);
+        if (panelStillWatching != null) panelStillWatching.setVisibility(View.GONE);
         openSubPanel = null;
         configuringButton = null;
         menuContainer.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
@@ -718,24 +939,6 @@ public class QuickMenuActivity extends Activity {
                 }
                 break;
             case "blue_light":
-                SharedPreferences bPrefs = getOverlayPrefs();
-                boolean isLightOn = bPrefs.getBoolean(ButtonMappingService.KEY_BLUE_LIGHT, false);
-                if (isLightOn) {
-                    // Si está encendido, lo apagamos rápido
-                    Intent i = new Intent(this, ButtonMappingService.class);
-                    i.setAction("ACTION_SET_BLUE_LIGHT_PCT");
-                    i.putExtra("pct", 0);
-                    startService(i);
-                } else {
-                    // Si está apagado, lo encendemos con el último porcentaje persistido (o 30% default)
-                    int lastPct = bPrefs.getInt("blue_light_pct", 30);
-                    if (lastPct == 0) lastPct = 30;
-                    Intent i = new Intent(this, ButtonMappingService.class);
-                    i.setAction("ACTION_SET_BLUE_LIGHT_PCT");
-                    i.putExtra("pct", lastPct);
-                    startService(i);
-                }
-                // Además, mostramos el panel deslizante para poder regularlo
                 if ("blue_light".equals(openSubPanel)) {
                     closeSubPanels();
                 } else {
@@ -743,6 +946,7 @@ public class QuickMenuActivity extends Activity {
                     panelBlueLight.setVisibility(View.VISIBLE);
                     openSubPanel = "blue_light";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateBlueLightConfigPanel();
                     if (sliderBlueLight != null) sliderBlueLight.requestFocus();
                 }
                 buildMenu();
@@ -793,13 +997,34 @@ public class QuickMenuActivity extends Activity {
                     if (btnCineBlueLightConfig != null) btnCineBlueLightConfig.requestFocus();
                 }
                 break;
+            case "auto_pause":
+                if ("auto_pause".equals(openSubPanel)) {
+                    closeSubPanels();
+                } else {
+                    closeSubPanels();
+                    panelAutoPause.setVisibility(View.VISIBLE);
+                    openSubPanel = "auto_pause";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateAutoPauseConfigPanel();
+                    if (btnAutoPauseMode != null) btnAutoPauseMode.requestFocus();
+                }
+                buildMenu();
+                break;
             case "screen_off":
                 sendServiceAction("ACTION_SHOW_BLACK_SCREEN");
                 finish();
                 break;
-            case "audio_output":
-                sendServiceAction("ACTION_OPEN_AUDIO");
-                finish();
+            case "system_menu":
+                try {
+                    Intent intent = new Intent();
+                    intent.setClassName("com.android.tv.settings", "com.android.tv.settings.MainSettings");
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    try {
+                        startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    } catch (Exception ignored) {}
+                }
                 break;
             case "google_home":
                 try { startActivity(new Intent("com.google.android.libraries.tv.smarthome.intent.action.OPEN_SMART_HOME").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
@@ -807,17 +1032,66 @@ public class QuickMenuActivity extends Activity {
                 finish();
                 break;
             case "bluetooth":
-                try {
-                    Intent i = new Intent();
-                    i.setClassName("com.android.tv.settings", "com.android.tv.settings.accessories.AddAccessoryActivity");
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(i);
-                } catch (Exception e) {
-                    try { startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
-                    catch (Exception e2) { Log.e(TAG, "bluetooth", e2); }
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(new String[]{android.Manifest.permission.BLUETOOTH_CONNECT}, 101);
+                        break;
+                    }
                 }
+                launchBluetoothSettings();
+                break;
+            case "developer_options":
+                try {
+                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    try {
+                        Intent intent = new Intent();
+                        intent.setClassName("com.android.tv.settings", "com.android.tv.settings.system.development.DevelopmentActivity");
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                    } catch (Exception e2) {}
+                }
+                break;
+            case "pause_screen_off":
+                sendServiceAction("ACTION_PAUSE_AND_SCREEN_OFF");
                 finish();
                 break;
+            case "cycle_brightness": {
+                SharedPreferences prefs = getOverlayPrefs();
+                int cur = prefs.getInt("dimmer_brightness_pct", 50);
+                String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
+                String[] parts = levelsStr.split(",");
+                if (parts.length > 0) {
+                    int[] levels = new int[parts.length];
+                    for (int i = 0; i < parts.length; i++) {
+                        try {
+                            levels[i] = Integer.parseInt(parts[i].trim());
+                        } catch (Exception e) {
+                            levels[i] = 50;
+                        }
+                    }
+                    int closestIdx = 0;
+                    int minDiff = Math.abs(cur - levels[0]);
+                    for (int i = 1; i < levels.length; i++) {
+                        int diff = Math.abs(cur - levels[i]);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            closestIdx = i;
+                        }
+                    }
+                    int nextIdx = (closestIdx + 1) % levels.length;
+                    int next = levels[nextIdx];
+                    prefs.edit().putInt("dimmer_brightness_pct", next).apply();
+                    
+                    android.os.Bundle b = new android.os.Bundle();
+                    b.putInt("pct", next);
+                    sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
+                }
+                buildMenu();
+                break;
+            }
             case "system_info":
                 sendServiceAction("ACTION_SHOW_SYSTEM_INFO");
                 finish();
@@ -842,6 +1116,19 @@ public class QuickMenuActivity extends Activity {
                     if (btnConfigClick1 != null) btnConfigClick1.requestFocus();
                 }
                 break;
+            case "still_watching":
+                if ("still_watching".equals(openSubPanel)) {
+                    closeSubPanels();
+                } else {
+                    closeSubPanels();
+                    if (panelStillWatching != null) panelStillWatching.setVisibility(View.VISIBLE);
+                    openSubPanel = "still_watching";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateStillWatchingConfigPanel();
+                    if (btnStillWatchingToggle != null) btnStillWatchingToggle.requestFocus();
+                }
+                buildMenu();
+                break;
             default:
                 Log.w(TAG, "Unknown item: " + id);
         }
@@ -852,8 +1139,11 @@ public class QuickMenuActivity extends Activity {
             case "manage_apps":  return "Apps  Administrar Apps";
             case "timer":        return getTimerLabel(tp);
             case "blue_light": {
-                int pct = op.getInt("blue_light_pct", 0);
-                return "Luz Azul  Filtro Luz Azul  [" + (pct == 0 ? "OFF" : pct + "%") + "]";
+                int pct = op.getInt("blue_light_pct", 50);
+                if (pct == 0) pct = 50;
+                boolean active = op.getBoolean(ButtonMappingService.KEY_BLUE_LIGHT, false);
+                double displayPct = pct / 10.0;
+                return "Luz Azul  Filtro Luz Azul  [" + (active ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : "OFF") + "]";
             }
             case "clock":        return fmtToggle("Reloj  Reloj en Pantalla  (tap=configurar)", op.getBoolean(ButtonMappingService.KEY_CLOCK,  false));
             case "dimmer": {
@@ -862,12 +1152,31 @@ public class QuickMenuActivity extends Activity {
             }
             case "grayscale":    return fmtToggle("B/N  Escala de Grises",      isGrayscaleOn());
             case "cine_mode":    return fmtToggle("Cine  Modo Cine",            op.getBoolean(ButtonMappingService.KEY_CINE_MODE, false));
+            case "auto_pause": {
+                int mode = op.getInt("auto_pause_mode", 0);
+                String modeText;
+                if (mode == 0) modeText = "OFF";
+                else if (mode == 1) modeText = "Una vez";
+                else if (mode == 2) modeText = "Permanente";
+                else {
+                    int count = op.getInt("auto_pause_custom_count", 1);
+                    modeText = count + " veces";
+                }
+                return "Pausa  Auto Pausa de Video  [" + modeText + "]";
+            }
             case "screen_off":   return "Sleep  Apagar Pantalla";
-            case "audio_output": return "Audio  Salida de Audio";
+            case "system_menu":  return "System  Ajustes del Sistema";
             case "google_home":  return "Home  Google Home Panel";
             case "bluetooth":    return "BT  Auriculares Bluetooth";
             case "system_info":  return "Info  Info del Sistema";
             case "reboot":       return "Reiniciar Chromecast";
+            case "developer_options": return "Dev  Opciones de Desarrollo";
+            case "pause_screen_off": return "Sleep  Pausar y Apagar Pantalla";
+            case "cycle_brightness": {
+                int pct = op.getInt("dimmer_brightness_pct", 50);
+                return "Brillo  Ciclar Brillo  [" + pct + "%]";
+            }
+            case "still_watching": return fmtToggle("📺  ¿Sigues viendo?", op.getBoolean(ButtonMappingService.KEY_STILL_WATCHING, false));
             case "config_mute":        return "Config  Configurar Botón Mute";
             case "config_youtube_190": return "Config  Configurar YouTube (190)";
             case "config_youtube_189": return "Config  Configurar YouTube (189)";
@@ -881,10 +1190,12 @@ public class QuickMenuActivity extends Activity {
         switch (id) {
             case "manage_apps": case "timer": case "blue_light":
             case "clock": case "dimmer": case "grayscale": case "cine_mode":
+            case "cycle_brightness": case "auto_pause":
                 return 1;
-            case "screen_off": case "audio_output":
+            case "screen_off": case "pause_screen_off":
                 return 2;
             case "google_home": case "bluetooth": case "system_info": case "reboot":
+            case "system_menu": case "developer_options":
                 return 3;
             default:
                 return 4;
@@ -1074,11 +1385,12 @@ public class QuickMenuActivity extends Activity {
     }
 
     private void updateBrightnessConfigPanel() {
+        updateBrightnessConfigPanel(-1);
+    }
+
+    private void updateBrightnessConfigPanel(final int targetFocusRowIndex) {
         SharedPreferences prefs = getOverlayPrefs();
         int brightnessPct = prefs.getInt("dimmer_brightness_pct", 50);
-        int stateA = prefs.getInt("brightness_state_a", 80);
-        int stateB = prefs.getInt("brightness_state_b", 50);
-        int stateC = prefs.getInt("brightness_state_c", 20);
         boolean active = prefs.getBoolean(ButtonMappingService.KEY_DIMMER, false);
 
         if (sliderBrightness != null) {
@@ -1087,18 +1399,199 @@ public class QuickMenuActivity extends Activity {
         if (txtBrightnessPct != null) {
             txtBrightnessPct.setText("Nivel: " + brightnessPct + "%");
         }
-        if (txtBrightnessA != null) {
-            txtBrightnessA.setText(stateA + "%");
-        }
-        if (txtBrightnessB != null) {
-            txtBrightnessB.setText(stateB + "%");
-        }
-        if (txtBrightnessC != null) {
-            txtBrightnessC.setText(stateC + "%");
-        }
         if (btnApplyBrightness != null) {
             btnApplyBrightness.setText(active ? "[ Desactivar Dimmer ]" : "[ Activar Dimmer ]");
         }
+
+        View viewToFocus = null;
+
+        if (containerBrightnessLevels != null) {
+            containerBrightnessLevels.removeAllViews();
+
+            String listStr = prefs.getString("brightness_levels_list", "80,50,20");
+            final String[] parts = listStr.split(",");
+            float d = getResources().getDisplayMetrics().density;
+
+            for (int i = 0; i < parts.length; i++) {
+                final int index = i;
+                int val = 50;
+                try { val = Integer.parseInt(parts[i].trim()); } catch (Exception ignored) {}
+                final int levelVal = val;
+
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                rowLp.bottomMargin = Math.round(4 * d);
+                row.setLayoutParams(rowLp);
+
+                final TextView tvVal = new TextView(this);
+
+                // Label
+                TextView tvLabel = new TextView(this);
+                tvLabel.setText("   Nivel " + (i + 1) + ":");
+                tvLabel.setTextColor(0xFFCCCCCC);
+                tvLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+                tvLabel.setPadding(Math.round(4 * d), 0, 0, 0);
+                LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+                tvLabel.setLayoutParams(labelLp);
+                row.addView(tvLabel);
+
+                // Apply Button
+                TextView btnApply = new TextView(this);
+                btnApply.setText("✓");
+                btnApply.setTextColor(0xFF4CAF50);
+                btnApply.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+                btnApply.setGravity(Gravity.CENTER);
+                btnApply.setBackgroundResource(R.drawable.card_background);
+                btnApply.setFocusable(true);
+                btnApply.setClickable(true);
+                LinearLayout.LayoutParams applyLp = new LinearLayout.LayoutParams(Math.round(36 * d), Math.round(36 * d));
+                applyLp.rightMargin = Math.round(4 * d);
+                btnApply.setLayoutParams(applyLp);
+                btnApply.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        int currentVal = 50;
+                        try { currentVal = Integer.parseInt(parts[index].trim()); } catch (Exception ignored) {}
+                        android.os.Bundle b = new android.os.Bundle();
+                        b.putInt("pct", currentVal);
+                        sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
+                        getOverlayPrefs().edit().putInt("dimmer_brightness_pct", currentVal).apply();
+                        if (sliderBrightness != null) {
+                            sliderBrightness.setProgress(currentVal);
+                        }
+                        if (txtBrightnessPct != null) {
+                            txtBrightnessPct.setText("Nivel: " + currentVal + "%");
+                        }
+                        btnApply.requestFocus();
+                    }
+                });
+                row.addView(btnApply);
+
+                // Dec Button
+                TextView btnDec = new TextView(this);
+                btnDec.setText("-");
+                btnDec.setTextColor(0xFFFFFFFF);
+                btnDec.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+                btnDec.setGravity(Gravity.CENTER);
+                btnDec.setBackgroundResource(R.drawable.card_background);
+                btnDec.setFocusable(true);
+                btnDec.setClickable(true);
+                LinearLayout.LayoutParams decLp = new LinearLayout.LayoutParams(Math.round(36 * d), Math.round(36 * d));
+                btnDec.setLayoutParams(decLp);
+                btnDec.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        int currentVal = 50;
+                        try { currentVal = Integer.parseInt(parts[index].trim()); } catch (Exception ignored) {}
+                        int newVal = Math.max(0, currentVal - 1);
+                        parts[index] = String.valueOf(newVal);
+                        saveBrightnessLevels(parts);
+                        tvVal.setText(newVal + "%");
+                        btnDec.requestFocus();
+                    }
+                });
+                row.addView(btnDec);
+
+                // Value Text
+                tvVal.setText(levelVal + "%");
+                tvVal.setTextColor(0xFFFFFFFF);
+                tvVal.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+                tvVal.setGravity(Gravity.CENTER);
+                LinearLayout.LayoutParams valLp = new LinearLayout.LayoutParams(Math.round(60 * d), LinearLayout.LayoutParams.WRAP_CONTENT);
+                tvVal.setLayoutParams(valLp);
+                row.addView(tvVal);
+
+                // Inc Button
+                TextView btnInc = new TextView(this);
+                btnInc.setText("+");
+                btnInc.setTextColor(0xFFFFFFFF);
+                btnInc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+                btnInc.setGravity(Gravity.CENTER);
+                btnInc.setBackgroundResource(R.drawable.card_background);
+                btnInc.setFocusable(true);
+                btnInc.setClickable(true);
+                LinearLayout.LayoutParams incLp = new LinearLayout.LayoutParams(Math.round(36 * d), Math.round(36 * d));
+                incLp.rightMargin = Math.round(4 * d);
+                btnInc.setLayoutParams(incLp);
+                btnInc.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        int currentVal = 50;
+                        try { currentVal = Integer.parseInt(parts[index].trim()); } catch (Exception ignored) {}
+                        int newVal = Math.min(100, currentVal + 1);
+                        parts[index] = String.valueOf(newVal);
+                        saveBrightnessLevels(parts);
+                        tvVal.setText(newVal + "%");
+                        btnInc.requestFocus();
+                    }
+                });
+                row.addView(btnInc);
+
+                // Delete Level Button (✕)
+                TextView btnDel = new TextView(this);
+                btnDel.setText("✕");
+                btnDel.setTextColor(0xFFFF5252);
+                btnDel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+                btnDel.setGravity(Gravity.CENTER);
+                btnDel.setBackgroundResource(R.drawable.card_background);
+                btnDel.setFocusable(true);
+                btnDel.setClickable(true);
+                LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(Math.round(36 * d), Math.round(36 * d));
+                btnDel.setLayoutParams(delLp);
+                btnDel.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        SharedPreferences p = getOverlayPrefs();
+                        String lStr = p.getString("brightness_levels_list", "80,50,20");
+                        String[] currParts = lStr.split(",");
+                        if (currParts.length > 2) {
+                            StringBuilder sb = new StringBuilder();
+                            boolean first = true;
+                            for (int k = 0; k < currParts.length; k++) {
+                                if (k == index) continue;
+                                if (!first) sb.append(",");
+                                sb.append(currParts[k].trim());
+                                first = false;
+                            }
+                            p.edit().putString("brightness_levels_list", sb.toString()).apply();
+                            int nextTargetIdx = Math.min(index, currParts.length - 2);
+                            updateBrightnessConfigPanel(nextTargetIdx);
+                        } else {
+                            android.widget.Toast.makeText(QuickMenuActivity.this, "Mínimo 2 niveles de brillo requeridos", android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+                row.addView(btnDel);
+
+                if (i == targetFocusRowIndex) {
+                    viewToFocus = btnDel;
+                }
+
+                containerBrightnessLevels.addView(row);
+            }
+
+            if (viewToFocus != null) {
+                final View fv = viewToFocus;
+                fv.post(new Runnable() {
+                    @Override
+                    public void run() { fv.requestFocus(); }
+                });
+            } else if (targetFocusRowIndex >= 0 && btnAddBrightnessLevel != null) {
+                btnAddBrightnessLevel.requestFocus();
+            }
+        }
+    }
+
+    private void saveBrightnessLevels(String[] levels) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < levels.length; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(levels[i]);
+        }
+        getOverlayPrefs().edit().putString("brightness_levels_list", sb.toString()).apply();
     }
 
     private void adjustBrightnessIntPref(String key, int def, int delta, int min, int max) {
@@ -1178,10 +1671,207 @@ public class QuickMenuActivity extends Activity {
         return getSharedPreferences(ButtonMappingService.OVERLAY_PREFS, MODE_PRIVATE);
     }
 
+    private void launchBluetoothSettings() {
+        try {
+            // 1. Google TV / Android TV Accessories Settings Slice (Remotes & Accessories side pane)
+            Intent intent = new Intent("android.settings.SLICE_SETTINGS");
+            intent.putExtra("slice_uri", "content://com.google.android.tv.btservices.settings.sliceprovider/general");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception eSlice) {
+            try {
+                // 2. Standard Bluetooth Settings Intent (On Google TV, lists connected remotes & accessories)
+                Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e0) {
+                try {
+                    // 3. Try AccessoriesActivity class
+                    Intent intent = new Intent();
+                    intent.setClassName("com.android.tv.settings", "com.android.tv.settings.accessories.AccessoriesActivity");
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (Exception e1) {
+                    try {
+                        // 4. Try AccessoryActivity (singular)
+                        Intent intent = new Intent();
+                        intent.setClassName("com.android.tv.settings", "com.android.tv.settings.accessories.AccessoryActivity");
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                    } catch (Exception e2) {
+                        try {
+                            // 5. Try AddAccessoryActivity
+                            Intent intent = new Intent();
+                            intent.setClassName("com.android.tv.settings", "com.android.tv.settings.accessories.AddAccessoryActivity");
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                        } catch (Exception e3) {
+                            try {
+                                // 6. Try ConnectBluetoothActivity
+                                Intent intent = new Intent();
+                                intent.setClassName("com.android.tv.settings", "com.android.tv.settings.connectivity.setup.ConnectBluetoothActivity");
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                startActivity(intent);
+                            } catch (Exception e4) {
+                                try {
+                                    // 7. Fallback to general settings
+                                    Intent intent = new Intent(Settings.ACTION_SETTINGS);
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                    startActivity(intent);
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 101) {
+            launchBluetoothSettings();
+        }
+    }
+
+    private void updateBlueLightConfigPanel() {
+        SharedPreferences prefs = getOverlayPrefs();
+        int pct = prefs.getInt("blue_light_pct", 50);
+        if (pct == 0) pct = 50;
+        boolean active = prefs.getBoolean(ButtonMappingService.KEY_BLUE_LIGHT, false);
+
+        if (sliderBlueLight != null) {
+            sliderBlueLight.setProgress(pct);
+        }
+        if (txtBlueLightPct != null) {
+            double displayPct = pct / 10.0;
+            txtBlueLightPct.setText("Nivel: " + (active ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : "Desactivado"));
+        }
+        if (btnApplyBlueLight != null) {
+            btnApplyBlueLight.setText(active ? "[ Desactivar Filtro ]" : "[ Activar Filtro ]");
+        }
+    }
+
+    private void updateAutoPauseConfigPanel() {
+        SharedPreferences op = getOverlayPrefs();
+        int mode = op.getInt("auto_pause_mode", 0);
+        int count = op.getInt("auto_pause_custom_count", 1);
+        boolean blackScreen = op.getBoolean("auto_pause_black_screen", false);
+
+        if (btnAutoPauseMode != null) {
+            String modeStr;
+            switch (mode) {
+                case 0: modeStr = "Desactivado"; break;
+                case 1: modeStr = "Solo una vez"; break;
+                case 2: modeStr = "Activado permanente"; break;
+                case 3: modeStr = "Personalizado"; break;
+                default: modeStr = "Desactivado"; break;
+            }
+            btnAutoPauseMode.setText("   Modo de Auto Pausa:  " + modeStr);
+        }
+
+        if (layoutAutoPauseCustom != null) {
+            layoutAutoPauseCustom.setVisibility(mode == 3 ? View.VISIBLE : View.GONE);
+        }
+
+        if (txtAutoPauseCount != null) {
+            txtAutoPauseCount.setText(String.valueOf(count));
+        }
+
+        if (btnAutoPauseBlackScreen != null) {
+            btnAutoPauseBlackScreen.setText("   Apagar Pantalla al Pausar:  " + (blackScreen ? "ON" : "OFF"));
+        }
+    }
+
+    private void updateStillWatchingConfigPanel() {
+        SharedPreferences prefs = getOverlayPrefs();
+        boolean active = prefs.getBoolean(ButtonMappingService.KEY_STILL_WATCHING, false);
+        int interval = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_INTERVAL, 30);
+        int timeout = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, 30);
+        int actionIdx = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_ACTION, 0);
+        int posIdx = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_POS, 0);
+        int alpha = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85);
+        int sizeSp = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_SIZE, 14);
+        int posX = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_X, 16);
+        int posY = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_Y, 16);
+
+        if (actionIdx < 0 || actionIdx >= STILL_WATCHING_ACTIONS.length) actionIdx = 0;
+        if (posIdx < 0 || posIdx >= STILL_WATCHING_POSITIONS.length) posIdx = 0;
+
+        if (btnStillWatchingToggle != null) btnStillWatchingToggle.setText("   Estado:  " + (active ? "ACTIVADO" : "DESACTIVADO"));
+        if (txtStillWatchingInterval != null) txtStillWatchingInterval.setText(interval + "m");
+        if (txtStillWatchingTimeout != null) txtStillWatchingTimeout.setText(timeout + "s");
+        if (btnStillWatchingActionType != null) btnStillWatchingActionType.setText("   Acción Inactividad:  " + STILL_WATCHING_ACTIONS[actionIdx]);
+        if (btnStillWatchingPosition != null) btnStillWatchingPosition.setText("   Posición:  " + STILL_WATCHING_POSITIONS[posIdx]);
+        if (txtStillWatchingAlpha != null) txtStillWatchingAlpha.setText(alpha + "%");
+        if (txtStillWatchingSize != null) txtStillWatchingSize.setText(sizeSp + "sp");
+        if (txtStillWatchingX != null) txtStillWatchingX.setText(posX + "dp");
+        if (txtStillWatchingY != null) txtStillWatchingY.setText(posY + "dp");
+
+        if (btnApplyStillWatching != null) btnApplyStillWatching.setText(active ? "[ Desactivar ¿Sigues viendo? ]" : "[ Activar ¿Sigues viendo? ]");
+    }
+
+    private void cycleStillWatchingInterval(int dir) {
+        int[] options = {5, 10, 15, 30, 45, 60, 90, 120};
+        int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_INTERVAL, 30);
+        int idx = 3;
+        for (int i = 0; i < options.length; i++) {
+            if (options[i] == cur) { idx = i; break; }
+        }
+        idx = (idx + dir + options.length) % options.length;
+        getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_INTERVAL, options[idx]).apply();
+        updateStillWatchingConfigPanel();
+        sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+    }
+
+    private void cycleStillWatchingTimeout(int dir) {
+        int[] options = {10, 15, 20, 30, 45, 60};
+        int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, 30);
+        int idx = 3;
+        for (int i = 0; i < options.length; i++) {
+            if (options[i] == cur) { idx = i; break; }
+        }
+        idx = (idx + dir + options.length) % options.length;
+        getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, options[idx]).apply();
+        updateStillWatchingConfigPanel();
+        sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+    }
+
+    private void cycleStillWatchingAction() {
+        int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_ACTION, 0);
+        int next = (cur + 1) % STILL_WATCHING_ACTIONS.length;
+        getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_ACTION, next).apply();
+        updateStillWatchingConfigPanel();
+        sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+    }
+
+    private void cycleStillWatchingPosition() {
+        int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_POS, 0);
+        int next = (cur + 1) % STILL_WATCHING_POSITIONS.length;
+        getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_POS, next).apply();
+        updateStillWatchingConfigPanel();
+        sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+    }
+
+    private void adjustStillWatchingIntPref(String key, int def, int delta, int min, int max) {
+        int cur = getOverlayPrefs().getInt(key, def);
+        int next = cur + delta;
+        if (next < min) next = min;
+        if (next > max) next = max;
+        getOverlayPrefs().edit().putInt(key, next).apply();
+        updateStillWatchingConfigPanel();
+        sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (openSubPanel != null) { closeSubPanels(); return true; }
+            if (openSubPanel != null) {
+                closeSubPanels();
+                buildMenu();
+                return true;
+            }
             if (isReorderMode) { isReorderMode = false; reorderSelectedIndex = -1; buildMenu(); return true; }
             finish();
             return true;
