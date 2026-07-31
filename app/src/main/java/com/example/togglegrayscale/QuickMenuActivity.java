@@ -27,6 +27,7 @@ public class QuickMenuActivity extends Activity {
         "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
         "pause_screen_off", "cycle_brightness", "still_watching",
+        "night_schedule", "oled_saver",
         "config_mute", "config_youtube_190", "config_youtube_189",
         "developer_options"
     };
@@ -83,6 +84,20 @@ public class QuickMenuActivity extends Activity {
     private TextView btnStillWatchingXDec, btnStillWatchingXInc, txtStillWatchingX;
     private TextView btnStillWatchingYDec, btnStillWatchingYInc, txtStillWatchingY;
     private TextView btnApplyStillWatching;
+
+    private LinearLayout panelNightSchedule;
+    private TextView btnNightScheduleToggle;
+    private TextView btnNightStartDec, txtNightStart, btnNightStartInc;
+    private TextView btnNightEndDec, txtNightEnd, btnNightEndInc;
+    private TextView btnNightBlueLightDec, txtNightBlueLight, btnNightBlueLightInc;
+    private TextView btnNightDimmerDec, txtNightDimmer, btnNightDimmerInc;
+    private TextView btnApplyNightSchedule;
+
+    private LinearLayout panelOledSaver;
+    private TextView btnOledSaverToggle;
+    private TextView btnOledMinutesDec, txtOledMinutes, btnOledMinutesInc;
+    private TextView btnOledMode;
+    private TextView btnApplyOledSaver;
 
     private static final String[] STILL_WATCHING_POSITIONS = {"Arriba Izquierda", "Arriba Derecha", "Abajo Izquierda", "Abajo Derecha", "Centro"};
     private static final String[] STILL_WATCHING_ACTIONS = {"Pausar Video", "Pausar y Apagar Pantalla", "Enviar Tecla Atrás"};
@@ -255,6 +270,30 @@ public class QuickMenuActivity extends Activity {
         txtStillWatchingY            = findViewById(R.id.txt_still_watching_y);
         btnStillWatchingYInc         = findViewById(R.id.btn_still_watching_y_inc);
         btnApplyStillWatching        = findViewById(R.id.btn_apply_still_watching);
+
+        panelNightSchedule           = findViewById(R.id.panel_night_schedule);
+        btnNightScheduleToggle       = findViewById(R.id.btn_night_schedule_toggle);
+        btnNightStartDec             = findViewById(R.id.btn_night_start_dec);
+        txtNightStart                = findViewById(R.id.txt_night_start);
+        btnNightStartInc             = findViewById(R.id.btn_night_start_inc);
+        btnNightEndDec               = findViewById(R.id.btn_night_end_dec);
+        txtNightEnd                  = findViewById(R.id.txt_night_end);
+        btnNightEndInc               = findViewById(R.id.btn_night_end_inc);
+        btnNightBlueLightDec         = findViewById(R.id.btn_night_blue_light_dec);
+        txtNightBlueLight            = findViewById(R.id.txt_night_blue_light);
+        btnNightBlueLightInc         = findViewById(R.id.btn_night_blue_light_inc);
+        btnNightDimmerDec            = findViewById(R.id.btn_night_dimmer_dec);
+        txtNightDimmer               = findViewById(R.id.txt_night_dimmer);
+        btnNightDimmerInc            = findViewById(R.id.btn_night_dimmer_inc);
+        btnApplyNightSchedule        = findViewById(R.id.btn_apply_night_schedule);
+
+        panelOledSaver               = findViewById(R.id.panel_oled_saver);
+        btnOledSaverToggle           = findViewById(R.id.btn_oled_saver_toggle);
+        btnOledMinutesDec            = findViewById(R.id.btn_oled_minutes_dec);
+        txtOledMinutes               = findViewById(R.id.txt_oled_minutes);
+        btnOledMinutesInc            = findViewById(R.id.btn_oled_minutes_inc);
+        btnOledMode                  = findViewById(R.id.btn_oled_mode);
+        btnApplyOledSaver            = findViewById(R.id.btn_apply_oled_saver);
 
         setupSubPanelListeners();
         buildMenu();
@@ -779,6 +818,87 @@ public class QuickMenuActivity extends Activity {
                 }
             });
         }
+
+        // Night Schedule Listeners
+        if (btnNightScheduleToggle != null) {
+            btnNightScheduleToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    toggleOverlay(ButtonMappingService.KEY_NIGHT_SCHEDULE, "ACTION_TOGGLE_NIGHT_SCHEDULE");
+                    updateNightScheduleConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
+        setupAutoRepeatStepButton(btnNightStartDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_START, 22, step, 0, 23); updateNightScheduleConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnNightStartInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_START, 22, step, 0, 23); updateNightScheduleConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnNightEndDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_END, 7, step, 0, 23); updateNightScheduleConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnNightEndInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_END, 7, step, 0, 23); updateNightScheduleConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnNightBlueLightDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_BLUE_LIGHT, 40, step, 0, 80); updateNightScheduleConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnNightBlueLightInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_BLUE_LIGHT, 40, step, 0, 80); updateNightScheduleConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnNightDimmerDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_DIMMER, 50, step, 0, 95); updateNightScheduleConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnNightDimmerInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_DIMMER, 50, step, 0, 95); updateNightScheduleConfigPanel(); }
+        });
+        if (btnApplyNightSchedule != null) {
+            btnApplyNightSchedule.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    toggleOverlay(ButtonMappingService.KEY_NIGHT_SCHEDULE, "ACTION_TOGGLE_NIGHT_SCHEDULE");
+                    updateNightScheduleConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
+
+        // OLED Saver Listeners
+        if (btnOledSaverToggle != null) {
+            btnOledSaverToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    toggleOverlay(ButtonMappingService.KEY_OLED_SAVER, "ACTION_TOGGLE_OLED_SAVER");
+                    updateOledSaverConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
+        setupAutoRepeatStepButton(btnOledMinutesDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_OLED_MINUTES, 5, step, 1, 60); updateOledSaverConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnOledMinutesInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_OLED_MINUTES, 5, step, 1, 60); updateOledSaverConfigPanel(); }
+        });
+        if (btnOledMode != null) {
+            btnOledMode.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_OLED_MODE, 0);
+                    int next = (cur + 1) % 2;
+                    getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_OLED_MODE, next).apply();
+                    updateOledSaverConfigPanel();
+                    sendServiceAction("ACTION_UPDATE_OLED_SAVER");
+                }
+            });
+        }
+        if (btnApplyOledSaver != null) {
+            btnApplyOledSaver.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    toggleOverlay(ButtonMappingService.KEY_OLED_SAVER, "ACTION_TOGGLE_OLED_SAVER");
+                    updateOledSaverConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
     }
 
     private void updateCustomTimerUI() {
@@ -876,6 +996,8 @@ public class QuickMenuActivity extends Activity {
         if (panelClockConfig != null) panelClockConfig.setVisibility(View.GONE);
         if (panelAutoPause != null) panelAutoPause.setVisibility(View.GONE);
         if (panelStillWatching != null) panelStillWatching.setVisibility(View.GONE);
+        if (panelNightSchedule != null) panelNightSchedule.setVisibility(View.GONE);
+        if (panelOledSaver != null) panelOledSaver.setVisibility(View.GONE);
         openSubPanel = null;
         configuringButton = null;
         menuContainer.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
@@ -1108,6 +1230,32 @@ public class QuickMenuActivity extends Activity {
                 }
                 buildMenu();
                 break;
+            case "night_schedule":
+                if ("night_schedule".equals(openSubPanel)) {
+                    closeSubPanels();
+                } else {
+                    closeSubPanels();
+                    if (panelNightSchedule != null) panelNightSchedule.setVisibility(View.VISIBLE);
+                    openSubPanel = "night_schedule";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateNightScheduleConfigPanel();
+                    if (btnNightScheduleToggle != null) btnNightScheduleToggle.requestFocus();
+                }
+                buildMenu();
+                break;
+            case "oled_saver":
+                if ("oled_saver".equals(openSubPanel)) {
+                    closeSubPanels();
+                } else {
+                    closeSubPanels();
+                    if (panelOledSaver != null) panelOledSaver.setVisibility(View.VISIBLE);
+                    openSubPanel = "oled_saver";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateOledSaverConfigPanel();
+                    if (btnOledSaverToggle != null) btnOledSaverToggle.requestFocus();
+                }
+                buildMenu();
+                break;
             default:
                 Log.w(TAG, "Unknown item: " + id);
         }
@@ -1156,6 +1304,8 @@ public class QuickMenuActivity extends Activity {
                 return "Brillo  Ciclar Brillo  [" + pct + "%]";
             }
             case "still_watching": return fmtToggle("📺  ¿Sigues viendo?", op.getBoolean(ButtonMappingService.KEY_STILL_WATCHING, false));
+            case "night_schedule": return fmtToggle("🌙  Horario Nocturno", op.getBoolean(ButtonMappingService.KEY_NIGHT_SCHEDULE, false));
+            case "oled_saver": return fmtToggle("🛡️  Protector OLED (Burn-In)", op.getBoolean(ButtonMappingService.KEY_OLED_SAVER, false));
             case "config_mute":        return "Config  Configurar Botón Mute";
             case "config_youtube_190": return "Config  Configurar YouTube (190)";
             case "config_youtube_189": return "Config  Configurar YouTube (189)";
@@ -1851,6 +2001,36 @@ public class QuickMenuActivity extends Activity {
         getOverlayPrefs().edit().putInt(key, next).apply();
         updateStillWatchingConfigPanel();
         sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+    }
+
+    private void updateNightScheduleConfigPanel() {
+        SharedPreferences op = getOverlayPrefs();
+        boolean active = op.getBoolean(ButtonMappingService.KEY_NIGHT_SCHEDULE, false);
+        int start = op.getInt(ButtonMappingService.KEY_NIGHT_START, 22);
+        int end = op.getInt(ButtonMappingService.KEY_NIGHT_END, 7);
+        int blueLight = op.getInt(ButtonMappingService.KEY_NIGHT_BLUE_LIGHT, 40);
+        int dimmer = op.getInt(ButtonMappingService.KEY_NIGHT_DIMMER, 50);
+
+        if (btnNightScheduleToggle != null) btnNightScheduleToggle.setText("   Estado:  " + (active ? "ACTIVADO" : "DESACTIVADO"));
+        if (txtNightStart != null) txtNightStart.setText(String.format(java.util.Locale.US, "%02d:00", start));
+        if (txtNightEnd != null) txtNightEnd.setText(String.format(java.util.Locale.US, "%02d:00", end));
+        if (txtNightBlueLight != null) txtNightBlueLight.setText(blueLight + "%");
+        if (txtNightDimmer != null) txtNightDimmer.setText(dimmer + "%");
+        if (btnApplyNightSchedule != null) btnApplyNightSchedule.setText(active ? "[ Desactivar Horario Nocturno ]" : "[ Activar Horario Nocturno ]");
+    }
+
+    private void updateOledSaverConfigPanel() {
+        SharedPreferences op = getOverlayPrefs();
+        boolean active = op.getBoolean(ButtonMappingService.KEY_OLED_SAVER, false);
+        int mins = op.getInt(ButtonMappingService.KEY_OLED_MINUTES, 5);
+        int mode = op.getInt(ButtonMappingService.KEY_OLED_MODE, 0);
+
+        String modeText = (mode == 1) ? "Pantalla Negra" : "Dimmer 95%";
+
+        if (btnOledSaverToggle != null) btnOledSaverToggle.setText("   Estado:  " + (active ? "ACTIVADO" : "DESACTIVADO"));
+        if (txtOledMinutes != null) txtOledMinutes.setText(mins + "m");
+        if (btnOledMode != null) btnOledMode.setText("   Modo Protector:  " + modeText);
+        if (btnApplyOledSaver != null) btnApplyOledSaver.setText(active ? "[ Desactivar Protector OLED ]" : "[ Activar Protector OLED ]");
     }
 
     @Override

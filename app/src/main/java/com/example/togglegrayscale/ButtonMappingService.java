@@ -2,7 +2,10 @@ package com.example.togglegrayscale;
 
 import android.accessibilityservice.AccessibilityService;
 import android.app.ActivityManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
@@ -58,6 +61,16 @@ public class ButtonMappingService extends AccessibilityService {
     static final String KEY_STILL_WATCHING_X = "still_watching_x";
     static final String KEY_STILL_WATCHING_Y = "still_watching_y";
 
+    static final String KEY_NIGHT_SCHEDULE = "night_schedule";
+    static final String KEY_NIGHT_START = "night_start";
+    static final String KEY_NIGHT_END = "night_end";
+    static final String KEY_NIGHT_BLUE_LIGHT = "night_blue_light";
+    static final String KEY_NIGHT_DIMMER = "night_dimmer";
+
+    static final String KEY_OLED_SAVER = "oled_saver";
+    static final String KEY_OLED_MINUTES = "oled_minutes";
+    static final String KEY_OLED_MODE = "oled_mode";
+
     private boolean isBlueLightActive = false;
     private View blueLightOverlayView = null;
 
@@ -72,6 +85,27 @@ public class ButtonMappingService extends AccessibilityService {
     private boolean isStillWatchingPromptActive = false;
     private View stillWatchingOverlayView = null;
     private int stillWatchingCountdownSeconds = 30;
+
+    private boolean isOledSaverActive = false;
+    private boolean isOledSaverPromptActive = false;
+    private View oledSaverOverlayView = null;
+
+    private final Runnable oledSaverRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isOledSaverActive) {
+                showOledSaverOverlay();
+            }
+        }
+    };
+
+    private final Runnable nightScheduleCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+            checkAndApplyNightSchedule();
+            handler.postDelayed(this, 60000);
+        }
+    };
 
     private final Runnable stillWatchingIntervalRunnable = new Runnable() {
         @Override
@@ -564,12 +598,41 @@ public class ButtonMappingService extends AccessibilityService {
                 if (prefs.getBoolean(KEY_CLOCK, true)) showClockOverlay();
                 if (prefs.getBoolean(KEY_DIMMER, false)) showDimmerOverlay();
                 if (prefs.getBoolean(KEY_STILL_WATCHING, false)) startStillWatchingTimer();
+                if (prefs.getBoolean(KEY_OLED_SAVER, false)) startOledSaverTimer();
             }
         }, 500);
 
         // Start auto-pause checker
         handler.postDelayed(autoPauseCheckRunnable, 2000);
+
+        // Start night schedule checker
+        handler.postDelayed(nightScheduleCheckRunnable, 3000);
+
+        // Register screen state receiver for auto-reset on wake
+        try {
+            IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+            registerReceiver(screenStateReceiver, filter);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to register screenStateReceiver", e);
+        }
     }
+
+    private final BroadcastReceiver screenStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
+                Log.d(TAG, "Screen ON detected! Performing auto-reset of temporary modes.");
+                SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                if (prefs.getBoolean(KEY_CINE_MODE, false)) {
+                    prefs.edit().putBoolean(KEY_CINE_MODE, false).apply();
+                    if (isBlueLightActive) hideBlueLightOverlay();
+                    if (isDimmerActive) hideDimmerOverlay();
+                }
+                resetStillWatchingTimerOnKeyPress();
+                resetOledSaverTimerOnKeyPress();
+            }
+        }
+    };
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -611,6 +674,14 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_TOGGLE_DIMMER": toggleDimmer(); break;
             case "ACTION_TOGGLE_STILL_WATCHING": toggleStillWatching(); break;
             case "ACTION_UPDATE_STILL_WATCHING": updateStillWatching(); break;
+            case "ACTION_TOGGLE_NIGHT_SCHEDULE":
+            case "ACTION_UPDATE_NIGHT_SCHEDULE":
+                checkAndApplyNightSchedule();
+                break;
+            case "ACTION_TOGGLE_OLED_SAVER":
+            case "ACTION_UPDATE_OLED_SAVER":
+                updateOledSaver();
+                break;
             case "ACTION_TOGGLE_CINE_MODE": toggleCineMode(); break;
             case "ACTION_SHOW_SYSTEM_INFO": showSystemInfoOverlay(); break;
             case "ACTION_REBOOT": rebootDevice(); break;
@@ -726,6 +797,11 @@ public class ButtonMappingService extends AccessibilityService {
         hideDimmerOverlay();
         dismissSystemInfoOverlay();
         stopStillWatchingTimer();
+        stopOledSaverTimer();
+        try {
+            unregisterReceiver(screenStateReceiver);
+        } catch (Exception ignored) {}
+        handler.removeCallbacks(nightScheduleCheckRunnable);
         handler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }
@@ -1478,6 +1554,132 @@ public class ButtonMappingService extends AccessibilityService {
         } catch (Exception e) { Log.e(TAG, "Failed to pause media", e); }
     }
 
+    // ── Night Schedule & OLED Saver ──────────────────────────────────────────
+
+    private void checkAndApplyNightSchedule() {
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        boolean enabled = prefs.getBoolean(KEY_NIGHT_SCHEDULE, false);
+        if (!enabled) return;
+
+        int start = prefs.getInt(KEY_NIGHT_START, 22);
+        int end = prefs.getInt(KEY_NIGHT_END, 7);
+        int targetBlueLight = prefs.getInt(KEY_NIGHT_BLUE_LIGHT, 40);
+        int targetDimmer = prefs.getInt(KEY_NIGHT_DIMMER, 50);
+
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        int hour = cal.get(java.util.Calendar.HOUR_OF_DAY);
+
+        boolean isNightTime;
+        if (start < end) {
+            isNightTime = (hour >= start && hour < end);
+        } else {
+            isNightTime = (hour >= start || hour < end);
+        }
+
+        if (isNightTime) {
+            if (!isBlueLightActive && targetBlueLight > 0) {
+                setBlueLightPct(targetBlueLight);
+            }
+            if (!isDimmerActive && targetDimmer > 0) {
+                setDimmerBrightness(targetDimmer);
+            }
+        }
+    }
+
+    private void updateOledSaver() {
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        boolean enabled = prefs.getBoolean(KEY_OLED_SAVER, false);
+        if (enabled) {
+            startOledSaverTimer();
+        } else {
+            stopOledSaverTimer();
+        }
+    }
+
+    private void startOledSaverTimer() {
+        stopOledSaverTimer();
+        isOledSaverActive = true;
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int mins = prefs.getInt(KEY_OLED_MINUTES, 5);
+        long delayMs = mins * 60 * 1000L;
+        handler.postDelayed(oledSaverRunnable, delayMs);
+        Log.d(TAG, "OLED Saver timer started for " + mins + " minutes.");
+    }
+
+    private void stopOledSaverTimer() {
+        isOledSaverActive = false;
+        handler.removeCallbacks(oledSaverRunnable);
+        dismissOledSaverOverlay();
+    }
+
+    private void showOledSaverOverlay() {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm == null) return;
+                    dismissOledSaverOverlay();
+
+                    SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    int mode = prefs.getInt(KEY_OLED_MODE, 0);
+
+                    View v = new View(ButtonMappingService.this);
+                    if (mode == 1) {
+                        v.setBackgroundColor(Color.BLACK);
+                    } else {
+                        v.setBackgroundColor(Color.argb((int)(255 * 0.95), 0, 0, 0));
+                    }
+
+                    oledSaverOverlayView = v;
+                    isOledSaverPromptActive = true;
+
+                    WindowManager.LayoutParams p = new WindowManager.LayoutParams(
+                            WindowManager.LayoutParams.MATCH_PARENT,
+                            WindowManager.LayoutParams.MATCH_PARENT,
+                            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                            PixelFormat.TRANSLUCENT
+                    );
+
+                    wm.addView(oledSaverOverlayView, p);
+                    Log.d(TAG, "OLED Saver overlay displayed.");
+                } catch (Exception e) { Log.e(TAG, "Failed to show OLED saver overlay", e); }
+            }
+        });
+    }
+
+    private void dismissOledSaverOverlay() {
+        if (oledSaverOverlayView != null) {
+            final View v = oledSaverOverlayView;
+            oledSaverOverlayView = null;
+            isOledSaverPromptActive = false;
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                        if (wm != null) wm.removeView(v);
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
+    }
+
+    private void resetOledSaverTimerOnKeyPress() {
+        if (isOledSaverPromptActive) {
+            dismissOledSaverOverlay();
+        }
+        if (isOledSaverActive) {
+            handler.removeCallbacks(oledSaverRunnable);
+            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+            int mins = prefs.getInt(KEY_OLED_MINUTES, 5);
+            long delayMs = mins * 60 * 1000L;
+            handler.postDelayed(oledSaverRunnable, delayMs);
+        }
+    }
+
     // ── System info overlay ──────────────────────────────────────────────────
 
     private void showSystemInfoOverlay() {
@@ -1650,9 +1852,10 @@ public class ButtonMappingService extends AccessibilityService {
 
         Log.d(TAG, "onKeyEvent: keyCode=" + keyCode + ", action=" + action);
 
-        // Reset still watching inactivity timer whenever user interacts with the remote control
+        // Reset still watching & OLED saver inactivity timers whenever user interacts with the remote control
         if (action == KeyEvent.ACTION_DOWN) {
             resetStillWatchingTimerOnKeyPress();
+            resetOledSaverTimerOnKeyPress();
         }
 
         // 0. Intercept prompt response keys for ¿Sigues viendo?
