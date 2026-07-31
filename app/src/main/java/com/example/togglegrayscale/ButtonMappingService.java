@@ -1350,6 +1350,17 @@ public class ButtonMappingService extends AccessibilityService {
         dismissStillWatchingPrompt();
     }
 
+    private void resetStillWatchingTimerOnKeyPress() {
+        if (isStillWatchingActive && !isStillWatchingPromptActive) {
+            handler.removeCallbacks(stillWatchingIntervalRunnable);
+            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+            int intervalMin = prefs.getInt(KEY_STILL_WATCHING_INTERVAL, 30);
+            long delayMs = intervalMin * 60 * 1000L;
+            handler.postDelayed(stillWatchingIntervalRunnable, delayMs);
+            Log.d(TAG, "Key press detected: still watching inactivity timer reset for " + intervalMin + " minutes.");
+        }
+    }
+
     private void showStillWatchingPrompt() {
         handler.post(new Runnable() {
             @Override
@@ -1638,6 +1649,11 @@ public class ButtonMappingService extends AccessibilityService {
         int action = event.getAction();
 
         Log.d(TAG, "onKeyEvent: keyCode=" + keyCode + ", action=" + action);
+
+        // Reset still watching inactivity timer whenever user interacts with the remote control
+        if (action == KeyEvent.ACTION_DOWN) {
+            resetStillWatchingTimerOnKeyPress();
+        }
 
         // 0. Intercept prompt response keys for ¿Sigues viendo?
         if (isStillWatchingPromptActive) {
