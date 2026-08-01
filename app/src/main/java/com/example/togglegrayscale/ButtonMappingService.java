@@ -85,10 +85,12 @@ public class ButtonMappingService extends AccessibilityService {
     private boolean isStillWatchingPromptActive = false;
     private View stillWatchingOverlayView = null;
     private int stillWatchingCountdownSeconds = 30;
+    private long cachedStillWatchingIntervalMs = 30 * 60 * 1000L;
 
     private boolean isOledSaverActive = false;
     private boolean isOledSaverPromptActive = false;
     private View oledSaverOverlayView = null;
+    private long cachedOledSaverDelayMs = 5 * 60 * 1000L;
 
     private final Runnable oledSaverRunnable = new Runnable() {
         @Override
@@ -1412,11 +1414,11 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void startStillWatchingTimer() {
         stopStillWatchingTimer();
-        isStillWatchingActive = true;
         SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int intervalMin = prefs.getInt(KEY_STILL_WATCHING_INTERVAL, 30);
-        long delayMs = intervalMin * 60 * 1000L;
-        handler.postDelayed(stillWatchingIntervalRunnable, delayMs);
+        cachedStillWatchingIntervalMs = intervalMin * 60 * 1000L;
+        isStillWatchingActive = true;
+        handler.postDelayed(stillWatchingIntervalRunnable, cachedStillWatchingIntervalMs);
         Log.d(TAG, "Still watching timer started for " + intervalMin + " minutes.");
     }
 
@@ -1427,13 +1429,12 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void resetStillWatchingTimerOnKeyPress() {
-        if (isStillWatchingActive && !isStillWatchingPromptActive) {
+        if (isStillWatchingPromptActive) {
+            dismissStillWatchingPrompt();
+        }
+        if (isStillWatchingActive) {
             handler.removeCallbacks(stillWatchingIntervalRunnable);
-            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-            int intervalMin = prefs.getInt(KEY_STILL_WATCHING_INTERVAL, 30);
-            long delayMs = intervalMin * 60 * 1000L;
-            handler.postDelayed(stillWatchingIntervalRunnable, delayMs);
-            Log.d(TAG, "Key press detected: still watching inactivity timer reset for " + intervalMin + " minutes.");
+            handler.postDelayed(stillWatchingIntervalRunnable, cachedStillWatchingIntervalMs);
         }
     }
 
@@ -1598,11 +1599,11 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void startOledSaverTimer() {
         stopOledSaverTimer();
-        isOledSaverActive = true;
         SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int mins = prefs.getInt(KEY_OLED_MINUTES, 5);
-        long delayMs = mins * 60 * 1000L;
-        handler.postDelayed(oledSaverRunnable, delayMs);
+        cachedOledSaverDelayMs = mins * 60 * 1000L;
+        isOledSaverActive = true;
+        handler.postDelayed(oledSaverRunnable, cachedOledSaverDelayMs);
         Log.d(TAG, "OLED Saver timer started for " + mins + " minutes.");
     }
 
@@ -1673,10 +1674,7 @@ public class ButtonMappingService extends AccessibilityService {
         }
         if (isOledSaverActive) {
             handler.removeCallbacks(oledSaverRunnable);
-            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-            int mins = prefs.getInt(KEY_OLED_MINUTES, 5);
-            long delayMs = mins * 60 * 1000L;
-            handler.postDelayed(oledSaverRunnable, delayMs);
+            handler.postDelayed(oledSaverRunnable, cachedOledSaverDelayMs);
         }
     }
 
@@ -1850,12 +1848,14 @@ public class ButtonMappingService extends AccessibilityService {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
 
-        Log.d(TAG, "onKeyEvent: keyCode=" + keyCode + ", action=" + action);
-
-        // Reset still watching & OLED saver inactivity timers whenever user interacts with the remote control
+        // Reset still watching & OLED saver inactivity timers only when features or prompts are active
         if (action == KeyEvent.ACTION_DOWN) {
-            resetStillWatchingTimerOnKeyPress();
-            resetOledSaverTimerOnKeyPress();
+            if (isStillWatchingActive || isStillWatchingPromptActive) {
+                resetStillWatchingTimerOnKeyPress();
+            }
+            if (isOledSaverActive || isOledSaverPromptActive) {
+                resetOledSaverTimerOnKeyPress();
+            }
         }
 
         // 0. Intercept prompt response keys for ¿Sigues viendo?
