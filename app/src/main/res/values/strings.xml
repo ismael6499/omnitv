@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Toggle Grayscale</string>
-    <string name="accessibility_service_description">Interprets long-press on Mute button to toggle grayscale mode.</string>
+    <string name="app_name">TV Control Hub</string>
+    <string name="accessibility_service_description">Centro de control rápido y remapeo de botones para Android TV.</string>
 </resources>
