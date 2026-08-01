@@ -256,8 +256,8 @@ public class ButtonMappingService extends AccessibilityService {
     private void checkAutoPause() {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int mode = op.getInt("auto_pause_mode", 0);
-        Log.d(TAG, "checkAutoPause tick: mode=" + mode);
         if (mode == 0) return; // Disabled
+        Log.d(TAG, "checkAutoPause tick: mode=" + mode);
 
         long now = SystemClock.elapsedRealtime();
         if (now - lastAutoPauseTime < 20000) { // 20s cooldown
