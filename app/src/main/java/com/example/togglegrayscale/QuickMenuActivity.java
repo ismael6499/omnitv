@@ -830,28 +830,28 @@ public class QuickMenuActivity extends Activity {
             });
         }
         setupAutoRepeatStepButton(btnNightStartDec, -1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_START, 22, step, 0, 23); updateNightScheduleConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_NIGHT_START, 22, step, 0, 23, "ACTION_UPDATE_NIGHT_SCHEDULE"); updateNightScheduleConfigPanel(); }
         });
         setupAutoRepeatStepButton(btnNightStartInc, 1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_START, 22, step, 0, 23); updateNightScheduleConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_NIGHT_START, 22, step, 0, 23, "ACTION_UPDATE_NIGHT_SCHEDULE"); updateNightScheduleConfigPanel(); }
         });
         setupAutoRepeatStepButton(btnNightEndDec, -1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_END, 7, step, 0, 23); updateNightScheduleConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_NIGHT_END, 7, step, 0, 23, "ACTION_UPDATE_NIGHT_SCHEDULE"); updateNightScheduleConfigPanel(); }
         });
         setupAutoRepeatStepButton(btnNightEndInc, 1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_END, 7, step, 0, 23); updateNightScheduleConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_NIGHT_END, 7, step, 0, 23, "ACTION_UPDATE_NIGHT_SCHEDULE"); updateNightScheduleConfigPanel(); }
         });
         setupAutoRepeatStepButton(btnNightBlueLightDec, -1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_BLUE_LIGHT, 40, step, 0, 80); updateNightScheduleConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_NIGHT_BLUE_LIGHT, 40, step, 0, 80, "ACTION_UPDATE_NIGHT_SCHEDULE"); updateNightScheduleConfigPanel(); }
         });
         setupAutoRepeatStepButton(btnNightBlueLightInc, 1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_BLUE_LIGHT, 40, step, 0, 80); updateNightScheduleConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_NIGHT_BLUE_LIGHT, 40, step, 0, 80, "ACTION_UPDATE_NIGHT_SCHEDULE"); updateNightScheduleConfigPanel(); }
         });
         setupAutoRepeatStepButton(btnNightDimmerDec, -1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_DIMMER, 50, step, 0, 95); updateNightScheduleConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_NIGHT_DIMMER, 50, step, 0, 95, "ACTION_UPDATE_NIGHT_SCHEDULE"); updateNightScheduleConfigPanel(); }
         });
         setupAutoRepeatStepButton(btnNightDimmerInc, 1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_NIGHT_DIMMER, 50, step, 0, 95); updateNightScheduleConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_NIGHT_DIMMER, 50, step, 0, 95, "ACTION_UPDATE_NIGHT_SCHEDULE"); updateNightScheduleConfigPanel(); }
         });
         if (btnApplyNightSchedule != null) {
             btnApplyNightSchedule.setOnClickListener(new View.OnClickListener() {
@@ -874,10 +874,10 @@ public class QuickMenuActivity extends Activity {
             });
         }
         setupAutoRepeatStepButton(btnOledMinutesDec, -1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_OLED_MINUTES, 5, step, 1, 60); updateOledSaverConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_OLED_MINUTES, 5, step, 1, 60, "ACTION_UPDATE_OLED_SAVER"); updateOledSaverConfigPanel(); }
         });
         setupAutoRepeatStepButton(btnOledMinutesInc, 1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_OLED_MINUTES, 5, step, 1, 60); updateOledSaverConfigPanel(); }
+            @Override public void adjust(int step) { adjustIntPref(ButtonMappingService.KEY_OLED_MINUTES, 5, step, 1, 60, "ACTION_UPDATE_OLED_SAVER"); updateOledSaverConfigPanel(); }
         });
         if (btnOledMode != null) {
             btnOledMode.setOnClickListener(new View.OnClickListener() {
@@ -1993,14 +1993,20 @@ public class QuickMenuActivity extends Activity {
         sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
     }
 
-    private void adjustStillWatchingIntPref(String key, int def, int delta, int min, int max) {
+    private void adjustIntPref(String key, int def, int delta, int min, int max, String actionName) {
         int cur = getOverlayPrefs().getInt(key, def);
         int next = cur + delta;
         if (next < min) next = min;
         if (next > max) next = max;
         getOverlayPrefs().edit().putInt(key, next).apply();
+        if (actionName != null) {
+            sendServiceAction(actionName);
+        }
+    }
+
+    private void adjustStillWatchingIntPref(String key, int def, int delta, int min, int max) {
+        adjustIntPref(key, def, delta, min, max, "ACTION_UPDATE_STILL_WATCHING");
         updateStillWatchingConfigPanel();
-        sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
     }
 
     private void updateNightScheduleConfigPanel() {
