@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
 
     private void checkAccessibilityAndToggle() {
         if (!isAccessibilityServiceEnabled()) {
-            Toast.makeText(this, "Enable 'Toggle Grayscale' in Accessibility Settings for Mute button support",
+            Toast.makeText(this, "Enable 'TV Control Hub' in Accessibility Settings for remote button support",
                     Toast.LENGTH_LONG).show();
         }
         performToggleAndFinish();

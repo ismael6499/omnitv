@@ -27,9 +27,9 @@ public class NotificationService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "Toggle Grayscale",
+                    "TV Control Hub",
                     NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setDescription("Toggle for grayscale mode");
+            channel.setDescription("TV Control Hub quick controls");
             notificationManager.createNotificationChannel(channel);
         }
 
@@ -50,8 +50,8 @@ public class NotificationService extends Service {
             builder = new Notification.Builder(this);
         }
 
-        builder.setContentTitle("Grayscale Toggle")
-                .setContentText("Click to toggle grayscale mode")
+        builder.setContentTitle("TV Control Hub")
+                .setContentText("Centro de control rápido para Android TV")
                 .setSmallIcon(R.drawable.ic_notification)
                 .setOngoing(true)
                 .setContentIntent(pendingIntent)
