@@ -404,8 +404,8 @@ public class QuickMenuOverlay {
             return true;
         }
 
-        if (openSubPanel != null && (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP)) {
-            if (navigateSubPanelFocus(keyCode, action)) {
+        if (openSubPanel != null && (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            if (navigateSubPanelFocus(keyCode, action, event)) {
                 return true;
             }
         }
@@ -446,28 +446,123 @@ public class QuickMenuOverlay {
         }
     }
 
-    private boolean navigateSubPanelFocus(int keyCode, int action) {
-        if (action != KeyEvent.ACTION_DOWN) return true;
+    private boolean navigateSubPanelFocus(int keyCode, int action, KeyEvent event) {
         if (openSubPanel == null || rootView == null) return false;
         ViewGroup activePanel = getActiveSubPanelGroup();
         if (activePanel == null || activePanel.getVisibility() != View.VISIBLE) return false;
+
+        View current = rootView.findFocus();
+        if (current instanceof SeekBar && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                SeekBar sb = (SeekBar) current;
+                int repeat = event.getRepeatCount();
+                int step;
+                if (sb.getMax() > 100) {
+                    if (repeat > 12) step = 30;
+                    else if (repeat > 6) step = 15;
+                    else if (repeat > 2) step = 5;
+                    else step = 1;
+                } else {
+                    if (repeat > 10) step = 5;
+                    else if (repeat > 4) step = 2;
+                    else step = 1;
+                }
+
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    sb.setProgress(Math.max(0, sb.getProgress() - step));
+                } else {
+                    sb.setProgress(Math.min(sb.getMax(), sb.getProgress() + step));
+                }
+            }
+            return true;
+        }
+
+        if (action != KeyEvent.ACTION_DOWN) return true;
 
         java.util.List<View> focusables = new java.util.ArrayList<>();
         findFocusableChildren(activePanel, focusables);
         if (focusables.isEmpty()) return false;
 
-        View current = rootView.findFocus();
-        int currentIdx = focusables.indexOf(current);
+        if (current == null || !focusables.contains(current)) {
+            focusables.get(0).requestFocus();
+            return true;
+        }
 
+        int[] curLoc = new int[2];
+        current.getLocationOnScreen(curLoc);
+        int curCx = curLoc[0] + current.getWidth() / 2;
+        int curCy = curLoc[1] + current.getHeight() / 2;
+
+        View bestCandidate = null;
+        double minDistance = Double.MAX_VALUE;
+
+        for (View v : focusables) {
+            if (v == current) continue;
+
+            int[] loc = new int[2];
+            v.getLocationOnScreen(loc);
+            int cx = loc[0] + v.getWidth() / 2;
+            int cy = loc[1] + v.getHeight() / 2;
+
+            int dx = cx - curCx;
+            int dy = cy - curCy;
+
+            boolean isValidDirection = false;
+            int maxH = Math.max(current.getHeight(), v.getHeight());
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    if (dx > 5 && Math.abs(dy) <= maxH * 1.5) {
+                        isValidDirection = true;
+                    }
+                    break;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    if (dx < -5 && Math.abs(dy) <= maxH * 1.5) {
+                        isValidDirection = true;
+                    }
+                    break;
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    if (dy > 5) {
+                        isValidDirection = true;
+                    }
+                    break;
+                case KeyEvent.KEYCODE_DPAD_UP:
+                    if (dy < -5) {
+                        isValidDirection = true;
+                    }
+                    break;
+            }
+
+            if (isValidDirection) {
+                double dist;
+                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    dist = Math.abs(dx) + Math.abs(dy) * 3.0;
+                } else {
+                    dist = Math.abs(dy) + Math.abs(dx) * 2.0;
+                }
+
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    bestCandidate = v;
+                }
+            }
+        }
+
+        if (bestCandidate != null) {
+            bestCandidate.requestFocus();
+            return true;
+        }
+
+        int currentIdx = focusables.indexOf(current);
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            int nextIdx = (currentIdx < 0 || currentIdx >= focusables.size() - 1) ? 0 : currentIdx + 1;
+            int nextIdx = (currentIdx + 1) % focusables.size();
             focusables.get(nextIdx).requestFocus();
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            int nextIdx = (currentIdx <= 0) ? focusables.size() - 1 : currentIdx - 1;
+            int nextIdx = (currentIdx - 1 + focusables.size()) % focusables.size();
             focusables.get(nextIdx).requestFocus();
             return true;
         }
+
         return false;
     }
 
