@@ -437,28 +437,36 @@ public class QuickMenuOverlay {
     private boolean navigateMainMenuFocus(int keyCode, int action) {
         if (action != KeyEvent.ACTION_DOWN) return true;
         if (menuContainer == null || menuContainer.getChildCount() == 0) return false;
-        int count = menuContainer.getChildCount();
+
+        java.util.List<View> focusables = new java.util.ArrayList<>();
+        for (int i = 0; i < menuContainer.getChildCount(); i++) {
+            View child = menuContainer.getChildAt(i);
+            if (child != null && child.getVisibility() == View.VISIBLE && child.isFocusable()) {
+                focusables.add(child);
+            }
+        }
+        if (focusables.isEmpty()) return false;
+
         View current = rootView != null ? rootView.findFocus() : null;
-        int currentIdx = -1;
-        if (current != null) {
-            for (int i = 0; i < count; i++) {
-                View child = menuContainer.getChildAt(i);
-                if (child == current || (child instanceof ViewGroup && ((ViewGroup) child).findFocus() != null)) {
+        int currentIdx = focusables.indexOf(current);
+        if (currentIdx < 0 && current != null) {
+            for (int i = 0; i < focusables.size(); i++) {
+                View f = focusables.get(i);
+                if (f instanceof ViewGroup && ((ViewGroup) f).findFocus() != null) {
                     currentIdx = i;
                     break;
                 }
             }
         }
 
+        int total = focusables.size();
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            int nextIdx = (currentIdx < 0 || currentIdx >= count - 1) ? 0 : currentIdx + 1;
-            View target = menuContainer.getChildAt(nextIdx);
-            target.requestFocus();
+            int nextIdx = (currentIdx < 0 || currentIdx >= total - 1) ? 0 : currentIdx + 1;
+            focusables.get(nextIdx).requestFocus();
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            int nextIdx = (currentIdx <= 0) ? count - 1 : currentIdx - 1;
-            View target = menuContainer.getChildAt(nextIdx);
-            target.requestFocus();
+            int nextIdx = (currentIdx <= 0) ? total - 1 : currentIdx - 1;
+            focusables.get(nextIdx).requestFocus();
             return true;
         }
         return false;
