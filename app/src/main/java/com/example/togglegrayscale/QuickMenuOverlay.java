@@ -362,7 +362,46 @@ public class QuickMenuOverlay {
         }
     }
 
+    private final android.os.Handler mHoldHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private int mHoldingKeyCode = -1;
+    private int mHoldTickCount = 0;
+    private Runnable mHoldRunnable;
+
+    private void startHoldRepeat(final int keyCode, final KeyEvent event) {
+        stopHoldRepeat();
+        mHoldingKeyCode = keyCode;
+        mHoldTickCount = 0;
+
+        mHoldRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isShowing() || mHoldingKeyCode != keyCode) return;
+                mHoldTickCount++;
+                KeyEvent synthEvent = new KeyEvent(
+                    android.os.SystemClock.uptimeMillis(),
+                    android.os.SystemClock.uptimeMillis(),
+                    KeyEvent.ACTION_DOWN,
+                    keyCode,
+                    mHoldTickCount
+                );
+                handleOverlayNavigation(keyCode, KeyEvent.ACTION_DOWN, synthEvent);
+                mHoldHandler.postDelayed(this, 70);
+            }
+        };
+        mHoldHandler.postDelayed(mHoldRunnable, 280);
+    }
+
+    private void stopHoldRepeat() {
+        mHoldingKeyCode = -1;
+        mHoldTickCount = 0;
+        if (mHoldRunnable != null) {
+            mHoldHandler.removeCallbacks(mHoldRunnable);
+            mHoldRunnable = null;
+        }
+    }
+
     public void dismiss() {
+        stopHoldRepeat();
         if (rootView != null) {
             final View v = rootView;
             rootView = null;
@@ -388,6 +427,7 @@ public class QuickMenuOverlay {
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (action == KeyEvent.ACTION_DOWN) {
+                stopHoldRepeat();
                 if (openSubPanel != null) {
                     closeSubPanels();
                     buildMenu();
@@ -405,8 +445,21 @@ public class QuickMenuOverlay {
         }
 
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            if (handleOverlayNavigation(keyCode, action, event)) {
-                return true;
+            if (action == KeyEvent.ACTION_DOWN) {
+                if (event.getRepeatCount() == 0) {
+                    boolean handled = handleOverlayNavigation(keyCode, action, event);
+                    if (handled) {
+                        startHoldRepeat(keyCode, event);
+                        return true;
+                    }
+                } else {
+                    return true;
+                }
+            } else if (action == KeyEvent.ACTION_UP) {
+                if (keyCode == mHoldingKeyCode) {
+                    stopHoldRepeat();
+                    return true;
+                }
             }
         }
 
@@ -1298,6 +1351,7 @@ public class QuickMenuOverlay {
     }
 
     private void closeSubPanels() {
+        stopHoldRepeat();
         if (panelTimer != null) panelTimer.setVisibility(View.GONE);
         if (panelCine != null) panelCine.setVisibility(View.GONE);
         if (panelBlueLight != null) panelBlueLight.setVisibility(View.GONE);
