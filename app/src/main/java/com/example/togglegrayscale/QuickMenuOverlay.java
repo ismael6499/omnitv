@@ -442,7 +442,8 @@ public class QuickMenuOverlay {
         int currentIdx = -1;
         if (current != null) {
             for (int i = 0; i < count; i++) {
-                if (menuContainer.getChildAt(i) == current) {
+                View child = menuContainer.getChildAt(i);
+                if (child == current || (child instanceof ViewGroup && ((ViewGroup) child).findFocus() != null)) {
                     currentIdx = i;
                     break;
                 }
@@ -477,6 +478,11 @@ public class QuickMenuOverlay {
             case "oled_saver": return panelOledSaver;
             default: return panelButtonConfig;
         }
+    }
+
+    private static class ViewRow {
+        int y;
+        java.util.List<View> views = new java.util.ArrayList<>();
     }
 
     private boolean navigateSubPanelFocus(int keyCode, int action, KeyEvent event) {
@@ -516,59 +522,91 @@ public class QuickMenuOverlay {
         findFocusableChildren(activePanel, focusables);
         if (focusables.isEmpty()) return false;
 
-        // Sort focusables in strict visual row-by-row top-to-bottom, left-to-right order
-        java.util.Collections.sort(focusables, new java.util.Comparator<View>() {
-            @Override
-            public int compare(View v1, View v2) {
-                int[] loc1 = new int[2];
-                int[] loc2 = new int[2];
-                v1.getLocationOnScreen(loc1);
-                v2.getLocationOnScreen(loc2);
-                int yDiff = loc1[1] - loc2[1];
-                if (Math.abs(yDiff) > 18) {
-                    return Integer.compare(loc1[1], loc2[1]);
+        // Group focusables into visual rows by Y-coordinate on screen
+        java.util.List<ViewRow> rows = new java.util.ArrayList<>();
+        for (View v : focusables) {
+            int[] loc = new int[2];
+            v.getLocationOnScreen(loc);
+            int y = loc[1];
+            ViewRow matchedRow = null;
+            for (ViewRow r : rows) {
+                if (Math.abs(r.y - y) <= 18) {
+                    matchedRow = r;
+                    break;
                 }
-                return Integer.compare(loc1[0], loc2[0]);
+            }
+            if (matchedRow == null) {
+                matchedRow = new ViewRow();
+                matchedRow.y = y;
+                rows.add(matchedRow);
+            }
+            matchedRow.views.add(v);
+        }
+
+        // Sort rows vertically top to bottom
+        java.util.Collections.sort(rows, new java.util.Comparator<ViewRow>() {
+            @Override
+            public int compare(ViewRow r1, ViewRow r2) {
+                return Integer.compare(r1.y, r2.y);
             }
         });
 
-        if (current == null || !focusables.contains(current)) {
-            focusables.get(0).requestFocus();
+        // Sort views in each row horizontally left to right
+        for (ViewRow r : rows) {
+            java.util.Collections.sort(r.views, new java.util.Comparator<View>() {
+                @Override
+                public int compare(View v1, View v2) {
+                    int[] l1 = new int[2];
+                    int[] l2 = new int[2];
+                    v1.getLocationOnScreen(l1);
+                    v2.getLocationOnScreen(l2);
+                    return Integer.compare(l1[0], l2[0]);
+                }
+            });
+        }
+
+        int rIdx = -1, cIdx = -1;
+        if (current != null) {
+            for (int r = 0; r < rows.size(); r++) {
+                int c = rows.get(r).views.indexOf(current);
+                if (c >= 0) {
+                    rIdx = r;
+                    cIdx = c;
+                    break;
+                }
+            }
+        }
+
+        if (rIdx < 0 || cIdx < 0) {
+            if (!rows.isEmpty() && !rows.get(0).views.isEmpty()) {
+                rows.get(0).views.get(0).requestFocus();
+            }
             return true;
         }
 
-        int currentIdx = focusables.indexOf(current);
-        int total = focusables.size();
-
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            int nextIdx = (currentIdx + 1) % total;
-            focusables.get(nextIdx).requestFocus();
+            int nextR = (rIdx + 1) % rows.size();
+            ViewRow targetRow = rows.get(nextR);
+            int targetC = Math.min(cIdx, targetRow.views.size() - 1);
+            targetRow.views.get(targetC).requestFocus();
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            int nextIdx = (currentIdx - 1 + total) % total;
-            focusables.get(nextIdx).requestFocus();
+            int nextR = (rIdx - 1 + rows.size()) % rows.size();
+            ViewRow targetRow = rows.get(nextR);
+            int targetC = Math.min(cIdx, targetRow.views.size() - 1);
+            targetRow.views.get(targetC).requestFocus();
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            if (currentIdx < total - 1) {
-                int[] curLoc = new int[2];
-                int[] nextLoc = new int[2];
-                current.getLocationOnScreen(curLoc);
-                focusables.get(currentIdx + 1).getLocationOnScreen(nextLoc);
-                if (Math.abs(nextLoc[1] - curLoc[1]) <= 18 && nextLoc[0] > curLoc[0]) {
-                    focusables.get(currentIdx + 1).requestFocus();
-                    return true;
-                }
+            ViewRow curRow = rows.get(rIdx);
+            if (cIdx < curRow.views.size() - 1) {
+                curRow.views.get(cIdx + 1).requestFocus();
+                return true;
             }
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-            if (currentIdx > 0) {
-                int[] curLoc = new int[2];
-                int[] prevLoc = new int[2];
-                current.getLocationOnScreen(curLoc);
-                focusables.get(currentIdx - 1).getLocationOnScreen(prevLoc);
-                if (Math.abs(prevLoc[1] - curLoc[1]) <= 18 && prevLoc[0] < curLoc[0]) {
-                    focusables.get(currentIdx - 1).requestFocus();
-                    return true;
-                }
+            ViewRow curRow = rows.get(rIdx);
+            if (cIdx > 0) {
+                curRow.views.get(cIdx - 1).requestFocus();
+                return true;
             }
         }
 
