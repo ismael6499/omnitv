@@ -593,14 +593,14 @@ public class QuickMenuOverlay {
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
             int nextR = (rIdx + 1) % rows.size();
             ViewRow targetRow = rows.get(nextR);
-            int targetC = Math.min(cIdx, targetRow.views.size() - 1);
-            requestViewFocus(targetRow.views.get(targetC));
+            View bestView = findClosestViewByX(targetRow.views, current);
+            requestViewFocus(bestView);
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
             int nextR = (rIdx - 1 + rows.size()) % rows.size();
             ViewRow targetRow = rows.get(nextR);
-            int targetC = Math.min(cIdx, targetRow.views.size() - 1);
-            requestViewFocus(targetRow.views.get(targetC));
+            View bestView = findClosestViewByX(targetRow.views, current);
+            requestViewFocus(bestView);
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
             ViewRow curRow = rows.get(rIdx);
@@ -617,6 +617,28 @@ public class QuickMenuOverlay {
         }
 
         return false;
+    }
+
+    private View findClosestViewByX(java.util.List<View> targetViews, View current) {
+        if (targetViews == null || targetViews.isEmpty()) return null;
+        if (current == null) return targetViews.get(0);
+        int[] curLoc = new int[2];
+        current.getLocationOnScreen(curLoc);
+        int curCenterX = curLoc[0] + current.getWidth() / 2;
+
+        View best = targetViews.get(0);
+        int minDiff = Integer.MAX_VALUE;
+        for (View v : targetViews) {
+            int[] vLoc = new int[2];
+            v.getLocationOnScreen(vLoc);
+            int vCenterX = vLoc[0] + v.getWidth() / 2;
+            int diff = Math.abs(vCenterX - curCenterX);
+            if (diff < minDiff) {
+                minDiff = diff;
+                best = v;
+            }
+        }
+        return best;
     }
 
     private void requestViewFocus(View v) {
