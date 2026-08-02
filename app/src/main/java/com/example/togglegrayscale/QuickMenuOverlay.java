@@ -572,7 +572,14 @@ public class QuickMenuOverlay {
         android.view.ViewParent parent = v.getParent();
         while (parent != null) {
             if (parent instanceof android.widget.ScrollView) {
-                ((android.widget.ScrollView) parent).requestChildFocus(v, v);
+                final android.widget.ScrollView sv = (android.widget.ScrollView) parent;
+                int[] vLoc = new int[2];
+                int[] svLoc = new int[2];
+                v.getLocationOnScreen(vLoc);
+                sv.getLocationOnScreen(svLoc);
+                int relativeY = vLoc[1] - svLoc[1] + sv.getScrollY();
+                int targetY = Math.max(0, relativeY - (sv.getHeight() - v.getHeight()) / 2);
+                sv.smoothScrollTo(0, targetY);
                 break;
             }
             parent = parent.getParent();
