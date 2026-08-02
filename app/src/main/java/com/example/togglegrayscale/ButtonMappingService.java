@@ -1987,11 +1987,11 @@ public class ButtonMappingService extends AccessibilityService {
                 return true;
             }
             boolean wasShowing = QuickMenuOverlay.getInstance().isShowing();
-            boolean handled = QuickMenuOverlay.getInstance().onKeyEvent(event);
+            QuickMenuOverlay.getInstance().onKeyEvent(event);
             if (wasShowing && !QuickMenuOverlay.getInstance().isShowing() && keyCode == KeyEvent.KEYCODE_BACK) {
                 isDismissingQuickMenuKey = true;
             }
-            return handled;
+            return true;
         }
 
         return super.onKeyEvent(event);

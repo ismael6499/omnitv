@@ -407,9 +407,63 @@ public class QuickMenuOverlay {
 
         // Forward key events to layout view tree for D-Pad focus & controls
         if (rootView != null) {
+            if (rootView.findFocus() == null) {
+                if (openSubPanel != null) {
+                    focusSubPanel(openSubPanel);
+                } else if (menuContainer != null && menuContainer.getChildCount() > 0) {
+                    if (lastFocusedId != null) {
+                        View target = menuContainer.findViewWithTag(lastFocusedId);
+                        if (target != null) target.requestFocus();
+                        else menuContainer.getChildAt(0).requestFocus();
+                    } else {
+                        menuContainer.getChildAt(0).requestFocus();
+                    }
+                }
+            }
             return rootView.dispatchKeyEvent(event);
         }
         return true;
+    }
+
+    private void focusSubPanel(String subPanelId) {
+        if (subPanelId == null) return;
+        switch (subPanelId) {
+            case "timer":
+                if (panelTimer != null) {
+                    View v = panelTimer.findViewById(R.id.btn_5m);
+                    if (v != null) v.requestFocus();
+                }
+                break;
+            case "blue_light":
+                if (sliderBlueLight != null) sliderBlueLight.requestFocus();
+                break;
+            case "clock_config":
+                if (btnClockTextColor != null) btnClockTextColor.requestFocus();
+                break;
+            case "brightness_config":
+                if (sliderBrightness != null) sliderBrightness.requestFocus();
+                break;
+            case "cine":
+                if (btnCineBlueLightConfig != null) btnCineBlueLightConfig.requestFocus();
+                break;
+            case "auto_pause":
+                if (btnAutoPauseMode != null) btnAutoPauseMode.requestFocus();
+                break;
+            case "still_watching":
+                if (btnStillWatchingToggle != null) btnStillWatchingToggle.requestFocus();
+                break;
+            case "night_schedule":
+                if (btnNightScheduleToggle != null) btnNightScheduleToggle.requestFocus();
+                break;
+            case "oled_saver":
+                if (btnOledSaverToggle != null) btnOledSaverToggle.requestFocus();
+                break;
+            default:
+                if (panelButtonConfig != null && panelButtonConfig.getVisibility() == View.VISIBLE) {
+                    if (btnConfigClick1 != null) btnConfigClick1.requestFocus();
+                }
+                break;
+        }
     }
 
     private SharedPreferences getOverlayPrefs() {
