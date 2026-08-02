@@ -404,6 +404,12 @@ public class QuickMenuOverlay {
             return true;
         }
 
+        if (openSubPanel != null && (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP)) {
+            if (navigateSubPanelFocus(keyCode, action)) {
+                return true;
+            }
+        }
+
         // Forward key events to layout view tree for D-Pad focus & controls
         if (rootView != null) {
             if (rootView.findFocus() == null) {
@@ -422,6 +428,59 @@ public class QuickMenuOverlay {
             return rootView.dispatchKeyEvent(event);
         }
         return true;
+    }
+
+    private ViewGroup getActiveSubPanelGroup() {
+        if (openSubPanel == null) return null;
+        switch (openSubPanel) {
+            case "timer": return panelTimer;
+            case "blue_light": return panelBlueLight;
+            case "clock_config": return panelClockConfig;
+            case "brightness_config": return panelBrightness;
+            case "cine": return panelCine;
+            case "auto_pause": return panelAutoPause;
+            case "still_watching": return panelStillWatching;
+            case "night_schedule": return panelNightSchedule;
+            case "oled_saver": return panelOledSaver;
+            default: return panelButtonConfig;
+        }
+    }
+
+    private boolean navigateSubPanelFocus(int keyCode, int action) {
+        if (action != KeyEvent.ACTION_DOWN) return true;
+        if (openSubPanel == null || rootView == null) return false;
+        ViewGroup activePanel = getActiveSubPanelGroup();
+        if (activePanel == null || activePanel.getVisibility() != View.VISIBLE) return false;
+
+        java.util.List<View> focusables = new java.util.ArrayList<>();
+        findFocusableChildren(activePanel, focusables);
+        if (focusables.isEmpty()) return false;
+
+        View current = rootView.findFocus();
+        int currentIdx = focusables.indexOf(current);
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            int nextIdx = (currentIdx < 0 || currentIdx >= focusables.size() - 1) ? 0 : currentIdx + 1;
+            focusables.get(nextIdx).requestFocus();
+            return true;
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            int nextIdx = (currentIdx <= 0) ? focusables.size() - 1 : currentIdx - 1;
+            focusables.get(nextIdx).requestFocus();
+            return true;
+        }
+        return false;
+    }
+
+    private void findFocusableChildren(ViewGroup group, java.util.List<View> out) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child.getVisibility() == View.VISIBLE && child.isFocusable()) {
+                out.add(child);
+            }
+            if (child instanceof ViewGroup && child.getVisibility() == View.VISIBLE) {
+                findFocusableChildren((ViewGroup) child, out);
+            }
+        }
     }
 
     private void focusSubPanel(String subPanelId) {
