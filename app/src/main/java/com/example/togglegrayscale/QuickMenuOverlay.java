@@ -348,8 +348,7 @@ public class QuickMenuOverlay {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT
@@ -405,24 +404,8 @@ public class QuickMenuOverlay {
             return true;
         }
 
-        // Forward key events to layout view tree for D-Pad focus & controls
-        if (rootView != null) {
-            if (rootView.findFocus() == null) {
-                if (openSubPanel != null) {
-                    focusSubPanel(openSubPanel);
-                } else if (menuContainer != null && menuContainer.getChildCount() > 0) {
-                    if (lastFocusedId != null) {
-                        View target = menuContainer.findViewWithTag(lastFocusedId);
-                        if (target != null) target.requestFocus();
-                        else menuContainer.getChildAt(0).requestFocus();
-                    } else {
-                        menuContainer.getChildAt(0).requestFocus();
-                    }
-                }
-            }
-            return rootView.dispatchKeyEvent(event);
-        }
-        return true;
+        // Handled natively by WindowManager when focusable
+        return false;
     }
 
     private void focusSubPanel(String subPanelId) {
