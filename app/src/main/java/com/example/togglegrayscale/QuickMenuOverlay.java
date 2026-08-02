@@ -408,6 +408,10 @@ public class QuickMenuOverlay {
             if (navigateSubPanelFocus(keyCode, action, event)) {
                 return true;
             }
+        } else if (openSubPanel == null && (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP)) {
+            if (navigateMainMenuFocus(keyCode, action)) {
+                return true;
+            }
         }
 
         // Forward key events to layout view tree for D-Pad focus & controls
@@ -428,6 +432,35 @@ public class QuickMenuOverlay {
             return rootView.dispatchKeyEvent(event);
         }
         return true;
+    }
+
+    private boolean navigateMainMenuFocus(int keyCode, int action) {
+        if (action != KeyEvent.ACTION_DOWN) return true;
+        if (menuContainer == null || menuContainer.getChildCount() == 0) return false;
+        int count = menuContainer.getChildCount();
+        View current = rootView != null ? rootView.findFocus() : null;
+        int currentIdx = -1;
+        if (current != null) {
+            for (int i = 0; i < count; i++) {
+                if (menuContainer.getChildAt(i) == current) {
+                    currentIdx = i;
+                    break;
+                }
+            }
+        }
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            int nextIdx = (currentIdx < 0 || currentIdx >= count - 1) ? 0 : currentIdx + 1;
+            View target = menuContainer.getChildAt(nextIdx);
+            target.requestFocus();
+            return true;
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            int nextIdx = (currentIdx <= 0) ? count - 1 : currentIdx - 1;
+            View target = menuContainer.getChildAt(nextIdx);
+            target.requestFocus();
+            return true;
+        }
+        return false;
     }
 
     private ViewGroup getActiveSubPanelGroup() {
@@ -483,84 +516,60 @@ public class QuickMenuOverlay {
         findFocusableChildren(activePanel, focusables);
         if (focusables.isEmpty()) return false;
 
+        // Sort focusables in strict visual row-by-row top-to-bottom, left-to-right order
+        java.util.Collections.sort(focusables, new java.util.Comparator<View>() {
+            @Override
+            public int compare(View v1, View v2) {
+                int[] loc1 = new int[2];
+                int[] loc2 = new int[2];
+                v1.getLocationOnScreen(loc1);
+                v2.getLocationOnScreen(loc2);
+                int yDiff = loc1[1] - loc2[1];
+                if (Math.abs(yDiff) > 18) {
+                    return Integer.compare(loc1[1], loc2[1]);
+                }
+                return Integer.compare(loc1[0], loc2[0]);
+            }
+        });
+
         if (current == null || !focusables.contains(current)) {
             focusables.get(0).requestFocus();
             return true;
         }
 
-        int[] curLoc = new int[2];
-        current.getLocationOnScreen(curLoc);
-        int curCx = curLoc[0] + current.getWidth() / 2;
-        int curCy = curLoc[1] + current.getHeight() / 2;
-
-        View bestCandidate = null;
-        double minDistance = Double.MAX_VALUE;
-
-        for (View v : focusables) {
-            if (v == current) continue;
-
-            int[] loc = new int[2];
-            v.getLocationOnScreen(loc);
-            int cx = loc[0] + v.getWidth() / 2;
-            int cy = loc[1] + v.getHeight() / 2;
-
-            int dx = cx - curCx;
-            int dy = cy - curCy;
-
-            boolean isValidDirection = false;
-            int maxH = Math.max(current.getHeight(), v.getHeight());
-            switch (keyCode) {
-                case KeyEvent.KEYCODE_DPAD_RIGHT:
-                    if (dx > 5 && Math.abs(dy) <= maxH * 1.5) {
-                        isValidDirection = true;
-                    }
-                    break;
-                case KeyEvent.KEYCODE_DPAD_LEFT:
-                    if (dx < -5 && Math.abs(dy) <= maxH * 1.5) {
-                        isValidDirection = true;
-                    }
-                    break;
-                case KeyEvent.KEYCODE_DPAD_DOWN:
-                    if (dy > 5) {
-                        isValidDirection = true;
-                    }
-                    break;
-                case KeyEvent.KEYCODE_DPAD_UP:
-                    if (dy < -5) {
-                        isValidDirection = true;
-                    }
-                    break;
-            }
-
-            if (isValidDirection) {
-                double dist;
-                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                    dist = Math.abs(dx) + Math.abs(dy) * 3.0;
-                } else {
-                    dist = Math.abs(dy) + Math.abs(dx) * 2.0;
-                }
-
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    bestCandidate = v;
-                }
-            }
-        }
-
-        if (bestCandidate != null) {
-            bestCandidate.requestFocus();
-            return true;
-        }
-
         int currentIdx = focusables.indexOf(current);
+        int total = focusables.size();
+
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            int nextIdx = (currentIdx + 1) % focusables.size();
+            int nextIdx = (currentIdx + 1) % total;
             focusables.get(nextIdx).requestFocus();
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            int nextIdx = (currentIdx - 1 + focusables.size()) % focusables.size();
+            int nextIdx = (currentIdx - 1 + total) % total;
             focusables.get(nextIdx).requestFocus();
             return true;
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            if (currentIdx < total - 1) {
+                int[] curLoc = new int[2];
+                int[] nextLoc = new int[2];
+                current.getLocationOnScreen(curLoc);
+                focusables.get(currentIdx + 1).getLocationOnScreen(nextLoc);
+                if (Math.abs(nextLoc[1] - curLoc[1]) <= 18 && nextLoc[0] > curLoc[0]) {
+                    focusables.get(currentIdx + 1).requestFocus();
+                    return true;
+                }
+            }
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+            if (currentIdx > 0) {
+                int[] curLoc = new int[2];
+                int[] prevLoc = new int[2];
+                current.getLocationOnScreen(curLoc);
+                focusables.get(currentIdx - 1).getLocationOnScreen(prevLoc);
+                if (Math.abs(prevLoc[1] - curLoc[1]) <= 18 && prevLoc[0] < curLoc[0]) {
+                    focusables.get(currentIdx - 1).requestFocus();
+                    return true;
+                }
+            }
         }
 
         return false;
