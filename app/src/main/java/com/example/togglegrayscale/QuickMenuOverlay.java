@@ -1055,7 +1055,7 @@ public class QuickMenuOverlay {
             menuContainer.addView(hint);
         }
 
-        if (menuContainer.getChildCount() > 0) {
+        if (openSubPanel == null && menuContainer.getChildCount() > 0) {
             if (lastFocusedId != null) {
                 View target = menuContainer.findViewWithTag(lastFocusedId);
                 if (target != null) {
@@ -1116,35 +1116,40 @@ public class QuickMenuOverlay {
             case "timer":
                 if ("timer".equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
-                    panelTimer.setVisibility(View.VISIBLE);
+                    buildMenu();
+                    if (panelTimer != null) panelTimer.setVisibility(View.VISIBLE);
                     openSubPanel = "timer";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateTimerCancelButton();
-                    View f = panelTimer.findViewById(R.id.btn_5m);
+                    View f = panelTimer != null ? panelTimer.findViewById(R.id.btn_5m) : null;
                     if (f != null) f.requestFocus();
                 }
                 break;
             case "blue_light":
                 if ("blue_light".equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
-                    panelBlueLight.setVisibility(View.VISIBLE);
+                    buildMenu();
+                    if (panelBlueLight != null) panelBlueLight.setVisibility(View.VISIBLE);
                     openSubPanel = "blue_light";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateBlueLightConfigPanel();
                     if (sliderBlueLight != null) sliderBlueLight.requestFocus();
                 }
-                buildMenu();
                 break;
             case "clock":
                 if ("clock_config".equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
-                    panelClockConfig.setVisibility(View.VISIBLE);
+                    buildMenu();
+                    if (panelClockConfig != null) panelClockConfig.setVisibility(View.VISIBLE);
                     openSubPanel = "clock_config";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateClockConfigPanel();
@@ -1159,15 +1164,16 @@ public class QuickMenuOverlay {
                 }
                 if ("brightness_config".equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
-                    panelBrightness.setVisibility(View.VISIBLE);
+                    buildMenu();
+                    if (panelBrightness != null) panelBrightness.setVisibility(View.VISIBLE);
                     openSubPanel = "brightness_config";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateBrightnessConfigPanel();
                     if (sliderBrightness != null) sliderBrightness.requestFocus();
                 }
-                buildMenu();
                 break;
             case "grayscale":
                 sendServiceAction("ACTION_TOGGLE_GRAYSCALE");
@@ -1176,9 +1182,11 @@ public class QuickMenuOverlay {
             case "cine_mode":
                 if ("cine".equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
-                    panelCine.setVisibility(View.VISIBLE);
+                    buildMenu();
+                    if (panelCine != null) panelCine.setVisibility(View.VISIBLE);
                     openSubPanel = "cine";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateCineConfigPanel();
@@ -1188,15 +1196,16 @@ public class QuickMenuOverlay {
             case "auto_pause":
                 if ("auto_pause".equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
-                    panelAutoPause.setVisibility(View.VISIBLE);
+                    buildMenu();
+                    if (panelAutoPause != null) panelAutoPause.setVisibility(View.VISIBLE);
                     openSubPanel = "auto_pause";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateAutoPauseConfigPanel();
                     if (btnAutoPauseMode != null) btnAutoPauseMode.requestFocus();
                 }
-                buildMenu();
                 break;
             case "screen_off":
                 sendServiceAction("ACTION_SHOW_BLACK_SCREEN");
@@ -1296,10 +1305,12 @@ public class QuickMenuOverlay {
                 String btnKey = id.substring("config_".length());
                 if (id.equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
+                    buildMenu();
                     configuringButton = btnKey;
-                    panelButtonConfig.setVisibility(View.VISIBLE);
+                    if (panelButtonConfig != null) panelButtonConfig.setVisibility(View.VISIBLE);
                     openSubPanel = id;
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateButtonConfigPanel();
@@ -1309,41 +1320,44 @@ public class QuickMenuOverlay {
             case "still_watching":
                 if ("still_watching".equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
+                    buildMenu();
                     if (panelStillWatching != null) panelStillWatching.setVisibility(View.VISIBLE);
                     openSubPanel = "still_watching";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateStillWatchingConfigPanel();
                     if (btnStillWatchingToggle != null) btnStillWatchingToggle.requestFocus();
                 }
-                buildMenu();
                 break;
             case "night_schedule":
                 if ("night_schedule".equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
+                    buildMenu();
                     if (panelNightSchedule != null) panelNightSchedule.setVisibility(View.VISIBLE);
                     openSubPanel = "night_schedule";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateNightScheduleConfigPanel();
                     if (btnNightScheduleToggle != null) btnNightScheduleToggle.requestFocus();
                 }
-                buildMenu();
                 break;
             case "oled_saver":
                 if ("oled_saver".equals(openSubPanel)) {
                     closeSubPanels();
+                    buildMenu();
                 } else {
                     closeSubPanels();
+                    buildMenu();
                     if (panelOledSaver != null) panelOledSaver.setVisibility(View.VISIBLE);
                     openSubPanel = "oled_saver";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateOledSaverConfigPanel();
                     if (btnOledSaverToggle != null) btnOledSaverToggle.requestFocus();
                 }
-                buildMenu();
                 break;
             default:
                 Log.w(TAG, "Unknown item: " + id);
