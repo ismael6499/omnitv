@@ -205,7 +205,7 @@ public class QuickMenuOverlay {
             dismiss();
         }
 
-        this.context = ctx.getApplicationContext();
+        this.context = ctx;
         this.windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         if (windowManager == null) return;
 
