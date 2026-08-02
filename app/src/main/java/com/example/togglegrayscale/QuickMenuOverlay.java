@@ -348,7 +348,8 @@ public class QuickMenuOverlay {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT
@@ -406,7 +407,7 @@ public class QuickMenuOverlay {
 
         // Forward key events to layout view tree for D-Pad focus & controls
         if (rootView != null) {
-            rootView.dispatchKeyEvent(event);
+            return rootView.dispatchKeyEvent(event);
         }
         return true;
     }
