@@ -385,10 +385,10 @@ public class QuickMenuOverlay {
                     mHoldTickCount
                 );
                 handleOverlayNavigation(keyCode, KeyEvent.ACTION_DOWN, synthEvent);
-                mHoldHandler.postDelayed(this, 70);
+                mHoldHandler.postDelayed(this, 110);
             }
         };
-        mHoldHandler.postDelayed(mHoldRunnable, 280);
+        mHoldHandler.postDelayed(mHoldRunnable, 320);
     }
 
     private void stopHoldRepeat() {
@@ -505,12 +505,12 @@ public class QuickMenuOverlay {
             int repeat = event.getRepeatCount();
             int step;
             if (sb.getMax() > 100) {
-                if (repeat > 12) step = 30;
-                else if (repeat > 6) step = 15;
-                else if (repeat > 2) step = 5;
+                if (repeat > 15) step = 15;
+                else if (repeat > 8) step = 8;
+                else if (repeat > 3) step = 3;
                 else step = 1;
             } else {
-                if (repeat > 10) step = 5;
+                if (repeat > 10) step = 4;
                 else if (repeat > 4) step = 2;
                 else step = 1;
             }
