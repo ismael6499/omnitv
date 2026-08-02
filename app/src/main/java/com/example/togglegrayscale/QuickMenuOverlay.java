@@ -406,6 +406,19 @@ public class QuickMenuOverlay {
 
         // Forward key events to layout view tree for D-Pad focus & controls
         if (rootView != null) {
+            if (rootView.findFocus() == null) {
+                if (openSubPanel != null) {
+                    focusSubPanel(openSubPanel);
+                } else if (menuContainer != null && menuContainer.getChildCount() > 0) {
+                    if (lastFocusedId != null) {
+                        View target = menuContainer.findViewWithTag(lastFocusedId);
+                        if (target != null) target.requestFocus();
+                        else menuContainer.getChildAt(0).requestFocus();
+                    } else {
+                        menuContainer.getChildAt(0).requestFocus();
+                    }
+                }
+            }
             return rootView.dispatchKeyEvent(event);
         }
         return true;
