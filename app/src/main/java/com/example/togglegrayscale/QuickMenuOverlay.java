@@ -404,24 +404,179 @@ public class QuickMenuOverlay {
             return true;
         }
 
-        // Forward key events to layout view tree for 100% native D-Pad focus, holding repeat & SeekBar controls
-        if (rootView != null) {
-            if (rootView.findFocus() == null) {
-                if (openSubPanel != null) {
-                    focusSubPanel(openSubPanel);
-                } else if (menuContainer != null && menuContainer.getChildCount() > 0) {
-                    if (lastFocusedId != null) {
-                        View target = menuContainer.findViewWithTag(lastFocusedId);
-                        if (target != null) target.requestFocus();
-                        else menuContainer.getChildAt(0).requestFocus();
-                    } else {
-                        menuContainer.getChildAt(0).requestFocus();
-                    }
-                }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            if (handleOverlayNavigation(keyCode, action, event)) {
+                return true;
             }
+        }
+
+        if (rootView != null) {
             return rootView.dispatchKeyEvent(event);
         }
         return true;
+    }
+
+    private ViewGroup getActiveSubPanelGroup() {
+        if (openSubPanel == null) return menuContainer;
+        switch (openSubPanel) {
+            case "timer": return panelTimer;
+            case "blue_light": return panelBlueLight;
+            case "clock_config": return panelClockConfig;
+            case "brightness_config": return panelBrightness;
+            case "cine": return panelCine;
+            case "auto_pause": return panelAutoPause;
+            case "still_watching": return panelStillWatching;
+            case "night_schedule": return panelNightSchedule;
+            case "oled_saver": return panelOledSaver;
+            default: return panelButtonConfig;
+        }
+    }
+
+    private static class ViewRow {
+        int y;
+        java.util.List<View> views = new java.util.ArrayList<>();
+    }
+
+    private boolean handleOverlayNavigation(int keyCode, int action, KeyEvent event) {
+        if (action != KeyEvent.ACTION_DOWN) return true;
+        if (rootView == null) return false;
+
+        ViewGroup container = getActiveSubPanelGroup();
+        if (container == null || container.getVisibility() != View.VISIBLE) return false;
+
+        View current = rootView.findFocus();
+
+        // 1. Special handling for SeekBar progress adjustments with holding acceleration
+        if (current instanceof SeekBar && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            SeekBar sb = (SeekBar) current;
+            int repeat = event.getRepeatCount();
+            int step;
+            if (sb.getMax() > 100) {
+                if (repeat > 12) step = 30;
+                else if (repeat > 6) step = 15;
+                else if (repeat > 2) step = 5;
+                else step = 1;
+            } else {
+                if (repeat > 10) step = 5;
+                else if (repeat > 4) step = 2;
+                else step = 1;
+            }
+
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                sb.setProgress(Math.max(0, sb.getProgress() - step));
+            } else {
+                sb.setProgress(Math.min(sb.getMax(), sb.getProgress() + step));
+            }
+            return true;
+        }
+
+        // 2. Gather focusable views in active container
+        java.util.List<View> focusables = new java.util.ArrayList<>();
+        findFocusableChildren(container, focusables);
+        if (focusables.isEmpty()) return false;
+
+        // 3. Group focusables into visual rows by Y-screen position
+        java.util.List<ViewRow> rows = new java.util.ArrayList<>();
+        for (View v : focusables) {
+            int[] loc = new int[2];
+            v.getLocationOnScreen(loc);
+            int y = loc[1];
+            ViewRow matchedRow = null;
+            for (ViewRow r : rows) {
+                if (Math.abs(r.y - y) <= 18) {
+                    matchedRow = r;
+                    break;
+                }
+            }
+            if (matchedRow == null) {
+                matchedRow = new ViewRow();
+                matchedRow.y = y;
+                rows.add(matchedRow);
+            }
+            matchedRow.views.add(v);
+        }
+
+        // Sort rows vertically top-to-bottom
+        java.util.Collections.sort(rows, new java.util.Comparator<ViewRow>() {
+            @Override
+            public int compare(ViewRow r1, ViewRow r2) {
+                return Integer.compare(r1.y, r2.y);
+            }
+        });
+
+        // Sort views in each row horizontally left-to-right
+        for (ViewRow r : rows) {
+            java.util.Collections.sort(r.views, new java.util.Comparator<View>() {
+                @Override
+                public int compare(View v1, View v2) {
+                    int[] l1 = new int[2];
+                    int[] l2 = new int[2];
+                    v1.getLocationOnScreen(l1);
+                    v2.getLocationOnScreen(l2);
+                    return Integer.compare(l1[0], l2[0]);
+                }
+            });
+        }
+
+        int rIdx = -1, cIdx = -1;
+        if (current != null) {
+            for (int r = 0; r < rows.size(); r++) {
+                int c = rows.get(r).views.indexOf(current);
+                if (c >= 0) {
+                    rIdx = r;
+                    cIdx = c;
+                    break;
+                }
+            }
+        }
+
+        if (rIdx < 0 || cIdx < 0) {
+            if (!rows.isEmpty() && !rows.get(0).views.isEmpty()) {
+                requestViewFocus(rows.get(0).views.get(0));
+            }
+            return true;
+        }
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            int nextR = (rIdx + 1) % rows.size();
+            ViewRow targetRow = rows.get(nextR);
+            int targetC = Math.min(cIdx, targetRow.views.size() - 1);
+            requestViewFocus(targetRow.views.get(targetC));
+            return true;
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            int nextR = (rIdx - 1 + rows.size()) % rows.size();
+            ViewRow targetRow = rows.get(nextR);
+            int targetC = Math.min(cIdx, targetRow.views.size() - 1);
+            requestViewFocus(targetRow.views.get(targetC));
+            return true;
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            ViewRow curRow = rows.get(rIdx);
+            if (cIdx < curRow.views.size() - 1) {
+                requestViewFocus(curRow.views.get(cIdx + 1));
+                return true;
+            }
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+            ViewRow curRow = rows.get(rIdx);
+            if (cIdx > 0) {
+                requestViewFocus(curRow.views.get(cIdx - 1));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void requestViewFocus(View v) {
+        if (v == null) return;
+        v.requestFocus();
+        android.view.ViewParent parent = v.getParent();
+        while (parent != null) {
+            if (parent instanceof android.widget.ScrollView) {
+                ((android.widget.ScrollView) parent).requestChildFocus(v, v);
+                break;
+            }
+            parent = parent.getParent();
+        }
     }
 
     private void findFocusableChildren(ViewGroup group, java.util.List<View> out) {
