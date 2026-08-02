@@ -83,6 +83,8 @@ public class ButtonMappingService extends AccessibilityService {
 
     private boolean isStillWatchingActive = false;
     private boolean isStillWatchingPromptActive = false;
+    private boolean isDismissingStillWatchingKey = false;
+    private int stillWatchingDismissKeyCode = 0;
     private View stillWatchingOverlayView = null;
     private int stillWatchingCountdownSeconds = 30;
     private long cachedStillWatchingIntervalMs = 30 * 60 * 1000L;
@@ -931,12 +933,10 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void openQuickMenu() {
         try {
-            Intent intent = new Intent(this, QuickMenuActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            startActivity(intent);
-            Log.d(TAG, "Successfully opened Quick Menu");
+            QuickMenuOverlay.getInstance().show(this);
+            Log.d(TAG, "Successfully opened Quick Menu Overlay");
         } catch (Exception e) {
-            Log.e(TAG, "Failed to open Quick Menu", e);
+            Log.e(TAG, "Failed to open Quick Menu Overlay", e);
         }
     }
 
@@ -1848,25 +1848,39 @@ public class ButtonMappingService extends AccessibilityService {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
 
-        // Reset still watching & OLED saver inactivity timers only when features or prompts are active
+        // -1. Intercept keys if QuickMenuOverlay is active
+        if (QuickMenuOverlay.getInstance().isShowing()) {
+            return QuickMenuOverlay.getInstance().onKeyEvent(event);
+        }
+
+        // Reset still watching & OLED saver inactivity timers only when features are active (and prompt is not active)
         if (action == KeyEvent.ACTION_DOWN) {
-            if (isStillWatchingActive || isStillWatchingPromptActive) {
+            if (isStillWatchingActive && !isStillWatchingPromptActive) {
                 resetStillWatchingTimerOnKeyPress();
             }
-            if (isOledSaverActive || isOledSaverPromptActive) {
+            if (isOledSaverActive && !isOledSaverPromptActive) {
                 resetOledSaverTimerOnKeyPress();
             }
         }
 
         // 0. Intercept prompt response keys for ¿Sigues viendo?
-        if (isStillWatchingPromptActive) {
+        if (isStillWatchingPromptActive || isDismissingStillWatchingKey) {
             if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
                     || keyCode == KeyEvent.KEYCODE_ENTER
                     || keyCode == KeyEvent.KEYCODE_BACK
                     || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    dismissStillWatchingPrompt();
-                    startStillWatchingTimer();
+                    if (isStillWatchingPromptActive) {
+                        isDismissingStillWatchingKey = true;
+                        stillWatchingDismissKeyCode = keyCode;
+                        dismissStillWatchingPrompt();
+                        startStillWatchingTimer();
+                    }
+                } else if (action == KeyEvent.ACTION_UP) {
+                    if (isDismissingStillWatchingKey && (keyCode == stillWatchingDismissKeyCode || stillWatchingDismissKeyCode == 0)) {
+                        isDismissingStillWatchingKey = false;
+                        stillWatchingDismissKeyCode = 0;
+                    }
                 }
                 return true;
             }
