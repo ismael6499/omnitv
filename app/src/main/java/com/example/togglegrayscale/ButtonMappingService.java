@@ -85,6 +85,7 @@ public class ButtonMappingService extends AccessibilityService {
     private boolean isStillWatchingPromptActive = false;
     private boolean isDismissingStillWatchingKey = false;
     private int stillWatchingDismissKeyCode = 0;
+    private boolean isDismissingQuickMenuKey = false;
     private View stillWatchingOverlayView = null;
     private int stillWatchingCountdownSeconds = 30;
     private long cachedStillWatchingIntervalMs = 30 * 60 * 1000L;
@@ -933,10 +934,10 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void openQuickMenu() {
         try {
-            QuickMenuOverlay.getInstance().show(this);
-            Log.d(TAG, "Successfully opened Quick Menu Overlay");
+            QuickMenuOverlay.getInstance().toggle(this);
+            Log.d(TAG, "Toggled Quick Menu Overlay");
         } catch (Exception e) {
-            Log.e(TAG, "Failed to open Quick Menu Overlay", e);
+            Log.e(TAG, "Failed to toggle Quick Menu Overlay", e);
         }
     }
 
@@ -1848,11 +1849,6 @@ public class ButtonMappingService extends AccessibilityService {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
 
-        // -1. Intercept keys if QuickMenuOverlay is active
-        if (QuickMenuOverlay.getInstance().isShowing()) {
-            return QuickMenuOverlay.getInstance().onKeyEvent(event);
-        }
-
         // Reset still watching & OLED saver inactivity timers only when features are active (and prompt is not active)
         if (action == KeyEvent.ACTION_DOWN) {
             if (isStillWatchingActive && !isStillWatchingPromptActive) {
@@ -1980,6 +1976,22 @@ public class ButtonMappingService extends AccessibilityService {
                 isInputLongPressTriggered = false;
                 return true;
             }
+        }
+
+        // 6. Intercept keys if QuickMenuOverlay is active (or dismissing via BACK)
+        if (QuickMenuOverlay.getInstance().isShowing() || isDismissingQuickMenuKey) {
+            if (isDismissingQuickMenuKey && keyCode == KeyEvent.KEYCODE_BACK) {
+                if (action == KeyEvent.ACTION_UP) {
+                    isDismissingQuickMenuKey = false;
+                }
+                return true;
+            }
+            boolean wasShowing = QuickMenuOverlay.getInstance().isShowing();
+            boolean handled = QuickMenuOverlay.getInstance().onKeyEvent(event);
+            if (wasShowing && !QuickMenuOverlay.getInstance().isShowing() && keyCode == KeyEvent.KEYCODE_BACK) {
+                isDismissingQuickMenuKey = true;
+            }
+            return handled;
         }
 
         return super.onKeyEvent(event);
