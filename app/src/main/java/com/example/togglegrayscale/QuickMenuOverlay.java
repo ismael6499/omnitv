@@ -404,8 +404,11 @@ public class QuickMenuOverlay {
             return true;
         }
 
-        // Handled natively by WindowManager when focusable
-        return false;
+        // Forward key events to layout view tree for D-Pad focus & controls
+        if (rootView != null) {
+            return rootView.dispatchKeyEvent(event);
+        }
+        return true;
     }
 
     private void focusSubPanel(String subPanelId) {
