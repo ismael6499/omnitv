@@ -419,10 +419,21 @@ public class QuickMenuOverlay {
                     mHoldTickCount
                 );
                 handleOverlayNavigation(keyCode, KeyEvent.ACTION_DOWN, synthEvent);
-                mHoldHandler.postDelayed(this, 110);
+
+                int nextDelay;
+                if (mHoldTickCount > 25) {
+                    nextDelay = 35;
+                } else if (mHoldTickCount > 15) {
+                    nextDelay = 60;
+                } else if (mHoldTickCount > 8) {
+                    nextDelay = 100;
+                } else {
+                    nextDelay = 160;
+                }
+                mHoldHandler.postDelayed(this, nextDelay);
             }
         };
-        mHoldHandler.postDelayed(mHoldRunnable, 320);
+        mHoldHandler.postDelayed(mHoldRunnable, 300);
     }
 
     private void stopHoldRepeat() {
@@ -647,6 +658,11 @@ public class QuickMenuOverlay {
             ViewRow curRow = rows.get(rIdx);
             if (cIdx > 0) {
                 requestViewFocus(curRow.views.get(cIdx - 1));
+                return true;
+            }
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+            if (current != null && event.getRepeatCount() > 0) {
+                current.performClick();
                 return true;
             }
         }
