@@ -17,7 +17,7 @@ import java.util.Locale;
 public class ScheduledSleepReceiver extends BroadcastReceiver {
     private static final String TAG = "ScheduledSleepReceiver";
     public static final String ACTION_TRIGGER_SCHEDULED_SLEEP = "com.example.togglegrayscale.ACTION_TRIGGER_SCHEDULED_SLEEP";
-    public static final String PREFS_NAME = "toggle_grayscale_overlay_prefs";
+    public static final String PREFS_NAME = "overlay_prefs";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -82,24 +82,30 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
 
         if (!enabled || am == null) {
             if (am != null) am.cancel(pi);
-            Log.d(TAG, "Scheduled sleep alarm cancelled.");
+            Log.d(TAG, "Scheduled sleep alarm cancelled because enabled=false.");
             return;
         }
 
         int targetHour = prefs.getInt("scheduled_sleep_hour", 23);
         int targetMin = prefs.getInt("scheduled_sleep_minute", 30);
 
+        Calendar now = Calendar.getInstance();
         Calendar cal = Calendar.getInstance();
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
         cal.set(Calendar.HOUR_OF_DAY, targetHour);
         cal.set(Calendar.MINUTE, targetMin);
 
-        if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
-            cal.add(Calendar.DAY_OF_YEAR, 1);
+        long triggerAt;
+        if (now.get(Calendar.HOUR_OF_DAY) == targetHour && now.get(Calendar.MINUTE) == targetMin) {
+            // Target matches current minute! Trigger in 3 seconds for instant testing
+            triggerAt = System.currentTimeMillis() + 3000;
+        } else {
+            if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+                cal.add(Calendar.DAY_OF_YEAR, 1);
+            }
+            triggerAt = cal.getTimeInMillis();
         }
-
-        long triggerAt = cal.getTimeInMillis();
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi);
