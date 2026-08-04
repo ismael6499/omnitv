@@ -220,6 +220,13 @@ public class QuickMenuOverlay {
         try {
             rootView = LayoutInflater.from(context).inflate(R.layout.activity_quick_menu, null);
 
+            SharedPreferences op = getOverlayPrefs();
+            if (op.getBoolean(ButtonMappingService.KEY_DIMMER, false)) {
+                int brightnessPct = op.getInt("dimmer_brightness_pct", 50);
+                int alphaVal = (int) ((100 - brightnessPct) * 2.55);
+                rootView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+            }
+
             // Bind backdrop to dismiss on click outside panel
             rootView.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -1338,6 +1345,12 @@ public class QuickMenuOverlay {
             @Override public void adjust(int step) { adjustIntPref("scheduled_sleep_minute", 30, step, 0, 59, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); }
         });
 
+        View.OnFocusChangeListener dayFocusListener = new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                updateScheduledSleepConfigPanel();
+            }
+        };
         View.OnClickListener dayListener = new View.OnClickListener() {
             @Override public void onClick(View v) {
                 int day = 1;
@@ -1351,13 +1364,13 @@ public class QuickMenuOverlay {
                 toggleScheduledSleepDay(day);
             }
         };
-        if (btnDay1 != null) btnDay1.setOnClickListener(dayListener);
-        if (btnDay2 != null) btnDay2.setOnClickListener(dayListener);
-        if (btnDay3 != null) btnDay3.setOnClickListener(dayListener);
-        if (btnDay4 != null) btnDay4.setOnClickListener(dayListener);
-        if (btnDay5 != null) btnDay5.setOnClickListener(dayListener);
-        if (btnDay6 != null) btnDay6.setOnClickListener(dayListener);
-        if (btnDay7 != null) btnDay7.setOnClickListener(dayListener);
+        TextView[] dayArr = {btnDay1, btnDay2, btnDay3, btnDay4, btnDay5, btnDay6, btnDay7};
+        for (TextView dBtn : dayArr) {
+            if (dBtn != null) {
+                dBtn.setOnClickListener(dayListener);
+                dBtn.setOnFocusChangeListener(dayFocusListener);
+            }
+        }
 
         if (btnScheduledSkipNext != null) {
             btnScheduledSkipNext.setOnClickListener(new View.OnClickListener() {
@@ -2454,8 +2467,18 @@ public class QuickMenuOverlay {
         for (int i = 0; i < 7; i++) {
             if (dayBtns[i] != null) {
                 boolean isOn = activeDays.contains(i + 1);
-                dayBtns[i].setTextColor(isOn ? 0xFF4CAF50 : 0xFF888888);
-                dayBtns[i].setBackgroundColor(isOn ? Color.argb(80, 76, 175, 80) : Color.argb(40, 255, 255, 255));
+                boolean hasFocus = dayBtns[i].hasFocus();
+
+                if (hasFocus) {
+                    dayBtns[i].setTextColor(0xFFFFFFFF);
+                    dayBtns[i].setBackgroundColor(0xFFFFB74D); // Bright Amber/Orange cursor highlight
+                } else if (isOn) {
+                    dayBtns[i].setTextColor(0xFF4CAF50);
+                    dayBtns[i].setBackgroundColor(Color.argb(80, 76, 175, 80));
+                } else {
+                    dayBtns[i].setTextColor(0xFF888888);
+                    dayBtns[i].setBackgroundColor(Color.argb(40, 255, 255, 255));
+                }
             }
         }
 
