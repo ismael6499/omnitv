@@ -489,13 +489,17 @@ public class QuickMenuOverlay {
             return true;
         }
 
-        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP
+                || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+                || keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
             if (action == KeyEvent.ACTION_DOWN) {
                 if (event.getRepeatCount() == 0) {
                     boolean handled = handleOverlayNavigation(keyCode, action, event);
                     if (handled) {
                         startHoldRepeat(keyCode, event);
                         return true;
+                    } else if (openSubPanel != null && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+                        startHoldRepeat(keyCode, event);
                     }
                 } else {
                     return true;
@@ -503,7 +507,6 @@ public class QuickMenuOverlay {
             } else if (action == KeyEvent.ACTION_UP) {
                 if (keyCode == mHoldingKeyCode) {
                     stopHoldRepeat();
-                    return true;
                 }
             }
         }
