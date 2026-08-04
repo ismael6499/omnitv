@@ -919,7 +919,7 @@ public class ButtonMappingService extends AccessibilityService {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                Log.d(TAG, "Executing Scheduled Sleep: Performing Power Off / System Standby...");
+                Log.d(TAG, "Executing Scheduled Sleep: Pausing media, showing black screen, and triggering system power off...");
                 try {
                     AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
                     if (am != null) {
@@ -928,6 +928,10 @@ public class ButtonMappingService extends AccessibilityService {
                     }
                 } catch (Exception ignored) {}
 
+                // Immediate fail-safe: Turn screen 100% black
+                showBlackScreen();
+
+                // Attempt system standby power off
                 boolean success = false;
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                     success = performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN); // 8 = Standby/Sleep

@@ -1352,16 +1352,16 @@ public class QuickMenuOverlay {
             });
         }
         setupAutoRepeatStepButton(btnScheduledHourDec, -1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustIntPref("scheduled_sleep_hour", 23, step, 0, 23, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); }
+            @Override public void adjust(int step) { getOverlayPrefs().edit().putBoolean("scheduled_sleep_enabled", true).apply(); adjustIntPref("scheduled_sleep_hour", 23, step, 0, 23, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); buildMenu(); }
         });
         setupAutoRepeatStepButton(btnScheduledHourInc, 1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustIntPref("scheduled_sleep_hour", 23, step, 0, 23, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); }
+            @Override public void adjust(int step) { getOverlayPrefs().edit().putBoolean("scheduled_sleep_enabled", true).apply(); adjustIntPref("scheduled_sleep_hour", 23, step, 0, 23, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); buildMenu(); }
         });
         setupAutoRepeatStepButton(btnScheduledMinDec, -1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustIntPref("scheduled_sleep_minute", 30, step, 0, 59, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); }
+            @Override public void adjust(int step) { getOverlayPrefs().edit().putBoolean("scheduled_sleep_enabled", true).apply(); adjustIntPref("scheduled_sleep_minute", 30, step, 0, 59, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); buildMenu(); }
         });
         setupAutoRepeatStepButton(btnScheduledMinInc, 1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustIntPref("scheduled_sleep_minute", 30, step, 0, 59, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); }
+            @Override public void adjust(int step) { getOverlayPrefs().edit().putBoolean("scheduled_sleep_enabled", true).apply(); adjustIntPref("scheduled_sleep_minute", 30, step, 0, 59, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); buildMenu(); }
         });
 
         View.OnFocusChangeListener dayFocusListener = new View.OnFocusChangeListener() {
