@@ -421,19 +421,19 @@ public class QuickMenuOverlay {
                 handleOverlayNavigation(keyCode, KeyEvent.ACTION_DOWN, synthEvent);
 
                 int nextDelay;
-                if (mHoldTickCount > 25) {
+                if (mHoldTickCount > 20) {
+                    nextDelay = 20;
+                } else if (mHoldTickCount > 10) {
                     nextDelay = 35;
-                } else if (mHoldTickCount > 15) {
-                    nextDelay = 60;
-                } else if (mHoldTickCount > 8) {
-                    nextDelay = 100;
+                } else if (mHoldTickCount > 4) {
+                    nextDelay = 50;
                 } else {
-                    nextDelay = 160;
+                    nextDelay = 75;
                 }
                 mHoldHandler.postDelayed(this, nextDelay);
             }
         };
-        mHoldHandler.postDelayed(mHoldRunnable, 300);
+        mHoldHandler.postDelayed(mHoldRunnable, 180);
     }
 
     private void stopHoldRepeat() {

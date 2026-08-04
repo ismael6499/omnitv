@@ -45,7 +45,7 @@ public class SleepTimerService extends Service {
                     am.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE));
                 }
                 Intent i = new Intent(SleepTimerService.this, ButtonMappingService.class);
-                i.setAction("ACTION_SHOW_BLACK_SCREEN");
+                i.setAction("ACTION_SCHEDULED_POWER_OFF");
                 startService(i);
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().remove(KEY_END_TIME).apply();
                 stopSelf();

@@ -919,7 +919,7 @@ public class ButtonMappingService extends AccessibilityService {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                Log.d(TAG, "Executing Scheduled Sleep: Pausing media, showing black screen, and triggering system power off...");
+                Log.d(TAG, "Executing Power Off / Standby: Pausing media and triggering system power off...");
                 try {
                     AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
                     if (am != null) {
@@ -927,9 +927,6 @@ public class ButtonMappingService extends AccessibilityService {
                         am.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE));
                     }
                 } catch (Exception ignored) {}
-
-                // Immediate fail-safe: Turn screen 100% black
-                showBlackScreen();
 
                 // Attempt system standby power off
                 boolean success = false;
