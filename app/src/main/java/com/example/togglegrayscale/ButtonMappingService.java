@@ -23,6 +23,7 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Toast;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
@@ -43,6 +44,11 @@ public class ButtonMappingService extends AccessibilityService {
     private View blackOverlayView = null;
     private boolean isDismissingBlackScreenKey = false;
     private int blackScreenDismissKeyCode = 0;
+
+    private boolean isScheduledSleepPromptActive = false;
+    private View scheduledSleepOverlayView = null;
+    private int scheduledSleepCountdownSeconds = 60;
+    private Runnable scheduledSleepCountdownRunnable = null;
 
     private boolean isInputPressed = false;
     private boolean isInputLongPressTriggered = false;
@@ -698,7 +704,15 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_CYCLE_BRIGHTNESS": cycleBrightness(); break;
             case "ACTION_REORDER_OVERLAYS": reorderOverlaysOnTop(); break;
             case "ACTION_UPDATE_SCHEDULED_SLEEP": ScheduledSleepReceiver.scheduleNextAlarm(this); break;
-            case "ACTION_SCHEDULED_POWER_OFF": performPowerOffOrSleep(); break;
+            case "ACTION_SCHEDULED_POWER_OFF":
+                SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                int promptSec = op.getInt("scheduled_sleep_prompt_sec", 60);
+                if (promptSec > 0) {
+                    showScheduledSleepPrompt(promptSec);
+                } else {
+                    performPowerOffOrSleep();
+                }
+                break;
             case "ACTION_PAUSE_SCREEN_OFF":
             case "ACTION_PAUSE_AND_SCREEN_OFF": pauseMediaAndBlackScreen(); break;
             case "ACTION_OPEN_RECENTS":
@@ -915,6 +929,93 @@ public class ButtonMappingService extends AccessibilityService {
             Log.e(TAG, "Failed to dispatch media pause key event", e);
         }
         showBlackScreen();
+    }
+
+    private void showScheduledSleepPrompt(final int seconds) {
+        if (isScheduledSleepPromptActive) return;
+        isScheduledSleepPromptActive = true;
+        scheduledSleepCountdownSeconds = seconds;
+
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm == null) return;
+                    dismissScheduledSleepPromptViewOnly();
+
+                    TextView tv = new TextView(ButtonMappingService.this);
+                    tv.setTextColor(Color.WHITE);
+                    tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+                    tv.setTypeface(Typeface.DEFAULT_BOLD);
+                    tv.setPadding(48, 36, 48, 36);
+                    tv.setGravity(Gravity.CENTER);
+                    tv.setBackgroundColor(Color.argb(235, 18, 18, 32));
+                    tv.setLineSpacing(6, 1.0f);
+                    scheduledSleepOverlayView = tv;
+                    updateScheduledSleepPromptText();
+
+                    WindowManager.LayoutParams p = new WindowManager.LayoutParams(
+                            WindowManager.LayoutParams.WRAP_CONTENT,
+                            WindowManager.LayoutParams.WRAP_CONTENT,
+                            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                    | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                                    | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                            PixelFormat.TRANSLUCENT
+                    );
+                    p.gravity = Gravity.CENTER;
+
+                    wm.addView(scheduledSleepOverlayView, p);
+
+                    scheduledSleepCountdownRunnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            if (!isScheduledSleepPromptActive) return;
+                            scheduledSleepCountdownSeconds--;
+                            if (scheduledSleepCountdownSeconds <= 0) {
+                                dismissScheduledSleepPrompt();
+                                performPowerOffOrSleep();
+                            } else {
+                                updateScheduledSleepPromptText();
+                                handler.postDelayed(this, 1000);
+                            }
+                        }
+                    };
+                    handler.postDelayed(scheduledSleepCountdownRunnable, 1000);
+                    Log.d(TAG, "Scheduled sleep prompt shown with " + seconds + "s countdown");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error showing scheduled sleep prompt", e);
+                }
+            }
+        });
+    }
+
+    private void updateScheduledSleepPromptText() {
+        if (scheduledSleepOverlayView instanceof TextView) {
+            TextView tv = (TextView) scheduledSleepOverlayView;
+            tv.setText("⏰  Apagado Programado\n\nEl dispositivo se apagará en " + scheduledSleepCountdownSeconds + " s\n\nPresiona cualquier botón del control para cancelar");
+        }
+    }
+
+    private void dismissScheduledSleepPromptViewOnly() {
+        if (scheduledSleepOverlayView != null) {
+            final View v = scheduledSleepOverlayView;
+            scheduledSleepOverlayView = null;
+            try {
+                WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                if (wm != null) wm.removeView(v);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void dismissScheduledSleepPrompt() {
+        isScheduledSleepPromptActive = false;
+        if (scheduledSleepCountdownRunnable != null) {
+            handler.removeCallbacks(scheduledSleepCountdownRunnable);
+            scheduledSleepCountdownRunnable = null;
+        }
+        dismissScheduledSleepPromptViewOnly();
     }
 
     private void performPowerOffOrSleep() {
@@ -1945,6 +2046,22 @@ public class ButtonMappingService extends AccessibilityService {
                 }
                 return true;
             }
+        }
+
+        // 0. Intercept keypresses while Scheduled Sleep Prompt is active (cancels auto power off)
+        if (isScheduledSleepPromptActive) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                Log.d(TAG, "Key pressed (" + keyCode + ") while Scheduled Sleep prompt active. Cancelling power off!");
+                dismissScheduledSleepPrompt();
+                handler.post(new Runnable() {
+                    @Override public void run() {
+                        try {
+                            Toast.makeText(getApplicationContext(), "⏰ Apagado programado cancelado hoy", Toast.LENGTH_SHORT).show();
+                        } catch (Exception ignored) {}
+                    }
+                });
+            }
+            return true; // Consume key press cleanly so screen is not disturbed
         }
 
         // 1. If black screen is active or dismissing black screen key

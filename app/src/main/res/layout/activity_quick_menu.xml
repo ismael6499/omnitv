@@ -419,6 +419,8 @@
                 <TextView android:id="@+id/btn_day_7" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="Do" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" />
             </LinearLayout>
 
+            <TextView android:id="@+id/btn_scheduled_prompt_toggle" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
             <TextView android:id="@+id/btn_scheduled_skip_next" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#FFB74D" android:textSize="14sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
 
             <TextView android:id="@+id/btn_apply_scheduled_sleep" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />

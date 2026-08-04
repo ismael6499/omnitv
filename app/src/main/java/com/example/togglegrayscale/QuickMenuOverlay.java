@@ -173,6 +173,7 @@ public class QuickMenuOverlay {
     private TextView btnClockYInc;
     private TextView txtClockY;
     private TextView btnApplyClock;
+    private TextView btnScheduledPromptToggle;
 
     // Custom Timer fields
     private TextView txtCustomHours;
@@ -372,6 +373,7 @@ public class QuickMenuOverlay {
             btnDay6                      = rootView.findViewById(R.id.btn_day_6);
             btnDay7                      = rootView.findViewById(R.id.btn_day_7);
             btnScheduledSkipNext         = rootView.findViewById(R.id.btn_scheduled_skip_next);
+            btnScheduledPromptToggle     = rootView.findViewById(R.id.btn_scheduled_prompt_toggle);
             btnApplyScheduledSleep       = rootView.findViewById(R.id.btn_apply_scheduled_sleep);
 
             setupSubPanelListeners();
@@ -1391,6 +1393,22 @@ public class QuickMenuOverlay {
             }
         }
 
+        if (btnScheduledPromptToggle != null) {
+            btnScheduledPromptToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    SharedPreferences op = getOverlayPrefs();
+                    int cur = op.getInt("scheduled_sleep_prompt_sec", 60);
+                    int next;
+                    if (cur == 60) next = 120;
+                    else if (cur == 120) next = 30;
+                    else if (cur == 30) next = 0;
+                    else next = 60;
+                    op.edit().putInt("scheduled_sleep_prompt_sec", next).apply();
+                    updateScheduledSleepConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
         if (btnScheduledSkipNext != null) {
             btnScheduledSkipNext.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -2504,6 +2522,12 @@ public class QuickMenuOverlay {
         String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
         String skipStr = op.getString("scheduled_sleep_skip_date", "");
         boolean isSkipped = todayStr.equals(skipStr);
+
+        int promptSec = op.getInt("scheduled_sleep_prompt_sec", 60);
+        String promptText = (promptSec == 0) ? "DESACTIVADO" : promptSec + "s";
+        if (btnScheduledPromptToggle != null) {
+            btnScheduledPromptToggle.setText("   Aviso previo de apagado:  " + promptText);
+        }
 
         if (btnScheduledSkipNext != null) {
             btnScheduledSkipNext.setText(isSkipped ? "[ Próxima alarma salteada (Reactivar) ]" : "[ Saltear próxima alarma ]");
