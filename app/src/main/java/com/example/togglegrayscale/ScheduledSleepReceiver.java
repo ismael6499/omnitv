@@ -55,7 +55,7 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
                     if (dayActive) {
                         Log.d(TAG, "Executing scheduled sleep action!");
                         Intent serviceIntent = new Intent(context, ButtonMappingService.class);
-                        serviceIntent.setAction("ACTION_PAUSE_SCREEN_OFF");
+                        serviceIntent.setAction("ACTION_SCHEDULED_POWER_OFF");
                         context.startService(serviceIntent);
                     }
                 }

@@ -696,6 +696,7 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_CYCLE_BRIGHTNESS": cycleBrightness(); break;
             case "ACTION_REORDER_OVERLAYS": reorderOverlaysOnTop(); break;
             case "ACTION_UPDATE_SCHEDULED_SLEEP": ScheduledSleepReceiver.scheduleNextAlarm(this); break;
+            case "ACTION_SCHEDULED_POWER_OFF": performPowerOffOrSleep(); break;
             case "ACTION_PAUSE_SCREEN_OFF":
             case "ACTION_PAUSE_AND_SCREEN_OFF": pauseMediaAndBlackScreen(); break;
             case "ACTION_OPEN_RECENTS":
@@ -912,6 +913,38 @@ public class ButtonMappingService extends AccessibilityService {
             Log.e(TAG, "Failed to dispatch media pause key event", e);
         }
         showBlackScreen();
+    }
+
+    private void performPowerOffOrSleep() {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                Log.d(TAG, "Executing Scheduled Sleep: Performing Power Off / System Standby...");
+                try {
+                    AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+                    if (am != null) {
+                        am.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE));
+                        am.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE));
+                    }
+                } catch (Exception ignored) {}
+
+                boolean success = false;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    success = performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN); // 8 = Standby/Sleep
+                    Log.d(TAG, "performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN) result: " + success);
+                }
+
+                if (!success) {
+                    try {
+                        Runtime.getRuntime().exec("input keyevent 26"); // KEYCODE_POWER
+                        Log.d(TAG, "Executed 'input keyevent 26' via Runtime");
+                    } catch (Exception e) {
+                        Log.w(TAG, "Failed input keyevent 26, falling back to GLOBAL_ACTION_POWER_DIALOG", e);
+                        performGlobalAction(GLOBAL_ACTION_POWER_DIALOG);
+                    }
+                }
+            }
+        });
     }
 
     private void launchNetflix() {
@@ -1921,30 +1954,24 @@ public class ButtonMappingService extends AccessibilityService {
                 return false;
             }
 
-            // Special case: if the Netflix button (190) or YouTube button (189) is released after triggering the black screen,
-            // consume it and do NOT wake up.
-            if (keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190) {
-                if (action == KeyEvent.ACTION_UP) {
-                    Log.d(TAG, "YouTube 190 button UP (long press release) ignored to keep screen black.");
+            if (action == KeyEvent.ACTION_DOWN) {
+                Log.d(TAG, "Key pressed (" + keyCode + ") while black screen active. Dismissing black screen.");
+                dismissBlackScreen();
+
+                // If user pressed YouTube, Home (Casita), or TV Input while screen was black,
+                // do NOT consume the key press so the app/home launches naturally!
+                if (keyCode == KeyEvent.KEYCODE_HOME
+                        || keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190
+                        || keyCode == KeyEvent.KEYCODE_BUTTON_2 || keyCode == 189
+                        || keyCode == KeyEvent.KEYCODE_TV_INPUT || keyCode == 178) {
                     youtube190State.isPressed = false;
                     youtube190State.isLongPressTriggered = false;
-                }
-                return true;
-            }
-            if (keyCode == KeyEvent.KEYCODE_BUTTON_2 || keyCode == 189) {
-                if (action == KeyEvent.ACTION_UP) {
-                    Log.d(TAG, "YouTube 189 button UP (long press release) ignored to keep screen black.");
                     youtube189State.isPressed = false;
                     youtube189State.isLongPressTriggered = false;
+                    return false; // Pass key to system to open app/home
                 }
-                return true;
             }
-
-            if (action == KeyEvent.ACTION_UP) {
-                Log.d(TAG, "Wake up key released (" + keyCode + "). Dismissing black screen.");
-                dismissBlackScreen();
-            }
-            return true; // Consume both DOWN and UP of any wake-up keys
+            return true; // Consume other wake-up keypresses (e.g. D-Pad, OK, Back) so screen wakes up cleanly
         }
 
         // 2. Intercept Netflix button (KEYCODE_BUTTON_3 / 190) - Physically YouTube on user's remote
