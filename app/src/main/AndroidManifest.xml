@@ -72,6 +72,16 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".ScheduledSleepReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.example.togglegrayscale.ACTION_TRIGGER_SCHEDULED_SLEEP" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".NotificationService"
             android:enabled="true"

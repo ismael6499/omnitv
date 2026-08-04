@@ -379,5 +379,49 @@
 
             <TextView android:id="@+id/btn_apply_oled_saver" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
         </LinearLayout>
+
+        <!-- Scheduled Sleep config sub-panel -->
+        <LinearLayout android:id="@+id/panel_scheduled_sleep" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="⏰  Alarma de Apagado Programado:" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+
+            <TextView android:id="@+id/btn_scheduled_sleep_toggle" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Hora Apagado:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_scheduled_hour_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_scheduled_hour" android:layout_width="60dp" android:layout_height="wrap_content" android:text="23 hs" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_scheduled_hour_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Minuto Apagado:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                <TextView android:id="@+id/btn_scheduled_min_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                <TextView android:id="@+id/txt_scheduled_min" android:layout_width="60dp" android:layout_height="wrap_content" android:text="30 min" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                <TextView android:id="@+id/btn_scheduled_min_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="   Días Activos:" android:textColor="#AAAAAA" android:textSize="12sp"
+                android:layout_marginTop="2dp" android:layout_marginBottom="4dp" android:paddingStart="4dp" />
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center" android:layout_marginBottom="6dp">
+                <TextView android:id="@+id/btn_day_1" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="Lu" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="2dp" />
+                <TextView android:id="@+id/btn_day_2" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="Ma" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="2dp" />
+                <TextView android:id="@+id/btn_day_3" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="Mi" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="2dp" />
+                <TextView android:id="@+id/btn_day_4" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="Ju" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="2dp" />
+                <TextView android:id="@+id/btn_day_5" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="Vi" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="2dp" />
+                <TextView android:id="@+id/btn_day_6" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="Sá" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginEnd="2dp" />
+                <TextView android:id="@+id/btn_day_7" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:background="@drawable/card_background" android:text="Do" android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+            </LinearLayout>
+
+            <TextView android:id="@+id/btn_scheduled_skip_next" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#FFB74D" android:textSize="14sp" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+            <TextView android:id="@+id/btn_apply_scheduled_sleep" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

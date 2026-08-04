@@ -29,7 +29,7 @@ public class QuickMenuOverlay {
         "manage_apps", "timer", "blue_light", "clock", "dimmer", "grayscale",
         "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
-        "pause_screen_off", "cycle_brightness", "still_watching",
+        "pause_screen_off", "scheduled_sleep", "cycle_brightness", "still_watching",
         "night_schedule", "oled_saver",
         "config_mute", "config_youtube_190", "config_youtube_189",
         "developer_options"
@@ -116,6 +116,14 @@ public class QuickMenuOverlay {
     private TextView btnOledMinutesDec, txtOledMinutes, btnOledMinutesInc;
     private TextView btnOledMode;
     private TextView btnApplyOledSaver;
+
+    private LinearLayout panelScheduledSleep;
+    private TextView btnScheduledSleepToggle;
+    private TextView btnScheduledHourDec, txtScheduledHour, btnScheduledHourInc;
+    private TextView btnScheduledMinDec, txtScheduledMin, btnScheduledMinInc;
+    private TextView btnDay1, btnDay2, btnDay3, btnDay4, btnDay5, btnDay6, btnDay7;
+    private TextView btnScheduledSkipNext;
+    private TextView btnApplyScheduledSleep;
 
     private TextView btnAutoPauseMode;
     private LinearLayout layoutAutoPauseCustom;
@@ -341,6 +349,24 @@ public class QuickMenuOverlay {
             btnOledMode                  = rootView.findViewById(R.id.btn_oled_mode);
             btnApplyOledSaver            = rootView.findViewById(R.id.btn_apply_oled_saver);
 
+            panelScheduledSleep          = rootView.findViewById(R.id.panel_scheduled_sleep);
+            btnScheduledSleepToggle      = rootView.findViewById(R.id.btn_scheduled_sleep_toggle);
+            btnScheduledHourDec          = rootView.findViewById(R.id.btn_scheduled_hour_dec);
+            txtScheduledHour             = rootView.findViewById(R.id.txt_scheduled_hour);
+            btnScheduledHourInc          = rootView.findViewById(R.id.btn_scheduled_hour_inc);
+            btnScheduledMinDec           = rootView.findViewById(R.id.btn_scheduled_min_dec);
+            txtScheduledMin              = rootView.findViewById(R.id.txt_scheduled_min);
+            btnScheduledMinInc           = rootView.findViewById(R.id.btn_scheduled_min_inc);
+            btnDay1                      = rootView.findViewById(R.id.btn_day_1);
+            btnDay2                      = rootView.findViewById(R.id.btn_day_2);
+            btnDay3                      = rootView.findViewById(R.id.btn_day_3);
+            btnDay4                      = rootView.findViewById(R.id.btn_day_4);
+            btnDay5                      = rootView.findViewById(R.id.btn_day_5);
+            btnDay6                      = rootView.findViewById(R.id.btn_day_6);
+            btnDay7                      = rootView.findViewById(R.id.btn_day_7);
+            btnScheduledSkipNext         = rootView.findViewById(R.id.btn_scheduled_skip_next);
+            btnApplyScheduledSleep       = rootView.findViewById(R.id.btn_apply_scheduled_sleep);
+
             setupSubPanelListeners();
             buildMenu();
 
@@ -355,6 +381,7 @@ public class QuickMenuOverlay {
             );
 
             windowManager.addView(rootView, p);
+            sendServiceAction("ACTION_REORDER_OVERLAYS");
             Log.d(TAG, "QuickMenuOverlay attached to WindowManager successfully.");
         } catch (Exception e) {
             Log.e(TAG, "Error displaying QuickMenuOverlay", e);
@@ -481,6 +508,7 @@ public class QuickMenuOverlay {
             case "still_watching": return panelStillWatching;
             case "night_schedule": return panelNightSchedule;
             case "oled_saver": return panelOledSaver;
+            case "scheduled_sleep": return panelScheduledSleep;
             default: return panelButtonConfig;
         }
     }
@@ -1284,6 +1312,81 @@ public class QuickMenuOverlay {
                 }
             });
         }
+
+        // Scheduled Sleep Listeners
+        if (btnScheduledSleepToggle != null) {
+            btnScheduledSleepToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean("scheduled_sleep_enabled", false);
+                    getOverlayPrefs().edit().putBoolean("scheduled_sleep_enabled", !cur).apply();
+                    sendServiceAction("ACTION_UPDATE_SCHEDULED_SLEEP");
+                    updateScheduledSleepConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
+        setupAutoRepeatStepButton(btnScheduledHourDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustIntPref("scheduled_sleep_hour", 23, step, 0, 23, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnScheduledHourInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustIntPref("scheduled_sleep_hour", 23, step, 0, 23, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnScheduledMinDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustIntPref("scheduled_sleep_minute", 30, step, 0, 59, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnScheduledMinInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustIntPref("scheduled_sleep_minute", 30, step, 0, 59, "ACTION_UPDATE_SCHEDULED_SLEEP"); updateScheduledSleepConfigPanel(); }
+        });
+
+        View.OnClickListener dayListener = new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                int day = 1;
+                if (v == btnDay1) day = 1;
+                else if (v == btnDay2) day = 2;
+                else if (v == btnDay3) day = 3;
+                else if (v == btnDay4) day = 4;
+                else if (v == btnDay5) day = 5;
+                else if (v == btnDay6) day = 6;
+                else if (v == btnDay7) day = 7;
+                toggleScheduledSleepDay(day);
+            }
+        };
+        if (btnDay1 != null) btnDay1.setOnClickListener(dayListener);
+        if (btnDay2 != null) btnDay2.setOnClickListener(dayListener);
+        if (btnDay3 != null) btnDay3.setOnClickListener(dayListener);
+        if (btnDay4 != null) btnDay4.setOnClickListener(dayListener);
+        if (btnDay5 != null) btnDay5.setOnClickListener(dayListener);
+        if (btnDay6 != null) btnDay6.setOnClickListener(dayListener);
+        if (btnDay7 != null) btnDay7.setOnClickListener(dayListener);
+
+        if (btnScheduledSkipNext != null) {
+            btnScheduledSkipNext.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    SharedPreferences op = getOverlayPrefs();
+                    String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+                    String skipStr = op.getString("scheduled_sleep_skip_date", "");
+                    if (todayStr.equals(skipStr)) {
+                        op.edit().remove("scheduled_sleep_skip_date").apply();
+                    } else {
+                        op.edit().putString("scheduled_sleep_skip_date", todayStr).apply();
+                    }
+                    sendServiceAction("ACTION_UPDATE_SCHEDULED_SLEEP");
+                    updateScheduledSleepConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
+        if (btnApplyScheduledSleep != null) {
+            btnApplyScheduledSleep.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean("scheduled_sleep_enabled", false);
+                    getOverlayPrefs().edit().putBoolean("scheduled_sleep_enabled", !cur).apply();
+                    sendServiceAction("ACTION_UPDATE_SCHEDULED_SLEEP");
+                    updateScheduledSleepConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
     }
 
     private void updateCustomTimerUI() {
@@ -1384,6 +1487,7 @@ public class QuickMenuOverlay {
         if (panelStillWatching != null) panelStillWatching.setVisibility(View.GONE);
         if (panelNightSchedule != null) panelNightSchedule.setVisibility(View.GONE);
         if (panelOledSaver != null) panelOledSaver.setVisibility(View.GONE);
+        if (panelScheduledSleep != null) panelScheduledSleep.setVisibility(View.GONE);
         openSubPanel = null;
         configuringButton = null;
         if (menuContainer != null) {
@@ -1561,6 +1665,20 @@ public class QuickMenuOverlay {
                 sendServiceAction("ACTION_PAUSE_AND_SCREEN_OFF");
                 dismiss();
                 break;
+            case "scheduled_sleep":
+                if ("scheduled_sleep".equals(openSubPanel)) {
+                    closeSubPanels();
+                    buildMenu();
+                } else {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelScheduledSleep != null) panelScheduledSleep.setVisibility(View.VISIBLE);
+                    openSubPanel = "scheduled_sleep";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateScheduledSleepConfigPanel();
+                    if (btnScheduledSleepToggle != null) btnScheduledSleepToggle.requestFocus();
+                }
+                break;
             case "cycle_brightness": {
                 SharedPreferences prefs = getOverlayPrefs();
                 int cur = prefs.getInt("dimmer_brightness_pct", 50);
@@ -1706,6 +1824,7 @@ public class QuickMenuOverlay {
             case "reboot":       return "Reiniciar Chromecast";
             case "developer_options": return "Dev  Opciones de Desarrollo";
             case "pause_screen_off": return "Sleep  Pausar y Apagar Pantalla";
+            case "scheduled_sleep": return fmtScheduledSleep(op);
             case "cycle_brightness": {
                 int pct = op.getInt("dimmer_brightness_pct", 50);
                 return "Brillo  Ciclar Brillo  [" + pct + "%]";
@@ -1720,6 +1839,22 @@ public class QuickMenuOverlay {
         }
     }
 
+    private String fmtScheduledSleep(SharedPreferences op) {
+        boolean enabled = op.getBoolean("scheduled_sleep_enabled", false);
+        if (!enabled) {
+            return "⏰  Apagado Programado   [OFF]";
+        }
+        String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+        String skipStr = op.getString("scheduled_sleep_skip_date", "");
+        if (todayStr.equals(skipStr)) {
+            return "⏰  Apagado Programado   [Salteado hoy]";
+        }
+        int h = op.getInt("scheduled_sleep_hour", 23);
+        int m = op.getInt("scheduled_sleep_minute", 30);
+        String timeStr = String.format(java.util.Locale.US, "%02d:%02d", h, m);
+        return "⏰  Apagado Programado   [" + timeStr + "]";
+    }
+
     private int getColorForId(String id) { return "reboot".equals(id) ? 0xFFFF6B6B : Color.WHITE; }
 
     private int getGroupForId(String id) {
@@ -1728,7 +1863,7 @@ public class QuickMenuOverlay {
             case "clock": case "dimmer": case "grayscale": case "cine_mode":
             case "cycle_brightness": case "auto_pause":
                 return 1;
-            case "screen_off": case "pause_screen_off":
+            case "screen_off": case "pause_screen_off": case "scheduled_sleep":
                 return 2;
             case "google_home": case "bluetooth": case "system_info": case "reboot":
             case "system_menu": case "developer_options":
@@ -2298,6 +2433,68 @@ public class QuickMenuOverlay {
         if (txtOledMinutes != null) txtOledMinutes.setText(mins + "m");
         if (btnOledMode != null) btnOledMode.setText("   Modo Protector:  " + modeText);
         if (btnApplyOledSaver != null) btnApplyOledSaver.setText(active ? "[ Desactivar Protector OLED ]" : "[ Activar Protector OLED ]");
+    }
+
+    private void updateScheduledSleepConfigPanel() {
+        SharedPreferences op = getOverlayPrefs();
+        boolean active = op.getBoolean("scheduled_sleep_enabled", false);
+        int hour = op.getInt("scheduled_sleep_hour", 23);
+        int min = op.getInt("scheduled_sleep_minute", 30);
+        String daysStr = op.getString("scheduled_sleep_days", "1,2,3,4,5,6,7");
+        java.util.Set<Integer> activeDays = new java.util.HashSet<>();
+        for (String d : daysStr.split(",")) {
+            try { activeDays.add(Integer.parseInt(d.trim())); } catch (Exception ignored) {}
+        }
+
+        if (btnScheduledSleepToggle != null) btnScheduledSleepToggle.setText("   Estado:  " + (active ? "ACTIVADO" : "DESACTIVADO"));
+        if (txtScheduledHour != null) txtScheduledHour.setText(String.format(java.util.Locale.US, "%02d hs", hour));
+        if (txtScheduledMin != null) txtScheduledMin.setText(String.format(java.util.Locale.US, "%02d min", min));
+
+        TextView[] dayBtns = {btnDay1, btnDay2, btnDay3, btnDay4, btnDay5, btnDay6, btnDay7};
+        for (int i = 0; i < 7; i++) {
+            if (dayBtns[i] != null) {
+                boolean isOn = activeDays.contains(i + 1);
+                dayBtns[i].setTextColor(isOn ? 0xFF4CAF50 : 0xFF888888);
+                dayBtns[i].setBackgroundColor(isOn ? Color.argb(80, 76, 175, 80) : Color.argb(40, 255, 255, 255));
+            }
+        }
+
+        String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+        String skipStr = op.getString("scheduled_sleep_skip_date", "");
+        boolean isSkipped = todayStr.equals(skipStr);
+
+        if (btnScheduledSkipNext != null) {
+            btnScheduledSkipNext.setText(isSkipped ? "[ Próxima alarma salteada (Reactivar) ]" : "[ Saltear próxima alarma ]");
+        }
+        if (btnApplyScheduledSleep != null) {
+            btnApplyScheduledSleep.setText(active ? "[ Desactivar Apagado Programado ]" : "[ Activar Apagado Programado ]");
+        }
+    }
+
+    private void toggleScheduledSleepDay(int day) {
+        SharedPreferences prefs = getOverlayPrefs();
+        String daysStr = prefs.getString("scheduled_sleep_days", "1,2,3,4,5,6,7");
+        java.util.Set<Integer> set = new java.util.HashSet<>();
+        for (String d : daysStr.split(",")) {
+            try { set.add(Integer.parseInt(d.trim())); } catch (Exception ignored) {}
+        }
+        if (set.contains(day)) {
+            if (set.size() > 1) set.remove(day);
+        } else {
+            set.add(day);
+        }
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (int i = 1; i <= 7; i++) {
+            if (set.contains(i)) {
+                if (!first) sb.append(",");
+                sb.append(i);
+                first = false;
+            }
+        }
+        prefs.edit().putString("scheduled_sleep_days", sb.toString()).apply();
+        sendServiceAction("ACTION_UPDATE_SCHEDULED_SLEEP");
+        updateScheduledSleepConfigPanel();
     }
 
     private interface StepAdjuster {

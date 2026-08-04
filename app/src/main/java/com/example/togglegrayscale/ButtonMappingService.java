@@ -694,6 +694,9 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_OPEN_BLUETOOTH": openBluetoothSettings(); break;
             case "ACTION_OPEN_DEVELOPER_OPTIONS": openDeveloperOptions(); break;
             case "ACTION_CYCLE_BRIGHTNESS": cycleBrightness(); break;
+            case "ACTION_REORDER_OVERLAYS": reorderOverlaysOnTop(); break;
+            case "ACTION_UPDATE_SCHEDULED_SLEEP": ScheduledSleepReceiver.scheduleNextAlarm(this); break;
+            case "ACTION_PAUSE_SCREEN_OFF":
             case "ACTION_PAUSE_AND_SCREEN_OFF": pauseMediaAndBlackScreen(); break;
             case "ACTION_OPEN_RECENTS":
                 handler.postDelayed(new Runnable() {
@@ -701,6 +704,32 @@ public class ButtonMappingService extends AccessibilityService {
                 }, 300);
                 break;
         }
+    }
+
+    public void reorderOverlaysOnTop() {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm == null) return;
+                    if (isBlueLightActive && blueLightOverlayView != null) {
+                        try {
+                            wm.removeView(blueLightOverlayView);
+                            wm.addView(blueLightOverlayView, overlayMatchParams());
+                        } catch (Exception ignored) {}
+                    }
+                    if (isDimmerActive && dimmerOverlayView != null) {
+                        try {
+                            wm.removeView(dimmerOverlayView);
+                            wm.addView(dimmerOverlayView, overlayMatchParams());
+                        } catch (Exception ignored) {}
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error reordering overlays on top", e);
+                }
+            }
+        });
     }
 
     private final Runnable inputLongPressRunnable = new Runnable() {
