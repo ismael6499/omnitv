@@ -41,6 +41,8 @@ public class ButtonMappingService extends AccessibilityService {
 
     private boolean isBlackScreenActive = false;
     private View blackOverlayView = null;
+    private boolean isDismissingBlackScreenKey = false;
+    private int blackScreenDismissKeyCode = 0;
 
     private boolean isInputPressed = false;
     private boolean isInputLongPressTriggered = false;
@@ -1945,34 +1947,48 @@ public class ButtonMappingService extends AccessibilityService {
             }
         }
 
-        // 1. If black screen is active, intercept wake-up logic first
-        if (isBlackScreenActive) {
-            // Allow volume and mute keys to pass through to the system
-            if (keyCode == KeyEvent.KEYCODE_VOLUME_UP
-                    || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
-                    || keyCode == KeyEvent.KEYCODE_VOLUME_MUTE
-                    || keyCode == 140) {
-                return false;
-            }
-
+        // 1. If black screen is active or dismissing black screen key
+        if (isBlackScreenActive || isDismissingBlackScreenKey) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "Key pressed (" + keyCode + ") while black screen active. Dismissing black screen.");
-                dismissBlackScreen();
+                if (isBlackScreenActive) {
+                    isDismissingBlackScreenKey = true;
+                    blackScreenDismissKeyCode = keyCode;
+                    dismissBlackScreen();
 
-                // If user pressed YouTube, Home (Casita), or TV Input while screen was black,
-                // do NOT consume the key press so the app/home launches naturally!
-                if (keyCode == KeyEvent.KEYCODE_HOME
-                        || keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190
-                        || keyCode == KeyEvent.KEYCODE_BUTTON_2 || keyCode == 189
-                        || keyCode == KeyEvent.KEYCODE_TV_INPUT || keyCode == 178) {
+                    // Reset all button state machines so next press starts completely fresh
                     youtube190State.isPressed = false;
                     youtube190State.isLongPressTriggered = false;
                     youtube189State.isPressed = false;
                     youtube189State.isLongPressTriggered = false;
-                    return false; // Pass key to system to open app/home
+                    muteState.isPressed = false;
+                    muteState.isLongPressTriggered = false;
+                    isInputPressed = false;
+                    isInputLongPressTriggered = false;
+
+                    // If user pressed YouTube, Home (Casita), or TV Input while screen was black,
+                    // do NOT consume the key press so the app/home launches naturally!
+                    if (keyCode == KeyEvent.KEYCODE_HOME
+                            || keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190
+                            || keyCode == KeyEvent.KEYCODE_BUTTON_2 || keyCode == 189
+                            || keyCode == KeyEvent.KEYCODE_TV_INPUT || keyCode == 178) {
+                        return false; // Pass key to system to open app/home
+                    }
+                }
+            } else if (action == KeyEvent.ACTION_UP) {
+                if (isDismissingBlackScreenKey && (keyCode == blackScreenDismissKeyCode || blackScreenDismissKeyCode == 0)) {
+                    isDismissingBlackScreenKey = false;
+                    blackScreenDismissKeyCode = 0;
+                    youtube190State.isPressed = false;
+                    youtube190State.isLongPressTriggered = false;
+                    youtube189State.isPressed = false;
+                    youtube189State.isLongPressTriggered = false;
+                    muteState.isPressed = false;
+                    muteState.isLongPressTriggered = false;
+                    isInputPressed = false;
+                    isInputLongPressTriggered = false;
                 }
             }
-            return true; // Consume other wake-up keypresses (e.g. D-Pad, OK, Back) so screen wakes up cleanly
+            return true; // Consume wake-up keypresses (DOWN & UP) so screen wakes up cleanly
         }
 
         // 2. Intercept Netflix button (KEYCODE_BUTTON_3 / 190) - Physically YouTube on user's remote
