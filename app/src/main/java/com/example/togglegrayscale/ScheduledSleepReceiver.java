@@ -31,11 +31,15 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
 
             if (ACTION_TRIGGER_SCHEDULED_SLEEP.equals(action) && enabled) {
                 String todayStr = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+                String currentStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(new Date());
                 String skipStr = prefs.getString("scheduled_sleep_skip_date", "");
+                String lastExecStamp = prefs.getString("scheduled_sleep_last_executed_stamp", "");
 
                 if (todayStr.equals(skipStr)) {
                     Log.d(TAG, "Scheduled sleep skipped for today: " + todayStr);
                     prefs.edit().remove("scheduled_sleep_skip_date").apply();
+                } else if (currentStamp.equals(lastExecStamp)) {
+                    Log.d(TAG, "Scheduled sleep already executed for stamp (" + currentStamp + "). Skipping duplicate execution.");
                 } else {
                     Calendar cal = Calendar.getInstance();
                     int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK); // 1 = Sun, 2 = Mon, ..., 7 = Sat
@@ -54,6 +58,7 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
 
                     if (dayActive) {
                         Log.d(TAG, "Executing scheduled sleep action!");
+                        prefs.edit().putString("scheduled_sleep_last_executed_stamp", currentStamp).apply();
                         Intent serviceIntent = new Intent(context, ButtonMappingService.class);
                         serviceIntent.setAction("ACTION_SCHEDULED_POWER_OFF");
                         context.startService(serviceIntent);
@@ -61,12 +66,16 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
                 }
             }
 
-            // Always reschedule the next alarm occurrence
-            scheduleNextAlarm(context);
+            // Always reschedule the next alarm occurrence FOR TOMORROW
+            scheduleNextAlarm(context, true);
         }
     }
 
     public static void scheduleNextAlarm(Context context) {
+        scheduleNextAlarm(context, false);
+    }
+
+    public static void scheduleNextAlarm(Context context, boolean forceTomorrow) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         boolean enabled = prefs.getBoolean("scheduled_sleep_enabled", false);
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
@@ -97,11 +106,11 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
         cal.set(Calendar.MINUTE, targetMin);
 
         long triggerAt;
-        if (now.get(Calendar.HOUR_OF_DAY) == targetHour && now.get(Calendar.MINUTE) == targetMin) {
-            // Target matches current minute! Trigger in 3 seconds for instant testing
+        if (!forceTomorrow && now.get(Calendar.HOUR_OF_DAY) == targetHour && now.get(Calendar.MINUTE) == targetMin) {
+            // Target matches current minute on initial user setting! Trigger in 3 seconds for instant testing
             triggerAt = System.currentTimeMillis() + 3000;
         } else {
-            if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+            if (forceTomorrow || cal.getTimeInMillis() <= System.currentTimeMillis()) {
                 cal.add(Calendar.DAY_OF_YEAR, 1);
             }
             triggerAt = cal.getTimeInMillis();
