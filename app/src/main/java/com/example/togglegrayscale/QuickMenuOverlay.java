@@ -222,10 +222,17 @@ public class QuickMenuOverlay {
             rootView = LayoutInflater.from(context).inflate(R.layout.activity_quick_menu, null);
 
             SharedPreferences op = getOverlayPrefs();
-            if (op.getBoolean(ButtonMappingService.KEY_DIMMER, false)) {
+            boolean isDimmerOn = op.getBoolean(ButtonMappingService.KEY_DIMMER, false);
+            boolean isBlueLightOn = op.getBoolean(ButtonMappingService.KEY_BLUE_LIGHT, false);
+
+            if (isDimmerOn) {
                 int brightnessPct = op.getInt("dimmer_brightness_pct", 50);
                 int alphaVal = (int) ((100 - brightnessPct) * 2.55);
                 rootView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+            }
+
+            if (isDimmerOn || isBlueLightOn) {
+                rootView.setAlpha(0.01f);
             }
 
             // Bind backdrop to dismiss on click outside panel
@@ -391,6 +398,18 @@ public class QuickMenuOverlay {
 
             windowManager.addView(rootView, p);
             sendServiceAction("ACTION_REORDER_OVERLAYS");
+
+            if (isDimmerOn || isBlueLightOn) {
+                final View rView = rootView;
+                mHoldHandler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (rView != null && rView.isAttachedToWindow()) {
+                            rView.setAlpha(1.0f);
+                        }
+                    }
+                }, 40);
+            }
             Log.d(TAG, "QuickMenuOverlay attached to WindowManager successfully.");
         } catch (Exception e) {
             Log.e(TAG, "Error displaying QuickMenuOverlay", e);
