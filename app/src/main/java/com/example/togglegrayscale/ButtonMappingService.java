@@ -724,29 +724,8 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     public void reorderOverlaysOnTop() {
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-                    if (wm == null) return;
-                    if (isBlueLightActive && blueLightOverlayView != null) {
-                        try {
-                            wm.removeView(blueLightOverlayView);
-                            wm.addView(blueLightOverlayView, overlayMatchParams());
-                        } catch (Exception ignored) {}
-                    }
-                    if (isDimmerActive && dimmerOverlayView != null) {
-                        try {
-                            wm.removeView(dimmerOverlayView);
-                            wm.addView(dimmerOverlayView, overlayMatchParams());
-                        } catch (Exception ignored) {}
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error reordering overlays on top", e);
-                }
-            }
-        });
+        // Obsolete: Filter overlays remain attached continuously to prevent full-screen brightness flashes.
+        // QuickMenuOverlay handles internal menu dimming via menu_dimmer_filter and menu_blue_light_filter.
     }
 
     private final Runnable inputLongPressRunnable = new Runnable() {

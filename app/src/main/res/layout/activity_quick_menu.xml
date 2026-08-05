@@ -426,4 +426,8 @@
             <TextView android:id="@+id/btn_apply_scheduled_sleep" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
         </LinearLayout>
     </LinearLayout>
+
+    <!-- Internal eye-care filter overlays (ensures zero-flash dimming when menu opens) -->
+    <View android:id="@+id/menu_blue_light_filter" android:layout_width="match_parent" android:layout_height="match_parent" android:clickable="false" android:focusable="false" android:visibility="gone" />
+    <View android:id="@+id/menu_dimmer_filter" android:layout_width="match_parent" android:layout_height="match_parent" android:clickable="false" android:focusable="false" android:visibility="gone" />
 </FrameLayout>
