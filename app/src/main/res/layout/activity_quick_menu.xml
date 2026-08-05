@@ -428,6 +428,6 @@
     </LinearLayout>
 
     <!-- Internal eye-care filter overlays (ensures zero-flash dimming when menu opens) -->
-    <View android:id="@+id/menu_blue_light_filter" android:layout_width="match_parent" android:layout_height="match_parent" android:clickable="false" android:focusable="false" android:visibility="gone" />
-    <View android:id="@+id/menu_dimmer_filter" android:layout_width="match_parent" android:layout_height="match_parent" android:clickable="false" android:focusable="false" android:visibility="gone" />
+    <View android:id="@+id/menu_blue_light_filter" android:layout_width="match_parent" android:layout_height="match_parent" android:elevation="98dp" android:clickable="false" android:focusable="false" android:visibility="gone" />
+    <View android:id="@+id/menu_dimmer_filter" android:layout_width="match_parent" android:layout_height="match_parent" android:elevation="99dp" android:clickable="false" android:focusable="false" android:visibility="gone" />
 </FrameLayout>

@@ -857,6 +857,7 @@ public class QuickMenuOverlay {
                     if (progress > 0) {
                         getOverlayPrefs().edit().putInt("blue_light_pct", progress).apply();
                     }
+                    updateMenuInternalFilters();
                     if (txtBlueLightPct != null) {
                         double displayPct = progress / 10.0;
                         txtBlueLightPct.setText("Nivel: " + (progress > 0 ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : "Desactivado"));
@@ -909,6 +910,7 @@ public class QuickMenuOverlay {
                     b.putInt("pct", progress);
                     sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
                     getOverlayPrefs().edit().putInt("dimmer_brightness_pct", progress).apply();
+                    updateMenuInternalFilters();
                 }
                 @Override public void onStartTrackingTouch(SeekBar seekBar) {}
                 @Override public void onStopTrackingTouch(SeekBar seekBar) {}
