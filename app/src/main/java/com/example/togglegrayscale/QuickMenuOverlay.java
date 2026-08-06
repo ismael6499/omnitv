@@ -1416,12 +1416,12 @@ public class QuickMenuOverlay {
             btnScheduledSkipNext.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     SharedPreferences op = getOverlayPrefs();
-                    String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+                    String nextAlarmDateStr = ScheduledSleepReceiver.getNextAlarmDateStr(context);
                     String skipStr = op.getString("scheduled_sleep_skip_date", "");
-                    if (todayStr.equals(skipStr)) {
+                    if (nextAlarmDateStr.equals(skipStr) || !skipStr.isEmpty()) {
                         op.edit().remove("scheduled_sleep_skip_date").apply();
                     } else {
-                        op.edit().putString("scheduled_sleep_skip_date", todayStr).apply();
+                        op.edit().putString("scheduled_sleep_skip_date", nextAlarmDateStr).apply();
                     }
                     sendServiceAction("ACTION_UPDATE_SCHEDULED_SLEEP");
                     updateScheduledSleepConfigPanel();
@@ -2522,9 +2522,10 @@ public class QuickMenuOverlay {
             }
         }
 
-        String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+        String nextAlarmDateStr = ScheduledSleepReceiver.getNextAlarmDateStr(context);
+        String nextAlarmDisplayDateStr = ScheduledSleepReceiver.getNextAlarmDisplayDateStr(context);
         String skipStr = op.getString("scheduled_sleep_skip_date", "");
-        boolean isSkipped = todayStr.equals(skipStr);
+        boolean isSkipped = !skipStr.isEmpty();
 
         int promptSec = op.getInt("scheduled_sleep_prompt_sec", 60);
         String promptText = (promptSec == 0) ? "DESACTIVADO" : promptSec + "s";
@@ -2533,7 +2534,9 @@ public class QuickMenuOverlay {
         }
 
         if (btnScheduledSkipNext != null) {
-            btnScheduledSkipNext.setText(isSkipped ? "[ Próxima alarma salteada (Reactivar) ]" : "[ Saltear próxima alarma ]");
+            btnScheduledSkipNext.setText(isSkipped
+                    ? "[ Próxima alarma salteada (" + nextAlarmDisplayDateStr + ") - Reactivar ]"
+                    : "[ Saltear próxima alarma (" + nextAlarmDisplayDateStr + ") ]");
         }
         if (btnApplyScheduledSleep != null) {
             btnApplyScheduledSleep.setText(active ? "[ Desactivar Apagado Programado ]" : "[ Activar Apagado Programado ]");

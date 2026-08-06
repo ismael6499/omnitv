@@ -2027,20 +2027,25 @@ public class ButtonMappingService extends AccessibilityService {
             }
         }
 
-        // 0. Intercept keypresses while Scheduled Sleep Prompt is active (cancels auto power off)
+        // 0. Intercept keypresses while Scheduled Sleep Prompt is active (cancels auto power off ONLY on Back or OK/Enter)
         if (isScheduledSleepPromptActive) {
-            if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "Key pressed (" + keyCode + ") while Scheduled Sleep prompt active. Cancelling power off!");
-                dismissScheduledSleepPrompt();
-                handler.post(new Runnable() {
-                    @Override public void run() {
-                        try {
-                            Toast.makeText(getApplicationContext(), "⏰ Apagado programado cancelado hoy", Toast.LENGTH_SHORT).show();
-                        } catch (Exception ignored) {}
-                    }
-                });
+            if (keyCode == KeyEvent.KEYCODE_BACK
+                    || keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                    || keyCode == KeyEvent.KEYCODE_ENTER
+                    || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    Log.d(TAG, "Key pressed (" + keyCode + ") while Scheduled Sleep prompt active. Cancelling power off!");
+                    dismissScheduledSleepPrompt();
+                    handler.post(new Runnable() {
+                        @Override public void run() {
+                            try {
+                                Toast.makeText(getApplicationContext(), "⏰ Apagado programado cancelado hoy", Toast.LENGTH_SHORT).show();
+                            } catch (Exception ignored) {}
+                        }
+                    });
+                }
+                return true; // Consume key press cleanly
             }
-            return true; // Consume key press cleanly so screen is not disturbed
         }
 
         // 1. If black screen is active or dismissing black screen key

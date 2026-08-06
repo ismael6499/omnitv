@@ -12,7 +12,9 @@ import android.util.Log;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 
 public class ScheduledSleepReceiver extends BroadcastReceiver {
     private static final String TAG = "ScheduledSleepReceiver";
@@ -25,7 +27,13 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         Log.d(TAG, "onReceive: " + action);
 
-        if (Intent.ACTION_BOOT_COMPLETED.equals(action) || ACTION_TRIGGER_SCHEDULED_SLEEP.equals(action)) {
+        if (Intent.ACTION_BOOT_COMPLETED.equals(action)
+                || Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(action)
+                || Intent.ACTION_TIME_CHANGED.equals(action)
+                || Intent.ACTION_TIMEZONE_CHANGED.equals(action)
+                || "android.intent.action.MY_PACKAGE_REPLACED".equals(action)
+                || ACTION_TRIGGER_SCHEDULED_SLEEP.equals(action)) {
+
             SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             boolean enabled = prefs.getBoolean("scheduled_sleep_enabled", false);
 
@@ -42,8 +50,7 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
                     Log.d(TAG, "Scheduled sleep already executed for stamp (" + currentStamp + "). Skipping duplicate execution.");
                 } else {
                     Calendar cal = Calendar.getInstance();
-                    int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK); // 1 = Sun, 2 = Mon, ..., 7 = Sat
-                    // Convert Calendar dayOfWeek (1..7, Sun..Sat) to index (1..7, Mon..Sun)
+                    int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK);
                     int isoDay = dayOfWeek == Calendar.SUNDAY ? 7 : dayOfWeek - 1;
                     String daysStr = prefs.getString("scheduled_sleep_days", "1,2,3,4,5,6,7");
                     boolean dayActive = false;
@@ -66,9 +73,58 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
                 }
             }
 
-            // Always reschedule the next alarm occurrence FOR TOMORROW
+            // Reschedule the next alarm occurrence for tomorrow/next active day
             scheduleNextAlarm(context, true);
         }
+    }
+
+    public static Calendar getNextUpcomingAlarmCal(Context context, boolean forceTomorrow) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        int targetHour = prefs.getInt("scheduled_sleep_hour", 23);
+        int targetMin = prefs.getInt("scheduled_sleep_minute", 30);
+        String daysStr = prefs.getString("scheduled_sleep_days", "1,2,3,4,5,6,7");
+        Set<Integer> activeDays = new HashSet<>();
+        for (String d : daysStr.split(",")) {
+            try { activeDays.add(Integer.parseInt(d.trim())); } catch (Exception ignored) {}
+        }
+
+        Calendar now = Calendar.getInstance();
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        cal.set(Calendar.HOUR_OF_DAY, targetHour);
+        cal.set(Calendar.MINUTE, targetMin);
+
+        // Check if target is instant test trigger for current minute
+        if (!forceTomorrow && now.get(Calendar.HOUR_OF_DAY) == targetHour && now.get(Calendar.MINUTE) == targetMin) {
+            return cal;
+        }
+
+        if (forceTomorrow || cal.getTimeInMillis() <= System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+
+        // Loop forward up to 7 days until finding an active day
+        for (int i = 0; i < 7; i++) {
+            int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK);
+            int isoDay = dayOfWeek == Calendar.SUNDAY ? 7 : dayOfWeek - 1;
+            if (activeDays.contains(isoDay)) {
+                break;
+            }
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+
+        return cal;
+    }
+
+    public static String getNextAlarmDateStr(Context context) {
+        Calendar cal = getNextUpcomingAlarmCal(context, false);
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.getTime());
+    }
+
+    public static String getNextAlarmDisplayDateStr(Context context) {
+        Calendar cal = getNextUpcomingAlarmCal(context, false);
+        return new SimpleDateFormat("dd/MM", Locale.US).format(cal.getTime());
     }
 
     public static void scheduleNextAlarm(Context context) {
@@ -97,26 +153,22 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
 
         int targetHour = prefs.getInt("scheduled_sleep_hour", 23);
         int targetMin = prefs.getInt("scheduled_sleep_minute", 30);
-
         Calendar now = Calendar.getInstance();
-        Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        cal.set(Calendar.HOUR_OF_DAY, targetHour);
-        cal.set(Calendar.MINUTE, targetMin);
 
         long triggerAt;
         if (!forceTomorrow && now.get(Calendar.HOUR_OF_DAY) == targetHour && now.get(Calendar.MINUTE) == targetMin) {
-            // Target matches current minute on initial user setting! Trigger in 3 seconds for instant testing
             triggerAt = System.currentTimeMillis() + 3000;
         } else {
-            if (forceTomorrow || cal.getTimeInMillis() <= System.currentTimeMillis()) {
-                cal.add(Calendar.DAY_OF_YEAR, 1);
-            }
+            Calendar cal = getNextUpcomingAlarmCal(context, forceTomorrow);
             triggerAt = cal.getTimeInMillis();
         }
+
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                // setAlarmClock guarantees high-priority exact CPU wakeup from Doze/Sleep mode
+                AlarmManager.AlarmClockInfo clockInfo = new AlarmManager.AlarmClockInfo(triggerAt, pi);
+                am.setAlarmClock(clockInfo, pi);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi);
             } else {
                 am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi);
