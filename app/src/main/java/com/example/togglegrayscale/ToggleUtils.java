@@ -8,19 +8,31 @@ import android.widget.Toast;
 
 public class ToggleUtils {
 
+    public static boolean isGrayscaleEnabled(Context context) {
+        try {
+            ContentResolver resolver = context.getContentResolver();
+            int enabled = Settings.Secure.getInt(resolver, "accessibility_display_daltonizer_enabled", 0);
+            int mode = Settings.Secure.getInt(resolver, "accessibility_display_daltonizer", -1);
+            return enabled != 0 && mode == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public static void toggleGrayscale(Context context) {
         ContentResolver resolver = context.getContentResolver();
         try {
-            int daltonizerEnabled = Settings.Secure.getInt(
-                    resolver,
-                    "accessibility_display_daltonizer_enabled",
-                    0);
+            boolean active = isGrayscaleEnabled(context);
 
-            if (daltonizerEnabled == 0) {
-                Settings.Secure.putInt(resolver, "accessibility_display_daltonizer_enabled", 1);
+            if (!active) {
+                // Set daltonizer = 0 (Monochromacy / Grayscale) FIRST before setting enabled = 1
+                // This ensures DisplayTransformManager ContentObserver on Android 12+ reads mode=0 correctly
                 Settings.Secure.putInt(resolver, "accessibility_display_daltonizer", 0);
+                Settings.Secure.putInt(resolver, "accessibility_display_daltonizer_enabled", 1);
+                Log.d("ToggleUtils", "Grayscale enabled (daltonizer=0, enabled=1)");
             } else {
                 Settings.Secure.putInt(resolver, "accessibility_display_daltonizer_enabled", 0);
+                Log.d("ToggleUtils", "Grayscale disabled (enabled=0)");
             }
         } catch (SecurityException e) {
             Toast.makeText(context, "Please grant WRITE_SECURE_SETTINGS via ADB", Toast.LENGTH_LONG).show();

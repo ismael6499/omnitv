@@ -1937,8 +1937,7 @@ public class QuickMenuOverlay {
     }
 
     private boolean isGrayscaleOn() {
-        try { return Settings.Secure.getInt(context.getContentResolver(), "accessibility_display_daltonizer_enabled", 0) != 0; }
-        catch (Exception e) { return false; }
+        return ToggleUtils.isGrayscaleEnabled(context);
     }
 
     private String fmtToggle(String label, boolean on) { return label + "   " + (on ? "[ON]" : "[OFF]"); }
