@@ -70,6 +70,14 @@ public class QuickMenuOverlay {
     private static final String[] CLOCK_BG_NAMES = {"Negro", "Gris Oscuro", "Azul Marino", "Ninguno (Transparente)"};
     private static final String[] CLOCK_ALPHA_NAMES = {"0% (Transparente)", "25%", "35%", "50%", "75%", "100% (Opaco)"};
     private static final String[] CLOCK_POSITION_NAMES = {"Arriba Derecha", "Arriba Izquierda", "Abajo Derecha", "Abajo Izquierda", "Centro"};
+    private static final String[] BRIGHTNESS_HUD_FORMAT_NAMES = {
+        "100% (1/5)",
+        "100% Brillo (1/5)",
+        "Brillo 100% (1/5)",
+        "(1/5) 100%",
+        "100%",
+        "Nivel 1/5 (100%)"
+    };
 
     private static QuickMenuOverlay instance;
 
@@ -174,6 +182,23 @@ public class QuickMenuOverlay {
     private TextView txtClockY;
     private TextView btnApplyClock;
     private TextView btnScheduledPromptToggle;
+
+    // Cycle Brightness & OSD HUD Config Panel Fields
+    private LinearLayout panelCycleBrightness;
+    private TextView btnGotoHudConfig;
+    private TextView btnCycleBrightnessNow;
+    private TextView btnBrightnessHudFormat;
+    private TextView btnBrightnessHudTextColor;
+    private TextView btnBrightnessHudBgColor;
+    private TextView btnBrightnessHudPosition;
+    private TextView btnBrightnessHudAlphaDec, btnBrightnessHudAlphaInc, txtBrightnessHudAlpha;
+    private TextView btnBrightnessHudTextAlphaDec, btnBrightnessHudTextAlphaInc, txtBrightnessHudTextAlpha;
+    private TextView btnBrightnessHudSizeDec, btnBrightnessHudSizeInc, txtBrightnessHudSize;
+    private TextView btnBrightnessHudPadDec, btnBrightnessHudPadInc, txtBrightnessHudPad;
+    private TextView btnBrightnessHudXDec, btnBrightnessHudXInc, txtBrightnessHudX;
+    private TextView btnBrightnessHudYDec, btnBrightnessHudYInc, txtBrightnessHudY;
+    private TextView btnBrightnessHudDurDec, btnBrightnessHudDurInc, txtBrightnessHudDur;
+    private TextView btnTestBrightnessHud;
 
     // Custom Timer fields
     private TextView txtCustomHours;
@@ -378,6 +403,36 @@ public class QuickMenuOverlay {
             btnScheduledPromptToggle     = rootView.findViewById(R.id.btn_scheduled_prompt_toggle);
             btnApplyScheduledSleep       = rootView.findViewById(R.id.btn_apply_scheduled_sleep);
 
+            panelCycleBrightness         = rootView.findViewById(R.id.panel_cycle_brightness);
+            btnGotoHudConfig             = rootView.findViewById(R.id.btn_goto_hud_config);
+            btnCycleBrightnessNow        = rootView.findViewById(R.id.btn_cycle_brightness_now);
+            btnBrightnessHudFormat       = rootView.findViewById(R.id.btn_brightness_hud_format);
+            btnBrightnessHudTextColor    = rootView.findViewById(R.id.btn_brightness_hud_text_color);
+            btnBrightnessHudBgColor      = rootView.findViewById(R.id.btn_brightness_hud_bg_color);
+            btnBrightnessHudPosition     = rootView.findViewById(R.id.btn_brightness_hud_position);
+            btnBrightnessHudAlphaDec     = rootView.findViewById(R.id.btn_brightness_hud_alpha_dec);
+            txtBrightnessHudAlpha        = rootView.findViewById(R.id.txt_brightness_hud_alpha);
+            btnBrightnessHudAlphaInc     = rootView.findViewById(R.id.btn_brightness_hud_alpha_inc);
+            btnBrightnessHudTextAlphaDec = rootView.findViewById(R.id.btn_brightness_hud_text_alpha_dec);
+            txtBrightnessHudTextAlpha    = rootView.findViewById(R.id.txt_brightness_hud_text_alpha);
+            btnBrightnessHudTextAlphaInc = rootView.findViewById(R.id.btn_brightness_hud_text_alpha_inc);
+            btnBrightnessHudSizeDec      = rootView.findViewById(R.id.btn_brightness_hud_size_dec);
+            txtBrightnessHudSize         = rootView.findViewById(R.id.txt_brightness_hud_size);
+            btnBrightnessHudSizeInc      = rootView.findViewById(R.id.btn_brightness_hud_size_inc);
+            btnBrightnessHudPadDec       = rootView.findViewById(R.id.btn_brightness_hud_pad_dec);
+            txtBrightnessHudPad          = rootView.findViewById(R.id.txt_brightness_hud_pad);
+            btnBrightnessHudPadInc       = rootView.findViewById(R.id.btn_brightness_hud_pad_inc);
+            btnBrightnessHudXDec         = rootView.findViewById(R.id.btn_brightness_hud_x_dec);
+            txtBrightnessHudX            = rootView.findViewById(R.id.txt_brightness_hud_x);
+            btnBrightnessHudXInc         = rootView.findViewById(R.id.btn_brightness_hud_x_inc);
+            btnBrightnessHudYDec         = rootView.findViewById(R.id.btn_brightness_hud_y_dec);
+            txtBrightnessHudY            = rootView.findViewById(R.id.txt_brightness_hud_y);
+            btnBrightnessHudYInc         = rootView.findViewById(R.id.btn_brightness_hud_y_inc);
+            btnBrightnessHudDurDec       = rootView.findViewById(R.id.btn_brightness_hud_dur_dec);
+            txtBrightnessHudDur          = rootView.findViewById(R.id.txt_brightness_hud_dur);
+            btnBrightnessHudDurInc       = rootView.findViewById(R.id.btn_brightness_hud_dur_inc);
+            btnTestBrightnessHud         = rootView.findViewById(R.id.btn_test_brightness_hud);
+
             setupSubPanelListeners();
             buildMenu();
 
@@ -527,6 +582,7 @@ public class QuickMenuOverlay {
             case "blue_light": return panelBlueLight;
             case "clock_config": return panelClockConfig;
             case "brightness_config": return panelBrightness;
+            case "cycle_brightness_config": return panelCycleBrightness;
             case "cine": return panelCine;
             case "auto_pause": return panelAutoPause;
             case "still_watching": return panelStillWatching;
@@ -1136,6 +1192,118 @@ public class QuickMenuOverlay {
             });
         }
 
+        // Shortcut from Dimmer panel to HUD config
+        if (btnGotoHudConfig != null) {
+            btnGotoHudConfig.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelCycleBrightness != null) panelCycleBrightness.setVisibility(View.VISIBLE);
+                    openSubPanel = "cycle_brightness_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateBrightnessHudConfigPanel();
+                    if (btnCycleBrightnessNow != null) btnCycleBrightnessNow.requestFocus();
+                }
+            });
+        }
+
+        // Cycle Brightness & OSD HUD listeners
+        if (btnCycleBrightnessNow != null) {
+            btnCycleBrightnessNow.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycleCycleBrightness();
+                    btnCycleBrightnessNow.requestFocus();
+                }
+            });
+        }
+        if (btnBrightnessHudFormat != null) {
+            btnBrightnessHudFormat.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycleBrightnessHudIntPref("brightness_hud_format_idx", BRIGHTNESS_HUD_FORMAT_NAMES.length);
+                }
+            });
+        }
+        if (btnBrightnessHudTextColor != null) {
+            btnBrightnessHudTextColor.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycleBrightnessHudIntPref("brightness_hud_text_color_idx", CLOCK_COLOR_NAMES.length);
+                }
+            });
+        }
+        if (btnBrightnessHudBgColor != null) {
+            btnBrightnessHudBgColor.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycleBrightnessHudIntPref("brightness_hud_bg_color_idx", CLOCK_BG_NAMES.length);
+                }
+            });
+        }
+        if (btnBrightnessHudPosition != null) {
+            btnBrightnessHudPosition.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycleBrightnessHudIntPref("brightness_hud_position_idx", CLOCK_POSITION_NAMES.length);
+                }
+            });
+        }
+
+        setupAutoRepeatStepButton(btnBrightnessHudAlphaDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_bg_alpha_pct", 35, step * 5, 0, 100); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudAlphaInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_bg_alpha_pct", 35, step * 5, 0, 100); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudTextAlphaDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_text_alpha_pct", 100, step * 5, 0, 100); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudTextAlphaInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_text_alpha_pct", 100, step * 5, 0, 100); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudSizeDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_size_sp", 16, step * 2, 10, 40); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudSizeInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_size_sp", 16, step * 2, 10, 40); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudPadDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_padding_dp", 12, step * 2, 0, 50); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudPadInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_padding_dp", 12, step * 2, 0, 50); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudXDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_pos_x_dp", 16, step * 2, 0, 500); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudXInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_pos_x_dp", 16, step * 2, 0, 500); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudYDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_pos_y_dp", 16, step * 2, 0, 500); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudYInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_pos_y_dp", 16, step * 2, 0, 500); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudDurDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_duration_ms", 2000, step * 250, 500, 10000); }
+        });
+        setupAutoRepeatStepButton(btnBrightnessHudDurInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustBrightnessHudIntPref("brightness_hud_duration_ms", 2000, step * 250, 500, 10000); }
+        });
+
+        if (btnTestBrightnessHud != null) {
+            btnTestBrightnessHud.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendServiceAction("ACTION_SHOW_BRIGHTNESS_HUD");
+                    btnTestBrightnessHud.requestFocus();
+                }
+            });
+        }
+
         // Auto-pause listeners
         if (btnAutoPauseMode != null) {
             btnAutoPauseMode.setOnClickListener(new View.OnClickListener() {
@@ -1536,6 +1704,7 @@ public class QuickMenuOverlay {
         if (panelBrightness != null) panelBrightness.setVisibility(View.GONE);
         if (panelButtonConfig != null) panelButtonConfig.setVisibility(View.GONE);
         if (panelClockConfig != null) panelClockConfig.setVisibility(View.GONE);
+        if (panelCycleBrightness != null) panelCycleBrightness.setVisibility(View.GONE);
         if (panelAutoPause != null) panelAutoPause.setVisibility(View.GONE);
         if (panelStillWatching != null) panelStillWatching.setVisibility(View.GONE);
         if (panelNightSchedule != null) panelNightSchedule.setVisibility(View.GONE);
@@ -1732,40 +1901,20 @@ public class QuickMenuOverlay {
                     if (btnScheduledSleepToggle != null) btnScheduledSleepToggle.requestFocus();
                 }
                 break;
-            case "cycle_brightness": {
-                SharedPreferences prefs = getOverlayPrefs();
-                int cur = prefs.getInt("dimmer_brightness_pct", 50);
-                String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
-                String[] parts = levelsStr.split(",");
-                if (parts.length > 0) {
-                    int[] levels = new int[parts.length];
-                    for (int i = 0; i < parts.length; i++) {
-                        try {
-                            levels[i] = Integer.parseInt(parts[i].trim());
-                        } catch (Exception e) {
-                            levels[i] = 50;
-                        }
-                    }
-                    int closestIdx = 0;
-                    int minDiff = Math.abs(cur - levels[0]);
-                    for (int i = 1; i < levels.length; i++) {
-                        int diff = Math.abs(cur - levels[i]);
-                        if (diff < minDiff) {
-                            minDiff = diff;
-                            closestIdx = i;
-                        }
-                    }
-                    int nextIdx = (closestIdx + 1) % levels.length;
-                    int next = levels[nextIdx];
-                    prefs.edit().putInt("dimmer_brightness_pct", next).apply();
-                    
-                    Bundle b = new Bundle();
-                    b.putInt("pct", next);
-                    sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
+            case "cycle_brightness":
+                if ("cycle_brightness_config".equals(openSubPanel)) {
+                    closeSubPanels();
+                    buildMenu();
+                } else {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelCycleBrightness != null) panelCycleBrightness.setVisibility(View.VISIBLE);
+                    openSubPanel = "cycle_brightness_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateBrightnessHudConfigPanel();
+                    if (btnCycleBrightnessNow != null) btnCycleBrightnessNow.requestFocus();
                 }
-                buildMenu();
                 break;
-            }
             case "system_info":
                 sendServiceAction("ACTION_SHOW_SYSTEM_INFO");
                 dismiss();
@@ -2098,6 +2247,110 @@ public class QuickMenuOverlay {
         getOverlayPrefs().edit().putInt(key, next).apply();
         updateClockConfigPanel();
         sendServiceAction("ACTION_UPDATE_CLOCK");
+    }
+
+    private void cycleCycleBrightness() {
+        SharedPreferences prefs = getOverlayPrefs();
+        int cur = prefs.getInt("dimmer_brightness_pct", 50);
+        String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
+        String[] parts = levelsStr.split(",");
+        if (parts.length > 0) {
+            int[] levels = new int[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                try {
+                    levels[i] = Integer.parseInt(parts[i].trim());
+                } catch (Exception e) {
+                    levels[i] = 50;
+                }
+            }
+            int closestIdx = 0;
+            int minDiff = Math.abs(cur - levels[0]);
+            for (int i = 1; i < levels.length; i++) {
+                int diff = Math.abs(cur - levels[i]);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestIdx = i;
+                }
+            }
+            int nextIdx = (closestIdx + 1) % levels.length;
+            int next = levels[nextIdx];
+            prefs.edit().putInt("dimmer_brightness_pct", next).apply();
+
+            Bundle b = new Bundle();
+            b.putInt("pct", next);
+            sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
+
+            Bundle bHud = new Bundle();
+            bHud.putInt("pct", next);
+            bHud.putInt("cur_idx", nextIdx + 1);
+            bHud.putInt("total", levels.length);
+            sendServiceAction("ACTION_SHOW_BRIGHTNESS_HUD", bHud);
+        }
+        updateBrightnessHudConfigPanel();
+        buildMenu();
+    }
+
+    private void updateBrightnessHudConfigPanel() {
+        SharedPreferences prefs = getOverlayPrefs();
+        int formatIdx = prefs.getInt("brightness_hud_format_idx", 0);
+        int colorIdx = prefs.getInt("brightness_hud_text_color_idx", 0);
+        int bgIdx = prefs.getInt("brightness_hud_bg_color_idx", 0);
+        int alphaPct = prefs.getInt("brightness_hud_bg_alpha_pct", 35);
+        int textAlphaPct = prefs.getInt("brightness_hud_text_alpha_pct", 100);
+        int posIdx = prefs.getInt("brightness_hud_position_idx", 0);
+        int sizeSp = prefs.getInt("brightness_hud_size_sp", 16);
+        int paddingDp = prefs.getInt("brightness_hud_padding_dp", 12);
+        int posX = prefs.getInt("brightness_hud_pos_x_dp", 16);
+        int posY = prefs.getInt("brightness_hud_pos_y_dp", 16);
+        int durMs = prefs.getInt("brightness_hud_duration_ms", 2000);
+        int curPct = prefs.getInt("dimmer_brightness_pct", 50);
+
+        if (btnCycleBrightnessNow != null) {
+            btnCycleBrightnessNow.setText("⚡  Ciclar Brillo Ahora  [" + curPct + "%]");
+        }
+        if (btnBrightnessHudFormat != null) {
+            btnBrightnessHudFormat.setText("   Formato Texto:  " + BRIGHTNESS_HUD_FORMAT_NAMES[formatIdx % BRIGHTNESS_HUD_FORMAT_NAMES.length]);
+        }
+        if (btnBrightnessHudTextColor != null) {
+            btnBrightnessHudTextColor.setText("   Color Letra:  " + CLOCK_COLOR_NAMES[colorIdx % CLOCK_COLOR_NAMES.length]);
+        }
+        if (btnBrightnessHudBgColor != null) {
+            btnBrightnessHudBgColor.setText("   Color Fondo:  " + CLOCK_BG_NAMES[bgIdx % CLOCK_BG_NAMES.length]);
+        }
+        if (btnBrightnessHudPosition != null) {
+            btnBrightnessHudPosition.setText("   Posición Base:  " + CLOCK_POSITION_NAMES[posIdx % CLOCK_POSITION_NAMES.length]);
+        }
+        if (txtBrightnessHudAlpha != null) txtBrightnessHudAlpha.setText(alphaPct + "%");
+        if (txtBrightnessHudTextAlpha != null) txtBrightnessHudTextAlpha.setText(textAlphaPct + "%");
+        if (txtBrightnessHudSize != null) txtBrightnessHudSize.setText(sizeSp + "sp");
+        if (txtBrightnessHudPad != null) txtBrightnessHudPad.setText(paddingDp + "dp");
+        if (txtBrightnessHudX != null) txtBrightnessHudX.setText(posX + "dp");
+        if (txtBrightnessHudY != null) txtBrightnessHudY.setText(posY + "dp");
+        if (txtBrightnessHudDur != null) {
+            double secs = durMs / 1000.0;
+            txtBrightnessHudDur.setText(String.format(java.util.Locale.US, "%.1fs", secs));
+        }
+        if (btnTestBrightnessHud != null) {
+            btnTestBrightnessHud.setText("👁️  Probar Cartel en Pantalla");
+        }
+    }
+
+    private void adjustBrightnessHudIntPref(String key, int def, int delta, int min, int max) {
+        int cur = getOverlayPrefs().getInt(key, def);
+        int next = cur + delta;
+        if (next < min) next = min;
+        if (next > max) next = max;
+        getOverlayPrefs().edit().putInt(key, next).apply();
+        updateBrightnessHudConfigPanel();
+        sendServiceAction("ACTION_SHOW_BRIGHTNESS_HUD");
+    }
+
+    private void cycleBrightnessHudIntPref(String key, int totalOptions) {
+        int cur = getOverlayPrefs().getInt(key, 0);
+        int next = (cur + 1) % totalOptions;
+        getOverlayPrefs().edit().putInt(key, next).apply();
+        updateBrightnessHudConfigPanel();
+        sendServiceAction("ACTION_SHOW_BRIGHTNESS_HUD");
     }
 
     private void updateBrightnessConfigPanel() {

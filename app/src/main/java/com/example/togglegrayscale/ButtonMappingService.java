@@ -89,6 +89,15 @@ public class ButtonMappingService extends AccessibilityService {
     private boolean isDimmerActive = false;
     private View dimmerOverlayView = null;
 
+    private View brightnessHudOverlayView = null;
+    private TextView brightnessHudTextView = null;
+    private final Runnable hideBrightnessHudRunnable = new Runnable() {
+        @Override
+        public void run() {
+            hideBrightnessHudOverlay();
+        }
+    };
+
     private boolean isStillWatchingActive = false;
     private boolean isStillWatchingPromptActive = false;
     private boolean isDismissingStillWatchingKey = false;
@@ -702,6 +711,36 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_OPEN_BLUETOOTH": openBluetoothSettings(); break;
             case "ACTION_OPEN_DEVELOPER_OPTIONS": openDeveloperOptions(); break;
             case "ACTION_CYCLE_BRIGHTNESS": cycleBrightness(); break;
+            case "ACTION_SHOW_BRIGHTNESS_HUD": {
+                if (extras != null) {
+                    int hudPct = extras.getInt("pct", -1);
+                    int curIdx = extras.getInt("cur_idx", 1);
+                    int total = extras.getInt("total", 1);
+                    if (hudPct < 0) {
+                        SharedPreferences sp = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                        hudPct = sp.getInt("dimmer_brightness_pct", 50);
+                    }
+                    showBrightnessHud(hudPct, curIdx, total);
+                } else {
+                    SharedPreferences sp = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    int cur = sp.getInt("dimmer_brightness_pct", 50);
+                    String levelsStr = sp.getString("brightness_levels_list", "80,50,20");
+                    String[] parts = levelsStr.split(",");
+                    int closestIdx = 0;
+                    if (parts.length > 0) {
+                        int minDiff = Integer.MAX_VALUE;
+                        for (int i = 0; i < parts.length; i++) {
+                            try {
+                                int lVal = Integer.parseInt(parts[i].trim());
+                                int diff = Math.abs(cur - lVal);
+                                if (diff < minDiff) { minDiff = diff; closestIdx = i; }
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                    showBrightnessHud(cur, closestIdx + 1, parts.length > 0 ? parts.length : 1);
+                }
+                break;
+            }
             case "ACTION_REORDER_OVERLAYS": reorderOverlaysOnTop(); break;
             case "ACTION_UPDATE_SCHEDULED_SLEEP": ScheduledSleepReceiver.scheduleNextAlarm(this); break;
             case "ACTION_SCHEDULED_POWER_OFF":
@@ -824,6 +863,7 @@ public class ButtonMappingService extends AccessibilityService {
         dismissBlackScreen();
         hideBlueLightOverlay();
         hideClockOverlay();
+        hideBrightnessHudOverlay();
         hideDimmerOverlay();
         dismissSystemInfoOverlay();
         stopStillWatchingTimer();
@@ -1469,6 +1509,25 @@ public class ButtonMappingService extends AccessibilityService {
                 } else {
                     showDimmerOverlay();
                 }
+
+                String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
+                String[] parts = levelsStr.split(",");
+                int closestIdx = 0;
+                int totalLevels = parts.length;
+                if (totalLevels > 0) {
+                    int minDiff = Integer.MAX_VALUE;
+                    for (int i = 0; i < parts.length; i++) {
+                        try {
+                            int lVal = Integer.parseInt(parts[i].trim());
+                            int diff = Math.abs(next - lVal);
+                            if (diff < minDiff) {
+                                minDiff = diff;
+                                closestIdx = i;
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+                showBrightnessHud(next, closestIdx + 1, totalLevels > 0 ? totalLevels : 1);
             }
         });
     }
@@ -1513,6 +1572,165 @@ public class ButtonMappingService extends AccessibilityService {
                     dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
                 } else {
                     showDimmerOverlay();
+                }
+                showBrightnessHud(next, nextIdx + 1, levels.length);
+            }
+        });
+    }
+
+    // ── Brightness Indicator HUD overlay ──────────────────────────────────────
+
+    public void showBrightnessHud(final int currentPct, final int currentLevelIdx, final int totalLevels) {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    boolean enabled = prefs.getBoolean("brightness_hud_enabled", true);
+                    if (!enabled) return;
+
+                    handler.removeCallbacks(hideBrightnessHudRunnable);
+
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm == null) return;
+
+                    int formatIdx = prefs.getInt("brightness_hud_format_idx", 0);
+                    int colorIdx = prefs.getInt("brightness_hud_text_color_idx", 0);
+                    int bgIdx = prefs.getInt("brightness_hud_bg_color_idx", 0);
+                    int alphaPct = prefs.getInt("brightness_hud_bg_alpha_pct", 35);
+                    int textAlphaPct = prefs.getInt("brightness_hud_text_alpha_pct", 100);
+                    int posIdx = prefs.getInt("brightness_hud_position_idx", 0);
+
+                    int sizeSp = prefs.getInt("brightness_hud_size_sp", 16);
+                    int paddingDp = prefs.getInt("brightness_hud_padding_dp", 12);
+                    int xDp = prefs.getInt("brightness_hud_pos_x_dp", 16);
+                    int yDp = prefs.getInt("brightness_hud_pos_y_dp", 16);
+                    int durationMs = prefs.getInt("brightness_hud_duration_ms", 2000);
+
+                    String text;
+                    int curLvl = Math.max(1, currentLevelIdx);
+                    int totLvls = Math.max(1, totalLevels);
+                    switch (formatIdx) {
+                        case 1:
+                            text = currentPct + "% Brillo (" + curLvl + "/" + totLvls + ")";
+                            break;
+                        case 2:
+                            text = "Brillo " + currentPct + "% (" + curLvl + "/" + totLvls + ")";
+                            break;
+                        case 3:
+                            text = "(" + curLvl + "/" + totLvls + ") " + currentPct + "%";
+                            break;
+                        case 4:
+                            text = currentPct + "%";
+                            break;
+                        case 5:
+                            text = "Nivel " + curLvl + "/" + totLvls + " (" + currentPct + "%)";
+                            break;
+                        case 0:
+                        default:
+                            text = currentPct + "% (" + curLvl + "/" + totLvls + ")";
+                            break;
+                    }
+
+                    int[] textColors = {0xFFFFFFFF, 0xFF000000, 0xFFFFFF00, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF};
+                    int rawColor = textColors[colorIdx >= 0 && colorIdx < textColors.length ? colorIdx : 0];
+                    int textAlphaVal = (int) (textAlphaPct * 2.55);
+                    int textColor = (rawColor & 0x00FFFFFF) | (textAlphaVal << 24);
+
+                    int[][] bgRGBs = {
+                        {0, 0, 0},
+                        {80, 80, 80},
+                        {15, 15, 40}
+                    };
+
+                    int bgColor;
+                    if (bgIdx == 3 || alphaPct == 0) {
+                        bgColor = Color.TRANSPARENT;
+                    } else {
+                        int alphaVal = (int) (alphaPct * 2.55);
+                        int[] rgb = bgRGBs[bgIdx >= 0 && bgIdx < bgRGBs.length ? bgIdx : 0];
+                        bgColor = Color.argb(alphaVal, rgb[0], rgb[1], rgb[2]);
+                    }
+
+                    int[] positions = {
+                        Gravity.TOP | Gravity.END,
+                        Gravity.TOP | Gravity.START,
+                        Gravity.BOTTOM | Gravity.END,
+                        Gravity.BOTTOM | Gravity.START,
+                        Gravity.CENTER
+                    };
+                    int gravity = positions[posIdx >= 0 && posIdx < positions.length ? posIdx : 0];
+
+                    android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+                    int paddingPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, paddingDp, dm);
+                    int paddingPxHalf = paddingPx / 2;
+                    int offsetX = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, xDp, dm);
+                    int offsetY = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, yDp, dm);
+
+                    if (brightnessHudOverlayView == null) {
+                        TextView tv = new TextView(ButtonMappingService.this);
+                        tv.setText(text);
+                        tv.setTextColor(textColor);
+                        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
+                        tv.setTypeface(Typeface.DEFAULT_BOLD);
+                        tv.setPadding(paddingPx, paddingPxHalf, paddingPx, paddingPxHalf);
+                        tv.setBackgroundColor(bgColor);
+
+                        brightnessHudTextView = tv;
+                        brightnessHudOverlayView = tv;
+
+                        WindowManager.LayoutParams p = new WindowManager.LayoutParams(
+                                WindowManager.LayoutParams.WRAP_CONTENT,
+                                WindowManager.LayoutParams.WRAP_CONTENT,
+                                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                                PixelFormat.TRANSLUCENT
+                        );
+                        p.gravity = gravity;
+                        p.x = offsetX;
+                        p.y = offsetY;
+
+                        wm.addView(brightnessHudOverlayView, p);
+                    } else {
+                        if (brightnessHudTextView != null) {
+                            brightnessHudTextView.setText(text);
+                            brightnessHudTextView.setTextColor(textColor);
+                            brightnessHudTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
+                            brightnessHudTextView.setPadding(paddingPx, paddingPxHalf, paddingPx, paddingPxHalf);
+                            brightnessHudTextView.setBackgroundColor(bgColor);
+                        }
+                        WindowManager.LayoutParams p = (WindowManager.LayoutParams) brightnessHudOverlayView.getLayoutParams();
+                        if (p != null) {
+                            p.gravity = gravity;
+                            p.x = offsetX;
+                            p.y = offsetY;
+                            wm.updateViewLayout(brightnessHudOverlayView, p);
+                        }
+                    }
+
+                    handler.postDelayed(hideBrightnessHudRunnable, durationMs);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error showing brightness HUD overlay", e);
+                }
+            }
+        });
+    }
+
+    private void hideBrightnessHudOverlay() {
+        if (brightnessHudOverlayView == null) return;
+        final View v = brightnessHudOverlayView;
+        brightnessHudOverlayView = null;
+        brightnessHudTextView = null;
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm != null) wm.removeView(v);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error hiding brightness HUD overlay", e);
                 }
             }
         });
