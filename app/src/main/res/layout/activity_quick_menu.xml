@@ -537,6 +537,112 @@
 
             <TextView android:id="@+id/btn_apply_scheduled_sleep" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
         </LinearLayout>
+
+        <!-- Mindful App Delay sub-panel (Espera Consciente) -->
+        <LinearLayout android:id="@+id/panel_mindful_delay" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            android:background="#252830" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="⏳  Configurar Espera Consciente (Acceso):" android:textColor="#AAAAAA" android:textSize="13sp"
+                android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+
+            <com.example.togglegrayscale.MaxHeightScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fadeScrollbars="false"
+                android:scrollbars="vertical">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Toggle Principal -->
+                    <TextView android:id="@+id/btn_mindful_delay_toggle" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" android:nextFocusUp="@+id/btn_mindful_delay_toggle" />
+
+                    <!-- Tiempo de Espera -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tiempo de Espera:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_time_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_time" android:layout_width="60dp" android:layout_height="wrap_content" android:text="1m 00s" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_time_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Acción al Cancelar / Salir -->
+                    <TextView android:id="@+id/btn_mindful_delay_cancel_action" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Duración de la Sesión Autorizada -->
+                    <TextView android:id="@+id/btn_mindful_delay_session" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Posición del Cartel -->
+                    <TextView android:id="@+id/btn_mindful_delay_pos" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Mensaje Motivador -->
+                    <TextView android:id="@+id/btn_mindful_delay_msg" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Opacidad Fondo -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Fondo:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_bg_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_bg_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="90%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_bg_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Tamaño Letra -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tamaño Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_text_size_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_text_size" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16sp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_text_size_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Padding (Margen Int) -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Padding (Margen Int):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_pad_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_pad" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_pad_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Desplazar X -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar X (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_x_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_x" android:layout_width="60dp" android:layout_height="wrap_content" android:text="0dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_x_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Desplazar Y -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar Y (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_y_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_y" android:layout_width="60dp" android:layout_height="wrap_content" android:text="0dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_y_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Título de Sección de Apps Interceptadas -->
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="   Selección de Apps Interceptadas:" android:textColor="#81D4FA" android:textSize="13sp"
+                        android:textStyle="bold" android:layout_marginTop="8dp" android:layout_marginBottom="6dp" android:paddingStart="4dp" />
+
+                    <TextView android:id="@+id/btn_mindful_app_youtube" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_netflix" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_disney" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_prime" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_max" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_star" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_twitch" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_tiktok" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_smarttube" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_stremio" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_mindful_app_plex" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Botón de Prueba y Guardar -->
+                    <TextView android:id="@+id/btn_test_mindful_delay" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="👁️  Probar Cartel de Espera (10s)" android:textColor="#FFB74D" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginTop="6dp" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_apply_mindful_delay" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="✓  Listo" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                </LinearLayout>
+            </com.example.togglegrayscale.MaxHeightScrollView>
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Internal eye-care filter overlays (ensures zero-flash dimming when menu opens) -->

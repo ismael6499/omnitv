@@ -79,6 +79,42 @@ public class ButtonMappingService extends AccessibilityService {
     static final String KEY_OLED_MINUTES = "oled_minutes";
     static final String KEY_OLED_MODE = "oled_mode";
 
+    static final String KEY_MINDFUL_DELAY = "mindful_delay_enabled";
+
+    private boolean isMindfulDelayActive = false;
+    private View mindfulDelayOverlayView = null;
+    private TextView txtMindfulDelayTimer = null;
+    private TextView txtMindfulDelayMsg = null;
+    private TextView txtMindfulDelayAppName = null;
+    private int mindfulRemainingSeconds = 0;
+    private Runnable mindfulCountdownRunnable = null;
+    private String currentMindfulAppKey = null;
+    private String currentMindfulAppName = null;
+    private final java.util.Map<String, Long> authorizedSessions = new java.util.HashMap<>();
+
+    private static final String[] MINDFUL_MSG_OPTIONS = {
+        "¿Realmente querés ver algo ahora? Esperá o volvé a Home.",
+        "Pausa consciente: ¿Es una distracción o una decisión?",
+        "Tomate un momento para respirar antes de entrar.",
+        "Tiempo de espera activo para evitar el consumo compulsivo."
+    };
+
+    private static final int[] MINDFUL_SESSION_MINUTES = {0, 15, 30, 60, 120, 1440};
+
+    private static final String[][] MINDFUL_APPS = {
+        {"youtube", "YouTube", "mindful_app_youtube", "com.google.android.youtube.tv", "com.google.android.youtube"},
+        {"netflix", "Netflix", "mindful_app_netflix", "com.netflix.ninja", "com.netflix.mediaclient"},
+        {"disney", "Disney+", "mindful_app_disney", "com.disney.disneyplus"},
+        {"prime", "Prime Video", "mindful_app_prime", "com.amazon.amazonvideo.livingroom", "com.amazon.avod"},
+        {"max", "Max (HBO)", "mindful_app_max", "com.wbd.stream", "com.hbo.hbonow"},
+        {"star", "Star+", "mindful_app_star", "com.disney.starplus"},
+        {"twitch", "Twitch", "mindful_app_twitch", "tv.twitch.android.app", "tv.twitch.android.viewer"},
+        {"tiktok", "TikTok", "mindful_app_tiktok", "com.tiktok.tv"},
+        {"smarttube", "SmartTube", "mindful_app_smarttube", "com.teamsmart.videomanager.tv", "com.liskovsoft.videomanager"},
+        {"stremio", "Stremio", "mindful_app_stremio", "com.stremio.one"},
+        {"plex", "Plex", "mindful_app_plex", "com.plexapp.android"}
+    };
+
     private boolean isBlueLightActive = false;
     private View blueLightOverlayView = null;
 
@@ -605,6 +641,7 @@ public class ButtonMappingService extends AccessibilityService {
                 info.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
                 info.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS;
                 info.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS;
+                info.eventTypes = AccessibilityEvent.TYPES_ALL_MASK;
                 setServiceInfo(info);
                 Log.d(TAG, "AccessibilityServiceInfo configured programmatically.");
             }
@@ -754,6 +791,12 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case "ACTION_PAUSE_SCREEN_OFF":
             case "ACTION_PAUSE_AND_SCREEN_OFF": pauseMediaAndBlackScreen(); break;
+            case "ACTION_TEST_MINDFUL_DELAY":
+                showMindfulDelayOverlay("YouTube (Prueba)", "test", 10);
+                break;
+            case "ACTION_UPDATE_MINDFUL_DELAY":
+                // Preference state refreshed
+                break;
             case "ACTION_OPEN_RECENTS":
                 handler.postDelayed(new Runnable() {
                     @Override public void run() { performGlobalAction(GLOBAL_ACTION_RECENTS); }
@@ -851,6 +894,282 @@ public class ButtonMappingService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (event == null) return;
+        int eventType = event.getEventType();
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            CharSequence pkgSeq = event.getPackageName();
+            if (pkgSeq != null) {
+                handleForegroundPackageChanged(pkgSeq.toString());
+            }
+        }
+    }
+
+    private void handleForegroundPackageChanged(String pkg) {
+        if (pkg == null) return;
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        boolean enabled = op.getBoolean(KEY_MINDFUL_DELAY, false);
+        if (!enabled) return;
+
+        // If user returns to launcher, and session duration is "Solo hasta salir de la app" (0), clear sessions
+        if (isExcludedPackage(pkg)) {
+            int sessionIdx = op.getInt("mindful_delay_session_idx", 2); // default 30 min
+            if (sessionIdx == 0 && !authorizedSessions.isEmpty()) {
+                authorizedSessions.clear();
+                Log.d(TAG, "User returned to Home/Launcher. Cleared 0-min mindful sessions.");
+            }
+            return;
+        }
+
+        // Match package against monitored streaming apps
+        for (String[] appDef : MINDFUL_APPS) {
+            String appKey = appDef[0];
+            String appName = appDef[1];
+            String prefKey = appDef[2];
+            boolean isAppMonitored = op.getBoolean(prefKey, (appKey.equals("youtube") || appKey.equals("netflix") || appKey.equals("disney")));
+            if (!isAppMonitored) continue;
+
+            boolean pkgMatches = false;
+            for (int i = 3; i < appDef.length; i++) {
+                if (pkg.equalsIgnoreCase(appDef[i]) || pkg.contains(appDef[i])) {
+                    pkgMatches = true;
+                    break;
+                }
+            }
+
+            if (pkgMatches) {
+                if (isAppSessionAuthorized(appKey)) {
+                    Log.d(TAG, "Mindful Delay: App " + appName + " is already authorized.");
+                    return;
+                }
+                if (isMindfulDelayActive && appKey.equals(currentMindfulAppKey)) {
+                    return;
+                }
+                int secs = op.getInt("mindful_delay_seconds", 60);
+                showMindfulDelayOverlay(appName, appKey, secs);
+                break;
+            }
+        }
+    }
+
+    private boolean isAppSessionAuthorized(String appKey) {
+        if (appKey == null) return false;
+        Long expiry = authorizedSessions.get(appKey);
+        if (expiry == null) return false;
+        return System.currentTimeMillis() < expiry;
+    }
+
+    private void grantAppSession(String appKey) {
+        if (appKey == null) return;
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int sessionIdx = op.getInt("mindful_delay_session_idx", 2);
+        int mins = (sessionIdx >= 0 && sessionIdx < MINDFUL_SESSION_MINUTES.length)
+                ? MINDFUL_SESSION_MINUTES[sessionIdx] : 30;
+        long durationMs = (mins > 0) ? (mins * 60L * 1000L) : (24L * 3600L * 1000L);
+        authorizedSessions.put(appKey, System.currentTimeMillis() + durationMs);
+        Log.d(TAG, "Granted mindful session for " + appKey + " duration: " + mins + " min");
+    }
+
+    private void showMindfulDelayOverlay(final String appName, final String appKey, final int durationSeconds) {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    dismissMindfulDelayOverlay();
+                    WindowManager windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (windowManager == null) return;
+
+                    SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    int posIdx = op.getInt("mindful_delay_pos_idx", 0); // 0 = Centro
+                    int msgIdx = op.getInt("mindful_delay_msg_idx", 0);
+                    int bgAlphaPct = op.getInt("mindful_delay_bg_alpha_pct", 90);
+                    int textSizeSp = op.getInt("mindful_delay_text_size_sp", 16);
+                    int paddingDp = op.getInt("mindful_delay_pad_dp", 16);
+                    int posX = op.getInt("mindful_delay_pos_x_dp", 0);
+                    int posY = op.getInt("mindful_delay_pos_y_dp", 0);
+
+                    currentMindfulAppKey = appKey;
+                    currentMindfulAppName = appName;
+                    mindfulRemainingSeconds = durationSeconds;
+
+                    // Root container
+                    android.widget.FrameLayout root = new android.widget.FrameLayout(ButtonMappingService.this);
+                    root.setFocusable(true);
+                    root.setClickable(true);
+
+                    // Inner card
+                    android.widget.LinearLayout card = new android.widget.LinearLayout(ButtonMappingService.this);
+                    card.setOrientation(android.widget.LinearLayout.VERTICAL);
+                    card.setGravity(Gravity.CENTER_HORIZONTAL);
+                    
+                    float density = getResources().getDisplayMetrics().density;
+                    int padPx = Math.round(paddingDp * density);
+                    card.setPadding(padPx + 20, padPx + 16, padPx + 20, padPx + 18);
+
+                    // Card background with rounded corners & alpha
+                    android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+                    gd.setCornerRadius(16 * density);
+                    int alpha = Math.round((bgAlphaPct / 100f) * 255);
+                    gd.setColor(Color.argb(alpha, 20, 24, 33));
+                    gd.setStroke(Math.round(1.5f * density), Color.argb(180, 129, 212, 250)); // Light blue subtle border
+                    card.setBackground(gd);
+
+                    // Title
+                    TextView txtTitle = new TextView(ButtonMappingService.this);
+                    txtTitle.setText("⏳  Espera Consciente");
+                    txtTitle.setTextColor(0xFF81D4FA);
+                    txtTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp + 2);
+                    txtTitle.setTypeface(Typeface.DEFAULT_BOLD);
+                    txtTitle.setGravity(Gravity.CENTER);
+                    card.addView(txtTitle);
+
+                    // App target
+                    txtMindfulDelayAppName = new TextView(ButtonMappingService.this);
+                    txtMindfulDelayAppName.setText("Accediendo a: " + appName);
+                    txtMindfulDelayAppName.setTextColor(0xFFE0E0E0);
+                    txtMindfulDelayAppName.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp);
+                    txtMindfulDelayAppName.setGravity(Gravity.CENTER);
+                    android.widget.LinearLayout.LayoutParams lpApp = new android.widget.LinearLayout.LayoutParams(
+                            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+                    lpApp.topMargin = Math.round(6 * density);
+                    card.addView(txtMindfulDelayAppName, lpApp);
+
+                    // Countdown timer
+                    txtMindfulDelayTimer = new TextView(ButtonMappingService.this);
+                    txtMindfulDelayTimer.setText(formatMindfulTime(mindfulRemainingSeconds));
+                    txtMindfulDelayTimer.setTextColor(0xFFFFD54F); // Warm amber
+                    txtMindfulDelayTimer.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp + 18);
+                    txtMindfulDelayTimer.setTypeface(Typeface.DEFAULT_BOLD);
+                    txtMindfulDelayTimer.setGravity(Gravity.CENTER);
+                    android.widget.LinearLayout.LayoutParams lpTimer = new android.widget.LinearLayout.LayoutParams(
+                            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+                    lpTimer.topMargin = Math.round(10 * density);
+                    lpTimer.bottomMargin = Math.round(10 * density);
+                    card.addView(txtMindfulDelayTimer, lpTimer);
+
+                    // Motivator message
+                    txtMindfulDelayMsg = new TextView(ButtonMappingService.this);
+                    String msg = (msgIdx >= 0 && msgIdx < MINDFUL_MSG_OPTIONS.length) ? MINDFUL_MSG_OPTIONS[msgIdx] : MINDFUL_MSG_OPTIONS[0];
+                    txtMindfulDelayMsg.setText(msg);
+                    txtMindfulDelayMsg.setTextColor(0xFFB0BEC5);
+                    txtMindfulDelayMsg.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp - 2);
+                    txtMindfulDelayMsg.setGravity(Gravity.CENTER);
+                    card.addView(txtMindfulDelayMsg);
+
+                    // Action hint button
+                    TextView txtHint = new TextView(ButtonMappingService.this);
+                    txtHint.setText("← Presioná ATRÁS para volver a Home");
+                    txtHint.setTextColor(0xFFFF8A80); // Soft red/coral
+                    txtHint.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp - 1);
+                    txtHint.setTypeface(Typeface.DEFAULT_BOLD);
+                    txtHint.setGravity(Gravity.CENTER);
+                    android.widget.LinearLayout.LayoutParams lpHint = new android.widget.LinearLayout.LayoutParams(
+                            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+                    lpHint.topMargin = Math.round(14 * density);
+                    card.addView(txtHint, lpHint);
+
+                    // Add card to root
+                    android.widget.FrameLayout.LayoutParams lpCard = new android.widget.FrameLayout.LayoutParams(
+                            Math.round(420 * density), android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
+                    
+                    int gravity = Gravity.CENTER;
+                    if (posIdx == 1) gravity = Gravity.TOP | Gravity.START;
+                    else if (posIdx == 2) gravity = Gravity.TOP | Gravity.END;
+                    else if (posIdx == 3) gravity = Gravity.BOTTOM | Gravity.START;
+                    else if (posIdx == 4) gravity = Gravity.BOTTOM | Gravity.END;
+
+                    lpCard.gravity = gravity;
+                    lpCard.leftMargin = Math.round(posX * density) + Math.round(24 * density);
+                    lpCard.rightMargin = Math.round(posX * density) + Math.round(24 * density);
+                    lpCard.topMargin = Math.round(posY * density) + Math.round(24 * density);
+                    lpCard.bottomMargin = Math.round(posY * density) + Math.round(24 * density);
+                    root.addView(card, lpCard);
+
+                    // Window layout params
+                    WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                            WindowManager.LayoutParams.MATCH_PARENT,
+                            WindowManager.LayoutParams.MATCH_PARENT,
+                            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                                    | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                            PixelFormat.TRANSLUCENT
+                    );
+
+                    windowManager.addView(root, params);
+                    mindfulDelayOverlayView = root;
+                    isMindfulDelayActive = true;
+
+                    // Start countdown loop
+                    mindfulCountdownRunnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            if (!isMindfulDelayActive) return;
+                            mindfulRemainingSeconds--;
+                            if (txtMindfulDelayTimer != null) {
+                                txtMindfulDelayTimer.setText(formatMindfulTime(mindfulRemainingSeconds));
+                            }
+                            if (mindfulRemainingSeconds <= 0) {
+                                grantAppSession(currentMindfulAppKey);
+                                dismissMindfulDelayOverlay();
+                                Toast.makeText(getApplicationContext(), "✓ Acceso autorizado a " + appName, Toast.LENGTH_SHORT).show();
+                            } else {
+                                handler.postDelayed(this, 1000);
+                            }
+                        }
+                    };
+                    handler.postDelayed(mindfulCountdownRunnable, 1000);
+
+                    Log.d(TAG, "Mindful Delay Overlay displayed for " + appName + " (" + durationSeconds + "s)");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error displaying Mindful Delay Overlay", e);
+                }
+            }
+        });
+    }
+
+    private String formatMindfulTime(int totalSecs) {
+        if (totalSecs < 0) totalSecs = 0;
+        int m = totalSecs / 60;
+        int s = totalSecs % 60;
+        return String.format(Locale.US, "%02d:%02d", m, s);
+    }
+
+    private void cancelMindfulDelayAndGoHome() {
+        Log.d(TAG, "User cancelled mindful wait. Executing cancel action.");
+        dismissMindfulDelayOverlay();
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int cancelAction = op.getInt("mindful_delay_cancel_action", 0);
+        if (cancelAction == 0) {
+            performGlobalAction(GLOBAL_ACTION_HOME);
+        } else if (cancelAction == 1) {
+            performGlobalAction(GLOBAL_ACTION_BACK);
+        } else if (cancelAction == 2) {
+            pauseMediaAndBlackScreen();
+        }
+    }
+
+    private void dismissMindfulDelayOverlay() {
+        if (mindfulCountdownRunnable != null) {
+            handler.removeCallbacks(mindfulCountdownRunnable);
+            mindfulCountdownRunnable = null;
+        }
+        if (!isMindfulDelayActive || mindfulDelayOverlayView == null) {
+            isMindfulDelayActive = false;
+            return;
+        }
+        final View v = mindfulDelayOverlayView;
+        mindfulDelayOverlayView = null;
+        isMindfulDelayActive = false;
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm != null && v != null) wm.removeView(v);
+                    Log.d(TAG, "Mindful Delay overlay dismissed.");
+                } catch (Exception ignored) {}
+            }
+        });
     }
 
     @Override
@@ -866,6 +1185,7 @@ public class ButtonMappingService extends AccessibilityService {
         hideBrightnessHudOverlay();
         hideDimmerOverlay();
         dismissSystemInfoOverlay();
+        dismissMindfulDelayOverlay();
         stopStillWatchingTimer();
         stopOledSaverTimer();
         try {
@@ -2211,6 +2531,17 @@ public class ButtonMappingService extends AccessibilityService {
     protected boolean onKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
+
+        // 0. Mindful Delay key interception: Back/Home cancels and goes to Home; all other keys are blocked
+        if (isMindfulDelayActive) {
+            if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_HOME) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    cancelMindfulDelayAndGoHome();
+                }
+                return true;
+            }
+            return true;
+        }
 
         // Reset still watching & OLED saver inactivity timers only when features are active (and prompt is not active)
         if (action == KeyEvent.ACTION_DOWN) {

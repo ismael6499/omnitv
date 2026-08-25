@@ -29,7 +29,7 @@ public class QuickMenuOverlay {
         "manage_apps", "timer", "blue_light", "clock", "dimmer", "grayscale",
         "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
-        "pause_screen_off", "scheduled_sleep", "cycle_brightness", "still_watching",
+        "pause_screen_off", "scheduled_sleep", "cycle_brightness", "mindful_delay", "still_watching",
         "night_schedule", "oled_saver",
         "config_mute", "config_youtube_190", "config_youtube_189",
         "developer_options"
@@ -64,6 +64,24 @@ public class QuickMenuOverlay {
 
     private static final String[] STILL_WATCHING_POSITIONS = {"Arriba Izquierda", "Arriba Derecha", "Abajo Izquierda", "Abajo Derecha", "Centro"};
     private static final String[] STILL_WATCHING_ACTIONS = {"Pausar Video", "Pausar y Apagar Pantalla", "Enviar Tecla Atrás"};
+
+    private static final String[] MINDFUL_MSG_OPTIONS = {
+        "¿Realmente querés ver algo ahora? Esperá o volvé a Home.",
+        "Pausa consciente: ¿Es una distracción o una decisión?",
+        "Tomate un momento para respirar antes de entrar.",
+        "Tiempo de espera activo para evitar el consumo compulsivo."
+    };
+    private static final String[] MINDFUL_CANCEL_ACTIONS = {
+        "Ir a Pantalla Principal (Home)",
+        "Enviar Tecla Atrás (Back)",
+        "Apagar Pantalla (Negro)"
+    };
+    private static final String[] MINDFUL_POSITIONS = {
+        "Centro", "Arriba Izquierda", "Arriba Derecha", "Abajo Izquierda", "Abajo Derecha"
+    };
+    private static final String[] MINDFUL_SESSION_NAMES = {
+        "Solo hasta salir de la app", "15 minutos", "30 minutos", "1 hora", "2 horas", "Todo el día"
+    };
 
     private static final String[] CLOCK_SIZE_NAMES = {"Chico (12sp)", "Mediano (16sp)", "Grande (20sp)", "Extra Grande (24sp)"};
     private static final String[] CLOCK_COLOR_NAMES = {"Blanco", "Negro", "Amarillo", "Rojo", "Verde", "Azul"};
@@ -199,6 +217,25 @@ public class QuickMenuOverlay {
     private TextView btnBrightnessHudYDec, btnBrightnessHudYInc, txtBrightnessHudY;
     private TextView btnBrightnessHudDurDec, btnBrightnessHudDurInc, txtBrightnessHudDur;
     private TextView btnTestBrightnessHud;
+
+    // Mindful Delay (Espera Consciente) Fields
+    private LinearLayout panelMindfulDelay;
+    private TextView btnMindfulDelayToggle;
+    private TextView btnMindfulDelayTimeDec, btnMindfulDelayTimeInc, txtMindfulDelayTime;
+    private TextView btnMindfulDelayCancelAction;
+    private TextView btnMindfulDelaySession;
+    private TextView btnMindfulDelayPos;
+    private TextView btnMindfulDelayMsg;
+    private TextView btnMindfulDelayBgAlphaDec, btnMindfulDelayBgAlphaInc, txtMindfulDelayBgAlpha;
+    private TextView btnMindfulDelayTextSizeDec, btnMindfulDelayTextSizeInc, txtMindfulDelayTextSize;
+    private TextView btnMindfulDelayPadDec, btnMindfulDelayPadInc, txtMindfulDelayPad;
+    private TextView btnMindfulDelayXDec, btnMindfulDelayXInc, txtMindfulDelayX;
+    private TextView btnMindfulDelayYDec, btnMindfulDelayYInc, txtMindfulDelayY;
+    private TextView btnMindfulAppYoutube, btnMindfulAppNetflix, btnMindfulAppDisney;
+    private TextView btnMindfulAppPrime, btnMindfulAppMax, btnMindfulAppStar;
+    private TextView btnMindfulAppTwitch, btnMindfulAppTiktok, btnMindfulAppSmarttube;
+    private TextView btnMindfulAppStremio, btnMindfulAppPlex;
+    private TextView btnTestMindfulDelay, btnApplyMindfulDelay;
 
     // Custom Timer fields
     private TextView txtCustomHours;
@@ -433,6 +470,44 @@ public class QuickMenuOverlay {
             btnBrightnessHudDurInc       = rootView.findViewById(R.id.btn_brightness_hud_dur_inc);
             btnTestBrightnessHud         = rootView.findViewById(R.id.btn_test_brightness_hud);
 
+            panelMindfulDelay            = rootView.findViewById(R.id.panel_mindful_delay);
+            btnMindfulDelayToggle        = rootView.findViewById(R.id.btn_mindful_delay_toggle);
+            btnMindfulDelayTimeDec       = rootView.findViewById(R.id.btn_mindful_delay_time_dec);
+            txtMindfulDelayTime          = rootView.findViewById(R.id.txt_mindful_delay_time);
+            btnMindfulDelayTimeInc       = rootView.findViewById(R.id.btn_mindful_delay_time_inc);
+            btnMindfulDelayCancelAction  = rootView.findViewById(R.id.btn_mindful_delay_cancel_action);
+            btnMindfulDelaySession       = rootView.findViewById(R.id.btn_mindful_delay_session);
+            btnMindfulDelayPos           = rootView.findViewById(R.id.btn_mindful_delay_pos);
+            btnMindfulDelayMsg           = rootView.findViewById(R.id.btn_mindful_delay_msg);
+            btnMindfulDelayBgAlphaDec    = rootView.findViewById(R.id.btn_mindful_delay_bg_alpha_dec);
+            txtMindfulDelayBgAlpha       = rootView.findViewById(R.id.txt_mindful_delay_bg_alpha);
+            btnMindfulDelayBgAlphaInc    = rootView.findViewById(R.id.btn_mindful_delay_bg_alpha_inc);
+            btnMindfulDelayTextSizeDec   = rootView.findViewById(R.id.btn_mindful_delay_text_size_dec);
+            txtMindfulDelayTextSize      = rootView.findViewById(R.id.txt_mindful_delay_text_size);
+            btnMindfulDelayTextSizeInc   = rootView.findViewById(R.id.btn_mindful_delay_text_size_inc);
+            btnMindfulDelayPadDec        = rootView.findViewById(R.id.btn_mindful_delay_pad_dec);
+            txtMindfulDelayPad           = rootView.findViewById(R.id.txt_mindful_delay_pad);
+            btnMindfulDelayPadInc        = rootView.findViewById(R.id.btn_mindful_delay_pad_inc);
+            btnMindfulDelayXDec          = rootView.findViewById(R.id.btn_mindful_delay_x_dec);
+            txtMindfulDelayX             = rootView.findViewById(R.id.txt_mindful_delay_x);
+            btnMindfulDelayXInc          = rootView.findViewById(R.id.btn_mindful_delay_x_inc);
+            btnMindfulDelayYDec          = rootView.findViewById(R.id.btn_mindful_delay_y_dec);
+            txtMindfulDelayY             = rootView.findViewById(R.id.txt_mindful_delay_y);
+            btnMindfulDelayYInc          = rootView.findViewById(R.id.btn_mindful_delay_y_inc);
+            btnMindfulAppYoutube         = rootView.findViewById(R.id.btn_mindful_app_youtube);
+            btnMindfulAppNetflix         = rootView.findViewById(R.id.btn_mindful_app_netflix);
+            btnMindfulAppDisney          = rootView.findViewById(R.id.btn_mindful_app_disney);
+            btnMindfulAppPrime           = rootView.findViewById(R.id.btn_mindful_app_prime);
+            btnMindfulAppMax             = rootView.findViewById(R.id.btn_mindful_app_max);
+            btnMindfulAppStar            = rootView.findViewById(R.id.btn_mindful_app_star);
+            btnMindfulAppTwitch          = rootView.findViewById(R.id.btn_mindful_app_twitch);
+            btnMindfulAppTiktok          = rootView.findViewById(R.id.btn_mindful_app_tiktok);
+            btnMindfulAppSmarttube       = rootView.findViewById(R.id.btn_mindful_app_smarttube);
+            btnMindfulAppStremio         = rootView.findViewById(R.id.btn_mindful_app_stremio);
+            btnMindfulAppPlex            = rootView.findViewById(R.id.btn_mindful_app_plex);
+            btnTestMindfulDelay          = rootView.findViewById(R.id.btn_test_mindful_delay);
+            btnApplyMindfulDelay         = rootView.findViewById(R.id.btn_apply_mindful_delay);
+
             setupSubPanelListeners();
             buildMenu();
 
@@ -589,6 +664,7 @@ public class QuickMenuOverlay {
             case "night_schedule": return panelNightSchedule;
             case "oled_saver": return panelOledSaver;
             case "scheduled_sleep": return panelScheduledSleep;
+            case "mindful_delay_config": return panelMindfulDelay;
             default: return panelButtonConfig;
         }
     }
@@ -1608,6 +1684,170 @@ public class QuickMenuOverlay {
                 }
             });
         }
+
+        // Mindful Delay (Espera Consciente) Listeners
+        if (btnMindfulDelayToggle != null) {
+            btnMindfulDelayToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean(ButtonMappingService.KEY_MINDFUL_DELAY, false);
+                    getOverlayPrefs().edit().putBoolean(ButtonMappingService.KEY_MINDFUL_DELAY, !cur).apply();
+                    sendServiceAction("ACTION_UPDATE_MINDFUL_DELAY");
+                    updateMindfulDelayConfigPanel();
+                    buildMenu();
+                }
+            });
+        }
+        setupAutoRepeatStepButton(btnMindfulDelayTimeDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -10 : 10) * Math.abs(step);
+                adjustIntPref("mindful_delay_seconds", 60, delta, 10, 300, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+                buildMenu();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayTimeInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -10 : 10) * Math.abs(step);
+                adjustIntPref("mindful_delay_seconds", 60, delta, 10, 300, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+                buildMenu();
+            }
+        });
+        if (btnMindfulDelayCancelAction != null) {
+            btnMindfulDelayCancelAction.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    int cur = getOverlayPrefs().getInt("mindful_delay_cancel_action", 0);
+                    int next = (cur + 1) % MINDFUL_CANCEL_ACTIONS.length;
+                    getOverlayPrefs().edit().putInt("mindful_delay_cancel_action", next).apply();
+                    updateMindfulDelayConfigPanel();
+                }
+            });
+        }
+        if (btnMindfulDelaySession != null) {
+            btnMindfulDelaySession.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    int cur = getOverlayPrefs().getInt("mindful_delay_session_idx", 2);
+                    int next = (cur + 1) % MINDFUL_SESSION_NAMES.length;
+                    getOverlayPrefs().edit().putInt("mindful_delay_session_idx", next).apply();
+                    updateMindfulDelayConfigPanel();
+                }
+            });
+        }
+        if (btnMindfulDelayPos != null) {
+            btnMindfulDelayPos.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    int cur = getOverlayPrefs().getInt("mindful_delay_pos_idx", 0);
+                    int next = (cur + 1) % MINDFUL_POSITIONS.length;
+                    getOverlayPrefs().edit().putInt("mindful_delay_pos_idx", next).apply();
+                    updateMindfulDelayConfigPanel();
+                }
+            });
+        }
+        if (btnMindfulDelayMsg != null) {
+            btnMindfulDelayMsg.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    int cur = getOverlayPrefs().getInt("mindful_delay_msg_idx", 0);
+                    int next = (cur + 1) % MINDFUL_MSG_OPTIONS.length;
+                    getOverlayPrefs().edit().putInt("mindful_delay_msg_idx", next).apply();
+                    updateMindfulDelayConfigPanel();
+                }
+            });
+        }
+        setupAutoRepeatStepButton(btnMindfulDelayBgAlphaDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -5 : 5) * Math.abs(step);
+                adjustIntPref("mindful_delay_bg_alpha_pct", 90, delta, 0, 100, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayBgAlphaInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -5 : 5) * Math.abs(step);
+                adjustIntPref("mindful_delay_bg_alpha_pct", 90, delta, 0, 100, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayTextSizeDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("mindful_delay_text_size_sp", 16, step, 12, 28, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayTextSizeInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("mindful_delay_text_size_sp", 16, step, 12, 28, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayPadDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("mindful_delay_pad_dp", 16, step, 8, 32, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayPadInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("mindful_delay_pad_dp", 16, step, 8, 32, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayXDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -5 : 5) * Math.abs(step);
+                adjustIntPref("mindful_delay_pos_x_dp", 0, delta, 0, 300, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayXInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -5 : 5) * Math.abs(step);
+                adjustIntPref("mindful_delay_pos_x_dp", 0, delta, 0, 300, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayYDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -5 : 5) * Math.abs(step);
+                adjustIntPref("mindful_delay_pos_y_dp", 0, delta, 0, 300, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelayYInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -5 : 5) * Math.abs(step);
+                adjustIntPref("mindful_delay_pos_y_dp", 0, delta, 0, 300, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+
+        // App toggle listeners
+        setupAppToggleListener(btnMindfulAppYoutube, "mindful_app_youtube", true);
+        setupAppToggleListener(btnMindfulAppNetflix, "mindful_app_netflix", true);
+        setupAppToggleListener(btnMindfulAppDisney, "mindful_app_disney", true);
+        setupAppToggleListener(btnMindfulAppPrime, "mindful_app_prime", false);
+        setupAppToggleListener(btnMindfulAppMax, "mindful_app_max", false);
+        setupAppToggleListener(btnMindfulAppStar, "mindful_app_star", false);
+        setupAppToggleListener(btnMindfulAppTwitch, "mindful_app_twitch", false);
+        setupAppToggleListener(btnMindfulAppTiktok, "mindful_app_tiktok", false);
+        setupAppToggleListener(btnMindfulAppSmarttube, "mindful_app_smarttube", false);
+        setupAppToggleListener(btnMindfulAppStremio, "mindful_app_stremio", false);
+        setupAppToggleListener(btnMindfulAppPlex, "mindful_app_plex", false);
+
+        if (btnTestMindfulDelay != null) {
+            btnTestMindfulDelay.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    sendServiceAction("ACTION_TEST_MINDFUL_DELAY");
+                }
+            });
+        }
+        if (btnApplyMindfulDelay != null) {
+            btnApplyMindfulDelay.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    closeSubPanels();
+                    buildMenu();
+                }
+            });
+        }
     }
 
     private void updateCustomTimerUI() {
@@ -1710,6 +1950,7 @@ public class QuickMenuOverlay {
         if (panelNightSchedule != null) panelNightSchedule.setVisibility(View.GONE);
         if (panelOledSaver != null) panelOledSaver.setVisibility(View.GONE);
         if (panelScheduledSleep != null) panelScheduledSleep.setVisibility(View.GONE);
+        if (panelMindfulDelay != null) panelMindfulDelay.setVisibility(View.GONE);
         openSubPanel = null;
         configuringButton = null;
         if (menuContainer != null) {
@@ -1983,6 +2224,20 @@ public class QuickMenuOverlay {
                     if (btnOledSaverToggle != null) btnOledSaverToggle.requestFocus();
                 }
                 break;
+            case "mindful_delay":
+                if ("mindful_delay_config".equals(openSubPanel)) {
+                    closeSubPanels();
+                    buildMenu();
+                } else {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelMindfulDelay != null) panelMindfulDelay.setVisibility(View.VISIBLE);
+                    openSubPanel = "mindful_delay_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateMindfulDelayConfigPanel();
+                    if (btnMindfulDelayToggle != null) btnMindfulDelayToggle.requestFocus();
+                }
+                break;
             default:
                 Log.w(TAG, "Unknown item: " + id);
         }
@@ -2032,6 +2287,15 @@ public class QuickMenuOverlay {
                 return "Brillo  Ciclar Brillo  [" + pct + "%]";
             }
             case "still_watching": return fmtToggle("📺  ¿Sigues viendo?", op.getBoolean(ButtonMappingService.KEY_STILL_WATCHING, false));
+            case "mindful_delay": {
+                boolean active = op.getBoolean(ButtonMappingService.KEY_MINDFUL_DELAY, false);
+                int secs = op.getInt("mindful_delay_seconds", 60);
+                String timeStr = (secs >= 60) ? (secs / 60) + "m" : (secs + "s");
+                if (secs % 60 != 0 && secs >= 60) {
+                    timeStr = (secs / 60) + "m " + (secs % 60) + "s";
+                }
+                return active ? "⏳  Espera Consciente  [" + timeStr + "]" : "⏳  Espera Consciente  [OFF]";
+            }
             case "night_schedule": return fmtToggle("🌙  Horario Nocturno", op.getBoolean(ButtonMappingService.KEY_NIGHT_SCHEDULE, false));
             case "oled_saver": return fmtToggle("🛡️  Protector OLED (Burn-In)", op.getBoolean(ButtonMappingService.KEY_OLED_SAVER, false));
             case "config_mute":        return "Config  Configurar Botón Mute";
@@ -2057,13 +2321,17 @@ public class QuickMenuOverlay {
         return "⏰  Apagado Programado   [" + timeStr + "]";
     }
 
-    private int getColorForId(String id) { return "reboot".equals(id) ? 0xFFFF6B6B : Color.WHITE; }
+    private int getColorForId(String id) {
+        if ("reboot".equals(id)) return 0xFFFF6B6B;
+        if ("mindful_delay".equals(id)) return 0xFF81D4FA;
+        return Color.WHITE;
+    }
 
     private int getGroupForId(String id) {
         switch (id) {
             case "manage_apps": case "timer": case "blue_light":
             case "clock": case "dimmer": case "grayscale": case "cine_mode":
-            case "cycle_brightness": case "auto_pause":
+            case "cycle_brightness": case "auto_pause": case "mindful_delay":
                 return 1;
             case "screen_off": case "pause_screen_off": case "scheduled_sleep":
                 return 2;
@@ -2902,6 +3170,88 @@ public class QuickMenuOverlay {
         getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_POS, next).apply();
         updateStillWatchingConfigPanel();
         sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+    }
+
+    private void setupAppToggleListener(final TextView btn, final String prefKey, final boolean def) {
+        if (btn == null) return;
+        btn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                boolean cur = getOverlayPrefs().getBoolean(prefKey, def);
+                getOverlayPrefs().edit().putBoolean(prefKey, !cur).apply();
+                sendServiceAction("ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+    }
+
+    private void updateMindfulDelayConfigPanel() {
+        SharedPreferences op = getOverlayPrefs();
+        boolean enabled = op.getBoolean(ButtonMappingService.KEY_MINDFUL_DELAY, false);
+        int secs = op.getInt("mindful_delay_seconds", 60);
+        int cancelAction = op.getInt("mindful_delay_cancel_action", 0);
+        int sessionIdx = op.getInt("mindful_delay_session_idx", 2);
+        int posIdx = op.getInt("mindful_delay_pos_idx", 0);
+        int msgIdx = op.getInt("mindful_delay_msg_idx", 0);
+        int bgAlpha = op.getInt("mindful_delay_bg_alpha_pct", 90);
+        int textSize = op.getInt("mindful_delay_text_size_sp", 16);
+        int pad = op.getInt("mindful_delay_pad_dp", 16);
+        int posX = op.getInt("mindful_delay_pos_x_dp", 0);
+        int posY = op.getInt("mindful_delay_pos_y_dp", 0);
+
+        if (btnMindfulDelayToggle != null) {
+            btnMindfulDelayToggle.setText("Espera Consciente:   " + (enabled ? "[ ACTIVADO ]" : "[ DESACTIVADO ]"));
+            btnMindfulDelayToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFB0BEC5);
+        }
+
+        if (txtMindfulDelayTime != null) {
+            int m = secs / 60;
+            int s = secs % 60;
+            txtMindfulDelayTime.setText(m > 0 ? (m + "m " + (s > 0 ? s + "s" : "00s")) : (s + "s"));
+        }
+
+        if (btnMindfulDelayCancelAction != null) {
+            String actName = (cancelAction >= 0 && cancelAction < MINDFUL_CANCEL_ACTIONS.length) ? MINDFUL_CANCEL_ACTIONS[cancelAction] : MINDFUL_CANCEL_ACTIONS[0];
+            btnMindfulDelayCancelAction.setText("Al Cancelar / Salir:   " + actName);
+        }
+
+        if (btnMindfulDelaySession != null) {
+            String sessName = (sessionIdx >= 0 && sessionIdx < MINDFUL_SESSION_NAMES.length) ? MINDFUL_SESSION_NAMES[sessionIdx] : MINDFUL_SESSION_NAMES[0];
+            btnMindfulDelaySession.setText("Duración Sesión:   " + sessName);
+        }
+
+        if (btnMindfulDelayPos != null) {
+            String posName = (posIdx >= 0 && posIdx < MINDFUL_POSITIONS.length) ? MINDFUL_POSITIONS[posIdx] : MINDFUL_POSITIONS[0];
+            btnMindfulDelayPos.setText("Posición del Cartel:   " + posName);
+        }
+
+        if (btnMindfulDelayMsg != null) {
+            String msgName = (msgIdx >= 0 && msgIdx < MINDFUL_MSG_OPTIONS.length) ? MINDFUL_MSG_OPTIONS[msgIdx] : MINDFUL_MSG_OPTIONS[0];
+            btnMindfulDelayMsg.setText("Mensaje:   \"" + (msgName.length() > 30 ? msgName.substring(0, 27) + "..." : msgName) + "\"");
+        }
+
+        if (txtMindfulDelayBgAlpha != null) txtMindfulDelayBgAlpha.setText(bgAlpha + "%");
+        if (txtMindfulDelayTextSize != null) txtMindfulDelayTextSize.setText(textSize + "sp");
+        if (txtMindfulDelayPad != null) txtMindfulDelayPad.setText(pad + "dp");
+        if (txtMindfulDelayX != null) txtMindfulDelayX.setText(posX + "dp");
+        if (txtMindfulDelayY != null) txtMindfulDelayY.setText(posY + "dp");
+
+        updateAppButton(btnMindfulAppYoutube, "📺  YouTube", op.getBoolean("mindful_app_youtube", true));
+        updateAppButton(btnMindfulAppNetflix, "🎬  Netflix", op.getBoolean("mindful_app_netflix", true));
+        updateAppButton(btnMindfulAppDisney, "🏰  Disney+", op.getBoolean("mindful_app_disney", true));
+        updateAppButton(btnMindfulAppPrime, "📦  Prime Video", op.getBoolean("mindful_app_prime", false));
+        updateAppButton(btnMindfulAppMax, "🍿  Max (HBO)", op.getBoolean("mindful_app_max", false));
+        updateAppButton(btnMindfulAppStar, "⭐  Star+", op.getBoolean("mindful_app_star", false));
+        updateAppButton(btnMindfulAppTwitch, "🟣  Twitch", op.getBoolean("mindful_app_twitch", false));
+        updateAppButton(btnMindfulAppTiktok, "🎵  TikTok", op.getBoolean("mindful_app_tiktok", false));
+        updateAppButton(btnMindfulAppSmarttube, "🚀  SmartTube", op.getBoolean("mindful_app_smarttube", false));
+        updateAppButton(btnMindfulAppStremio, "🎥  Stremio", op.getBoolean("mindful_app_stremio", false));
+        updateAppButton(btnMindfulAppPlex, "🔮  Plex", op.getBoolean("mindful_app_plex", false));
+    }
+
+    private void updateAppButton(TextView btn, String name, boolean active) {
+        if (btn == null) return;
+        btn.setText(name + ":   " + (active ? "[ SÍ ]" : "[ NO ]"));
+        btn.setTextColor(active ? 0xFF81D4FA : 0xFF888888);
     }
 
     private void adjustIntPref(String key, int def, int delta, int min, int max, String actionName) {
