@@ -80,7 +80,10 @@ public class QuickMenuOverlay {
         "Centro", "Arriba Izquierda", "Arriba Derecha", "Abajo Izquierda", "Abajo Derecha"
     };
     private static final String[] MINDFUL_SESSION_NAMES = {
-        "Solo hasta salir de la app", "15 minutos", "30 minutos", "1 hora", "2 horas", "Todo el día"
+        "Por Tiempo Personalizado",
+        "Solo mientras no salga a Home",
+        "Hasta apagar la pantalla / TV",
+        "Todo el día (hasta medianoche)"
     };
 
     private static final String[] CLOCK_SIZE_NAMES = {"Chico (12sp)", "Mediano (16sp)", "Grande (20sp)", "Extra Grande (24sp)"};
@@ -221,9 +224,13 @@ public class QuickMenuOverlay {
     // Mindful Delay (Espera Consciente) Fields
     private LinearLayout panelMindfulDelay;
     private TextView btnMindfulDelayToggle;
-    private TextView btnMindfulDelayTimeDec, btnMindfulDelayTimeInc, txtMindfulDelayTime;
+    private TextView btnMindfulDelayMinDec, btnMindfulDelayMinInc, txtMindfulDelayMin;
+    private TextView btnMindfulDelaySecDec, btnMindfulDelaySecInc, txtMindfulDelaySec;
     private TextView btnMindfulDelayCancelAction;
     private TextView btnMindfulDelaySession;
+    private LinearLayout rowMindfulSessHours, rowMindfulSessMins;
+    private TextView btnMindfulDelaySessHourDec, btnMindfulDelaySessHourInc, txtMindfulDelaySessHour;
+    private TextView btnMindfulDelaySessMinDec, btnMindfulDelaySessMinInc, txtMindfulDelaySessMin;
     private TextView btnMindfulDelayPos;
     private TextView btnMindfulDelayMsg;
     private TextView btnMindfulDelayBgAlphaDec, btnMindfulDelayBgAlphaInc, txtMindfulDelayBgAlpha;
@@ -472,11 +479,22 @@ public class QuickMenuOverlay {
 
             panelMindfulDelay            = rootView.findViewById(R.id.panel_mindful_delay);
             btnMindfulDelayToggle        = rootView.findViewById(R.id.btn_mindful_delay_toggle);
-            btnMindfulDelayTimeDec       = rootView.findViewById(R.id.btn_mindful_delay_time_dec);
-            txtMindfulDelayTime          = rootView.findViewById(R.id.txt_mindful_delay_time);
-            btnMindfulDelayTimeInc       = rootView.findViewById(R.id.btn_mindful_delay_time_inc);
+            btnMindfulDelayMinDec        = rootView.findViewById(R.id.btn_mindful_delay_min_dec);
+            txtMindfulDelayMin          = rootView.findViewById(R.id.txt_mindful_delay_min);
+            btnMindfulDelayMinInc        = rootView.findViewById(R.id.btn_mindful_delay_min_inc);
+            btnMindfulDelaySecDec        = rootView.findViewById(R.id.btn_mindful_delay_sec_dec);
+            txtMindfulDelaySec          = rootView.findViewById(R.id.txt_mindful_delay_sec);
+            btnMindfulDelaySecInc        = rootView.findViewById(R.id.btn_mindful_delay_sec_inc);
             btnMindfulDelayCancelAction  = rootView.findViewById(R.id.btn_mindful_delay_cancel_action);
             btnMindfulDelaySession       = rootView.findViewById(R.id.btn_mindful_delay_session);
+            rowMindfulSessHours          = rootView.findViewById(R.id.row_mindful_sess_hours);
+            rowMindfulSessMins           = rootView.findViewById(R.id.row_mindful_sess_mins);
+            btnMindfulDelaySessHourDec   = rootView.findViewById(R.id.btn_mindful_delay_sess_hour_dec);
+            txtMindfulDelaySessHour      = rootView.findViewById(R.id.txt_mindful_delay_sess_hour);
+            btnMindfulDelaySessHourInc   = rootView.findViewById(R.id.btn_mindful_delay_sess_hour_inc);
+            btnMindfulDelaySessMinDec    = rootView.findViewById(R.id.btn_mindful_delay_sess_min_dec);
+            txtMindfulDelaySessMin       = rootView.findViewById(R.id.txt_mindful_delay_sess_min);
+            btnMindfulDelaySessMinInc    = rootView.findViewById(R.id.btn_mindful_delay_sess_min_inc);
             btnMindfulDelayPos           = rootView.findViewById(R.id.btn_mindful_delay_pos);
             btnMindfulDelayMsg           = rootView.findViewById(R.id.btn_mindful_delay_msg);
             btnMindfulDelayBgAlphaDec    = rootView.findViewById(R.id.btn_mindful_delay_bg_alpha_dec);
@@ -1697,20 +1715,24 @@ public class QuickMenuOverlay {
                 }
             });
         }
-        setupAutoRepeatStepButton(btnMindfulDelayTimeDec, -1, new StepAdjuster() {
+        setupAutoRepeatStepButton(btnMindfulDelayMinDec, -1, new StepAdjuster() {
             @Override public void adjust(int step) {
-                int delta = (step < 0 ? -10 : 10) * Math.abs(step);
-                adjustIntPref("mindful_delay_seconds", 60, delta, 10, 300, "ACTION_UPDATE_MINDFUL_DELAY");
-                updateMindfulDelayConfigPanel();
-                buildMenu();
+                adjustMindfulMinutes(step);
             }
         });
-        setupAutoRepeatStepButton(btnMindfulDelayTimeInc, 1, new StepAdjuster() {
+        setupAutoRepeatStepButton(btnMindfulDelayMinInc, 1, new StepAdjuster() {
             @Override public void adjust(int step) {
-                int delta = (step < 0 ? -10 : 10) * Math.abs(step);
-                adjustIntPref("mindful_delay_seconds", 60, delta, 10, 300, "ACTION_UPDATE_MINDFUL_DELAY");
-                updateMindfulDelayConfigPanel();
-                buildMenu();
+                adjustMindfulMinutes(step);
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelaySecDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustMindfulSeconds(step);
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelaySecInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustMindfulSeconds(step);
             }
         });
         if (btnMindfulDelayCancelAction != null) {
@@ -1726,13 +1748,39 @@ public class QuickMenuOverlay {
         if (btnMindfulDelaySession != null) {
             btnMindfulDelaySession.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt("mindful_delay_session_idx", 2);
+                    int cur = getOverlayPrefs().getInt("mindful_delay_session_mode", 0);
                     int next = (cur + 1) % MINDFUL_SESSION_NAMES.length;
-                    getOverlayPrefs().edit().putInt("mindful_delay_session_idx", next).apply();
+                    getOverlayPrefs().edit().putInt("mindful_delay_session_mode", next).apply();
                     updateMindfulDelayConfigPanel();
                 }
             });
         }
+        setupAutoRepeatStepButton(btnMindfulDelaySessHourDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("mindful_delay_session_hours", 0, step, 0, 12, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelaySessHourInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("mindful_delay_session_hours", 0, step, 0, 12, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelaySessMinDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -5 : 5) * Math.abs(step);
+                adjustIntPref("mindful_delay_session_mins", 30, delta, 1, 59, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnMindfulDelaySessMinInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                int delta = (step < 0 ? -5 : 5) * Math.abs(step);
+                adjustIntPref("mindful_delay_session_mins", 30, delta, 1, 59, "ACTION_UPDATE_MINDFUL_DELAY");
+                updateMindfulDelayConfigPanel();
+            }
+        });
         if (btnMindfulDelayPos != null) {
             btnMindfulDelayPos.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -3184,12 +3232,59 @@ public class QuickMenuOverlay {
         });
     }
 
+    private void adjustMindfulMinutes(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        int totalSecs = op.getInt("mindful_delay_seconds", 60);
+        int m = totalSecs / 60;
+        int s = totalSecs % 60;
+        m += delta;
+        if (m < 0) m = 0;
+        if (m > 10) m = 10;
+        int newTotal = m * 60 + s;
+        if (newTotal < 5) newTotal = 5;
+        op.edit().putInt("mindful_delay_seconds", newTotal).apply();
+        sendServiceAction("ACTION_UPDATE_MINDFUL_DELAY");
+        updateMindfulDelayConfigPanel();
+        buildMenu();
+    }
+
+    private void adjustMindfulSeconds(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        int totalSecs = op.getInt("mindful_delay_seconds", 60);
+        int m = totalSecs / 60;
+        int s = totalSecs % 60;
+        s += delta;
+        if (s < 0) {
+            if (m > 0) {
+                m--;
+                s = 59;
+            } else {
+                s = 5;
+            }
+        } else if (s > 59) {
+            if (m < 10) {
+                m++;
+                s = 0;
+            } else {
+                s = 59;
+            }
+        }
+        int newTotal = m * 60 + s;
+        if (newTotal < 5) newTotal = 5;
+        op.edit().putInt("mindful_delay_seconds", newTotal).apply();
+        sendServiceAction("ACTION_UPDATE_MINDFUL_DELAY");
+        updateMindfulDelayConfigPanel();
+        buildMenu();
+    }
+
     private void updateMindfulDelayConfigPanel() {
         SharedPreferences op = getOverlayPrefs();
         boolean enabled = op.getBoolean(ButtonMappingService.KEY_MINDFUL_DELAY, false);
         int secs = op.getInt("mindful_delay_seconds", 60);
         int cancelAction = op.getInt("mindful_delay_cancel_action", 0);
-        int sessionIdx = op.getInt("mindful_delay_session_idx", 2);
+        int sessionMode = op.getInt("mindful_delay_session_mode", 0);
+        int sessionHours = op.getInt("mindful_delay_session_hours", 0);
+        int sessionMins = op.getInt("mindful_delay_session_mins", 30);
         int posIdx = op.getInt("mindful_delay_pos_idx", 0);
         int msgIdx = op.getInt("mindful_delay_msg_idx", 0);
         int bgAlpha = op.getInt("mindful_delay_bg_alpha_pct", 90);
@@ -3203,11 +3298,10 @@ public class QuickMenuOverlay {
             btnMindfulDelayToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFB0BEC5);
         }
 
-        if (txtMindfulDelayTime != null) {
-            int m = secs / 60;
-            int s = secs % 60;
-            txtMindfulDelayTime.setText(m > 0 ? (m + "m " + (s > 0 ? s + "s" : "00s")) : (s + "s"));
-        }
+        int m = secs / 60;
+        int s = secs % 60;
+        if (txtMindfulDelayMin != null) txtMindfulDelayMin.setText(m + " min");
+        if (txtMindfulDelaySec != null) txtMindfulDelaySec.setText(String.format(java.util.Locale.US, "%02d seg", s));
 
         if (btnMindfulDelayCancelAction != null) {
             String actName = (cancelAction >= 0 && cancelAction < MINDFUL_CANCEL_ACTIONS.length) ? MINDFUL_CANCEL_ACTIONS[cancelAction] : MINDFUL_CANCEL_ACTIONS[0];
@@ -3215,9 +3309,14 @@ public class QuickMenuOverlay {
         }
 
         if (btnMindfulDelaySession != null) {
-            String sessName = (sessionIdx >= 0 && sessionIdx < MINDFUL_SESSION_NAMES.length) ? MINDFUL_SESSION_NAMES[sessionIdx] : MINDFUL_SESSION_NAMES[0];
-            btnMindfulDelaySession.setText("Duración Sesión:   " + sessName);
+            String sessName = (sessionMode >= 0 && sessionMode < MINDFUL_SESSION_NAMES.length) ? MINDFUL_SESSION_NAMES[sessionMode] : MINDFUL_SESSION_NAMES[0];
+            btnMindfulDelaySession.setText("Modo de Sesión:   " + sessName);
         }
+
+        if (rowMindfulSessHours != null) rowMindfulSessHours.setVisibility(sessionMode == 0 ? View.VISIBLE : View.GONE);
+        if (rowMindfulSessMins != null) rowMindfulSessMins.setVisibility(sessionMode == 0 ? View.VISIBLE : View.GONE);
+        if (txtMindfulDelaySessHour != null) txtMindfulDelaySessHour.setText(sessionHours + " hs");
+        if (txtMindfulDelaySessMin != null) txtMindfulDelaySessMin.setText(sessionMins + " min");
 
         if (btnMindfulDelayPos != null) {
             String posName = (posIdx >= 0 && posIdx < MINDFUL_POSITIONS.length) ? MINDFUL_POSITIONS[posIdx] : MINDFUL_POSITIONS[0];

@@ -560,19 +560,43 @@
                     <!-- Toggle Principal -->
                     <TextView android:id="@+id/btn_mindful_delay_toggle" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" android:nextFocusUp="@+id/btn_mindful_delay_toggle" />
 
-                    <!-- Tiempo de Espera -->
+                    <!-- Minutos de Espera -->
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tiempo de Espera:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                        <TextView android:id="@+id/btn_mindful_delay_time_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                        <TextView android:id="@+id/txt_mindful_delay_time" android:layout_width="60dp" android:layout_height="wrap_content" android:text="1m 00s" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                        <TextView android:id="@+id/btn_mindful_delay_time_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Minutos de Espera:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_min_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_min" android:layout_width="60dp" android:layout_height="wrap_content" android:text="1 min" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_min_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Segundos de Espera -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Segundos de Espera:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_sec_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_sec" android:layout_width="60dp" android:layout_height="wrap_content" android:text="00 seg" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_sec_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
                     </LinearLayout>
 
                     <!-- Acción al Cancelar / Salir -->
                     <TextView android:id="@+id/btn_mindful_delay_cancel_action" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
 
-                    <!-- Duración de la Sesión Autorizada -->
+                    <!-- Modo de Sesión Autorizada -->
                     <TextView android:id="@+id/btn_mindful_delay_session" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Horas de Sesión (Tiempo Personalizado) -->
+                    <LinearLayout android:id="@+id/row_mindful_sess_hours" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Horas de Sesión:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_sess_hour_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_sess_hour" android:layout_width="60dp" android:layout_height="wrap_content" android:text="0 hs" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_sess_hour_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Minutos de Sesión (Tiempo Personalizado) -->
+                    <LinearLayout android:id="@+id/row_mindful_sess_mins" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Minutos de Sesión:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_mindful_delay_sess_min_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_mindful_delay_sess_min" android:layout_width="60dp" android:layout_height="wrap_content" android:text="30 min" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_mindful_delay_sess_min_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
                     <!-- Posición del Cartel -->
                     <TextView android:id="@+id/btn_mindful_delay_pos" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />

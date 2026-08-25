@@ -99,7 +99,12 @@ public class ButtonMappingService extends AccessibilityService {
         "Tiempo de espera activo para evitar el consumo compulsivo."
     };
 
-    private static final int[] MINDFUL_SESSION_MINUTES = {0, 15, 30, 60, 120, 1440};
+    private static final String[] MINDFUL_SESSION_NAMES = {
+        "Por Tiempo Personalizado",
+        "Solo mientras no salga a Home",
+        "Hasta apagar la pantalla / TV",
+        "Todo el día (hasta medianoche)"
+    };
 
     private static final String[][] MINDFUL_APPS = {
         {"youtube", "YouTube", "mindful_app_youtube", "com.google.android.youtube.tv", "com.google.android.youtube"},
@@ -433,6 +438,24 @@ public class ButtonMappingService extends AccessibilityService {
                 || pkg.equals("android");
     }
 
+    private boolean isLauncherPackage(String pkg) {
+        if (pkg == null) return false;
+        return pkg.equals("com.google.android.tvlauncher")
+                || pkg.equals("com.google.android.apps.tv.launcherx")
+                || pkg.equals("com.android.launcher");
+    }
+
+    private void sendMediaPause() {
+        try {
+            if (audioManager != null) {
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to send media pause", e);
+        }
+    }
+
     private void scanScreen(AccessibilityNodeInfo node, ScreenInfo info) {
         if (node == null) return;
 
@@ -689,6 +712,11 @@ public class ButtonMappingService extends AccessibilityService {
                 }
                 resetStillWatchingTimerOnKeyPress();
                 resetOledSaverTimerOnKeyPress();
+                int sessMode = prefs.getInt("mindful_delay_session_mode", 0);
+                if (sessMode == 2 && !authorizedSessions.isEmpty()) {
+                    authorizedSessions.clear();
+                    Log.d(TAG, "Screen ON detected! Cleared screen-based mindful sessions.");
+                }
             }
         }
     };
@@ -906,16 +934,21 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void handleForegroundPackageChanged(String pkg) {
         if (pkg == null) return;
+        // Never clear sessions or trigger mindful delay for our own menu or system overlays
+        if (pkg.equals("com.example.togglegrayscale") || pkg.equals("com.android.systemui") || pkg.equals("com.google.android.inputmethod.latin")) {
+            return;
+        }
+
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         boolean enabled = op.getBoolean(KEY_MINDFUL_DELAY, false);
         if (!enabled) return;
 
-        // If user returns to launcher, and session duration is "Solo hasta salir de la app" (0), clear sessions
-        if (isExcludedPackage(pkg)) {
-            int sessionIdx = op.getInt("mindful_delay_session_idx", 2); // default 30 min
-            if (sessionIdx == 0 && !authorizedSessions.isEmpty()) {
+        // If user returns to launcher, and session mode is "Solo mientras no salga a Home" (1), clear sessions
+        if (isLauncherPackage(pkg)) {
+            int sessionMode = op.getInt("mindful_delay_session_mode", 0);
+            if (sessionMode == 1 && !authorizedSessions.isEmpty()) {
                 authorizedSessions.clear();
-                Log.d(TAG, "User returned to Home/Launcher. Cleared 0-min mindful sessions.");
+                Log.d(TAG, "User returned to Home/Launcher. Cleared mindful sessions.");
             }
             return;
         }
@@ -961,12 +994,27 @@ public class ButtonMappingService extends AccessibilityService {
     private void grantAppSession(String appKey) {
         if (appKey == null) return;
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-        int sessionIdx = op.getInt("mindful_delay_session_idx", 2);
-        int mins = (sessionIdx >= 0 && sessionIdx < MINDFUL_SESSION_MINUTES.length)
-                ? MINDFUL_SESSION_MINUTES[sessionIdx] : 30;
-        long durationMs = (mins > 0) ? (mins * 60L * 1000L) : (24L * 3600L * 1000L);
+        int mode = op.getInt("mindful_delay_session_mode", 0);
+        long durationMs;
+        if (mode == 0) { // Por Tiempo Personalizado
+            int hours = op.getInt("mindful_delay_session_hours", 0);
+            int mins = op.getInt("mindful_delay_session_mins", 30);
+            int totalMins = hours * 60 + mins;
+            if (totalMins < 1) totalMins = 1;
+            durationMs = totalMins * 60L * 1000L;
+        } else if (mode == 1) { // Solo mientras no salga a Home
+            durationMs = 24L * 3600L * 1000L;
+        } else if (mode == 2) { // Hasta apagar pantalla / TV
+            durationMs = 24L * 3600L * 1000L;
+        } else { // Todo el día
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 23);
+            cal.set(java.util.Calendar.MINUTE, 59);
+            cal.set(java.util.Calendar.SECOND, 59);
+            durationMs = Math.max(60000L, cal.getTimeInMillis() - System.currentTimeMillis());
+        }
         authorizedSessions.put(appKey, System.currentTimeMillis() + durationMs);
-        Log.d(TAG, "Granted mindful session for " + appKey + " duration: " + mins + " min");
+        Log.d(TAG, "Granted mindful session for " + appKey + ", mode=" + mode + ", durationMs=" + durationMs);
     }
 
     private void showMindfulDelayOverlay(final String appName, final String appKey, final int durationSeconds) {
@@ -1099,11 +1147,20 @@ public class ButtonMappingService extends AccessibilityService {
                     mindfulDelayOverlayView = root;
                     isMindfulDelayActive = true;
 
+                    // Immediately pause background video/audio playback and repeat
+                    sendMediaPause();
+                    handler.postDelayed(new Runnable() { @Override public void run() { if (isMindfulDelayActive) sendMediaPause(); } }, 250);
+                    handler.postDelayed(new Runnable() { @Override public void run() { if (isMindfulDelayActive) sendMediaPause(); } }, 600);
+                    handler.postDelayed(new Runnable() { @Override public void run() { if (isMindfulDelayActive) sendMediaPause(); } }, 1200);
+
                     // Start countdown loop
                     mindfulCountdownRunnable = new Runnable() {
                         @Override
                         public void run() {
                             if (!isMindfulDelayActive) return;
+                            if (audioManager != null && audioManager.isMusicActive()) {
+                                sendMediaPause();
+                            }
                             mindfulRemainingSeconds--;
                             if (txtMindfulDelayTimer != null) {
                                 txtMindfulDelayTimer.setText(formatMindfulTime(mindfulRemainingSeconds));
