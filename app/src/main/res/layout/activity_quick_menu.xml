@@ -138,70 +138,82 @@
                 android:text="Configurar Cartel Indicador de Brillo:" android:textColor="#AAAAAA" android:textSize="13sp"
                 android:layout_marginBottom="6dp" android:paddingStart="4dp" />
 
-            <TextView android:id="@+id/btn_cycle_brightness_now" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" android:nextFocusUp="@+id/btn_cycle_brightness_now" />
+            <com.example.togglegrayscale.MaxHeightScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fadeScrollbars="false"
+                android:scrollbars="vertical">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
-            <TextView android:id="@+id/btn_brightness_hud_format" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
-            <TextView android:id="@+id/btn_brightness_hud_text_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
-            <TextView android:id="@+id/btn_brightness_hud_bg_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
-            <TextView android:id="@+id/btn_brightness_hud_position" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_cycle_brightness_now" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" android:nextFocusUp="@+id/btn_cycle_brightness_now" />
 
-            <!-- Opacidad Fondo -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Fondo:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_hud_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_hud_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="35%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_hud_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <TextView android:id="@+id/btn_brightness_hud_format" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_brightness_hud_text_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_brightness_hud_bg_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_brightness_hud_position" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
 
-            <!-- Opacidad Letra -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_hud_text_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_hud_text_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="100%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_hud_text_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <!-- Opacidad Fondo -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Fondo:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_brightness_hud_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_brightness_hud_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="35%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_brightness_hud_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <!-- Tamaño Letra -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tamaño Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_hud_size_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_hud_size" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16sp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_hud_size_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <!-- Opacidad Letra -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_brightness_hud_text_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_brightness_hud_text_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="100%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_brightness_hud_text_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <!-- Padding (Margen Int) -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Padding (Margen Int):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_hud_pad_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_hud_pad" android:layout_width="60dp" android:layout_height="wrap_content" android:text="12dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_hud_pad_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <!-- Tamaño Letra -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tamaño Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_brightness_hud_size_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_brightness_hud_size" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16sp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_brightness_hud_size_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <!-- Desplazar X -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar X (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_hud_x_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_hud_x" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_hud_x_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <!-- Padding (Margen Int) -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Padding (Margen Int):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_brightness_hud_pad_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_brightness_hud_pad" android:layout_width="60dp" android:layout_height="wrap_content" android:text="12dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_brightness_hud_pad_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <!-- Desplazar Y -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar Y (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_hud_y_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_hud_y" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_hud_y_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <!-- Desplazar X -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar X (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_brightness_hud_x_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_brightness_hud_x" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_brightness_hud_x_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <!-- Duración Cartel -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Duración Cartel:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_brightness_hud_dur_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_brightness_hud_dur" android:layout_width="60dp" android:layout_height="wrap_content" android:text="2.0s" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_brightness_hud_dur_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <!-- Desplazar Y -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar Y (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_brightness_hud_y_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_brightness_hud_y" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_brightness_hud_y_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <TextView android:id="@+id/btn_test_brightness_hud" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <!-- Duración Cartel -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Duración Cartel:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_brightness_hud_dur_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_brightness_hud_dur" android:layout_width="60dp" android:layout_height="wrap_content" android:text="2.0s" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_brightness_hud_dur_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <TextView android:id="@+id/btn_test_brightness_hud" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                </LinearLayout>
+            </com.example.togglegrayscale.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- Blue light level sub-panel with slider (SeekBar) -->
@@ -285,53 +297,66 @@
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:text="Configurar Reloj en Pantalla:" android:textColor="#AAAAAA" android:textSize="13sp"
                 android:layout_marginBottom="6dp" android:paddingStart="4dp" />
-            <TextView android:id="@+id/btn_clock_text_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" android:nextFocusUp="@+id/btn_clock_text_color" />
-            <TextView android:id="@+id/btn_clock_bg_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
-            <TextView android:id="@+id/btn_clock_position" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
-            
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Fondo:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_clock_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_clock_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="35%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_clock_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
 
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_clock_text_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_clock_text_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="100%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_clock_text_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+            <com.example.togglegrayscale.MaxHeightScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fadeScrollbars="false"
+                android:scrollbars="vertical">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tamaño Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_clock_size_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_clock_size" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16sp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_clock_size_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <TextView android:id="@+id/btn_clock_text_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" android:nextFocusUp="@+id/btn_clock_text_color" />
+                    <TextView android:id="@+id/btn_clock_bg_color" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_clock_position" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Fondo:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_clock_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_clock_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="35%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_clock_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Padding (Margen Int):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_clock_pad_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_clock_pad" android:layout_width="60dp" android:layout_height="wrap_content" android:text="12dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_clock_pad_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_clock_text_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_clock_text_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="100%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_clock_text_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar X (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_clock_x_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_clock_x" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_clock_x_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tamaño Letra:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_clock_size_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_clock_size" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16sp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_clock_size_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar Y (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
-                <TextView android:id="@+id/btn_clock_y_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                <TextView android:id="@+id/txt_clock_y" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
-                <TextView android:id="@+id/btn_clock_y_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-            </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Padding (Margen Int):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_clock_pad_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_clock_pad" android:layout_width="60dp" android:layout_height="wrap_content" android:text="12dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_clock_pad_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
 
-            <TextView android:id="@+id/btn_apply_clock" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar X (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_clock_x_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_clock_x" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_clock_x_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Desplazar Y (dp):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_clock_y_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_clock_y" android:layout_width="60dp" android:layout_height="wrap_content" android:text="16dp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_clock_y_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <TextView android:id="@+id/btn_apply_clock" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
+                </LinearLayout>
+            </com.example.togglegrayscale.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- Still Watching config sub-panel -->
