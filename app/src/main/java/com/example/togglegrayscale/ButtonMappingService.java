@@ -3297,48 +3297,42 @@ public class ButtonMappingService extends AccessibilityService {
     private void handleMultiOcrSuccess(Text textJa, Text textKo, int srcLangIdx) {
         final List<TranslatedBlock> rawBlocks = new ArrayList<>();
 
-        // 1. Extract from Japanese engine: Only keep Japanese Kana, Chinese Hanzi, or Cyrillic (ignore Latin/English/Korean)
+        // 1. Extract from Japanese engine at TextBlock (paragraph) level for coherent sentences
         if (textJa != null) {
             for (Text.TextBlock textBlock : textJa.getTextBlocks()) {
-                for (Text.Line line : textBlock.getLines()) {
-                    String txt = line.getText();
-                    Rect box = line.getBoundingBox();
-                    if (txt != null && box != null) {
-                        String trimmed = txt.trim();
-                        if (trimmed.length() <= 1) continue;
-                        if (box.left < 130 && box.width() < 180) continue; // Skip sidebar navigation
-                        if (box.width() < 35 || box.height() < 14) continue; // Skip tiny graphic noise
-                        if (isPureLatinOrSpanish(trimmed) && srcLangIdx != 4) continue; // Skip plain English/Spanish
-                        if (containsKorean(trimmed)) continue; // Handled accurately by Korean recognizer
+                String txt = textBlock.getText();
+                Rect box = textBlock.getBoundingBox();
+                if (txt != null && box != null) {
+                    String trimmed = txt.trim();
+                    if (trimmed.length() <= 1) continue;
+                    if (box.left < 130 && box.width() < 180) continue; // Skip sidebar navigation
+                    if (isPureLatinOrSpanish(trimmed) && srcLangIdx != 4) continue; // Skip plain English/Spanish
+                    if (containsKorean(trimmed)) continue; // Handled accurately by Korean recognizer
 
-                        if (containsJapaneseKana(trimmed)) {
-                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.JAPANESE));
-                        } else if (containsChineseHanzi(trimmed)) {
-                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.CHINESE));
-                        } else if (containsCyrillic(trimmed)) {
-                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.RUSSIAN));
-                        } else if (srcLangIdx == 4) { // Explicit English source mode
-                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.ENGLISH));
-                        }
+                    if (containsJapaneseKana(trimmed)) {
+                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.JAPANESE));
+                    } else if (containsChineseHanzi(trimmed)) {
+                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.CHINESE));
+                    } else if (containsCyrillic(trimmed)) {
+                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.RUSSIAN));
+                    } else if (srcLangIdx == 4) { // Explicit English source mode
+                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.ENGLISH));
                     }
                 }
             }
         }
 
-        // 2. Extract from Korean engine: Only keep Korean Hangul text
+        // 2. Extract from Korean engine at TextBlock (paragraph) level
         if (textKo != null) {
             for (Text.TextBlock textBlock : textKo.getTextBlocks()) {
-                for (Text.Line line : textBlock.getLines()) {
-                    String txt = line.getText();
-                    Rect box = line.getBoundingBox();
-                    if (txt != null && box != null) {
-                        String trimmed = txt.trim();
-                        if (trimmed.length() <= 1) continue;
-                        if (box.left < 130 && box.width() < 180) continue; // Skip sidebar navigation
-                        if (box.width() < 35 || box.height() < 14) continue; // Skip tiny graphic noise
-                        if (containsKorean(trimmed)) {
-                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.KOREAN));
-                        }
+                String txt = textBlock.getText();
+                Rect box = textBlock.getBoundingBox();
+                if (txt != null && box != null) {
+                    String trimmed = txt.trim();
+                    if (trimmed.length() <= 1) continue;
+                    if (box.left < 130 && box.width() < 180) continue; // Skip sidebar navigation
+                    if (containsKorean(trimmed)) {
+                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.KOREAN));
                     }
                 }
             }
@@ -3393,24 +3387,24 @@ public class ButtonMappingService extends AccessibilityService {
                             for (final TranslatedBlock block : groupBlocks) {
                                 translator.translate(block.originalText)
                                         .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<String>() {
-                                            @Override
-                                            public void onSuccess(String translated) {
-                                                block.translatedText = translated;
-                                                completedBlocks[0]++;
-                                                if (completedBlocks[0] == totalBlocks) {
-                                                    showTranslationOverlay(blocks, "Auto", targetLangName);
-                                                }
-                                            }
-                                        })
+                                             @Override
+                                             public void onSuccess(String translated) {
+                                                 block.translatedText = translated;
+                                                 completedBlocks[0]++;
+                                                 if (completedBlocks[0] == totalBlocks) {
+                                                     showTranslationOverlay(blocks, "Auto", targetLangName);
+                                                 }
+                                             }
+                                         })
                                         .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
-                                            @Override
-                                            public void onFailure(Exception e) {
-                                                completedBlocks[0]++;
-                                                if (completedBlocks[0] == totalBlocks) {
-                                                    showTranslationOverlay(blocks, "Auto", targetLangName);
-                                                }
-                                            }
-                                        });
+                                             @Override
+                                             public void onFailure(Exception e) {
+                                                 completedBlocks[0]++;
+                                                 if (completedBlocks[0] == totalBlocks) {
+                                                     showTranslationOverlay(blocks, "Auto", targetLangName);
+                                                 }
+                                             }
+                                         });
                             }
                         }
                     })
@@ -3444,37 +3438,37 @@ public class ButtonMappingService extends AccessibilityService {
                     boolean showTopBar = prefs.getBoolean("translate_show_top_bar", false);
 
                     float density = getResources().getDisplayMetrics().density;
-                    int padPx = Math.round(6 * density);
+                    int padPx = Math.round(8 * density);
                     int bgAlpha = Math.round((alphaPct / 100f) * 255);
 
                     android.widget.FrameLayout root = new android.widget.FrameLayout(ButtonMappingService.this);
                     root.setFocusable(true);
                     root.setClickable(true);
 
-                    root.setBackgroundColor(Color.argb(70, 0, 0, 0));
+                    root.setBackgroundColor(Color.argb(50, 0, 0, 0));
 
                     if (showTopBar) {
-                        TextView topPill = new TextView(ButtonMappingService.this);
-                        topPill.setText("🌐  " + srcLangName + " ➔ " + targetLangName + "   [ OK: Reanudar  |  Atrás: Cerrar ]");
-                        topPill.setTextColor(0xFFFFFFFF);
-                        topPill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-                        topPill.setTypeface(Typeface.DEFAULT_BOLD);
-                        topPill.setGravity(Gravity.CENTER);
-                        topPill.setPadding(Math.round(20 * density), Math.round(10 * density), Math.round(20 * density), Math.round(10 * density));
+                        TextView bottomPill = new TextView(ButtonMappingService.this);
+                        bottomPill.setText("✨ Google Lens  ➔  " + targetLangName + "   [ OK: Reanudar  |  Atrás: Cerrar ]");
+                        bottomPill.setTextColor(0xFFFFFFFF);
+                        bottomPill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+                        bottomPill.setTypeface(Typeface.DEFAULT_BOLD);
+                        bottomPill.setGravity(Gravity.CENTER);
+                        bottomPill.setPadding(Math.round(20 * density), Math.round(10 * density), Math.round(20 * density), Math.round(10 * density));
 
                         android.graphics.drawable.GradientDrawable pillBg = new android.graphics.drawable.GradientDrawable();
-                        pillBg.setColor(Color.argb(230, 20, 24, 33));
-                        pillBg.setCornerRadius(20 * density);
+                        pillBg.setColor(Color.argb(235, 18, 22, 30));
+                        pillBg.setCornerRadius(22 * density);
                         pillBg.setStroke(Math.round(1.5f * density), 0xFF81D4FA);
-                        topPill.setBackground(pillBg);
+                        bottomPill.setBackground(pillBg);
 
-                        android.widget.FrameLayout.LayoutParams lpTop = new android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams lpBottom = new android.widget.FrameLayout.LayoutParams(
                                 android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
                                 android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
                         );
-                        lpTop.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-                        lpTop.topMargin = Math.round(24 * density);
-                        root.addView(topPill, lpTop);
+                        lpBottom.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+                        lpBottom.bottomMargin = Math.round(28 * density);
+                        root.addView(bottomPill, lpBottom);
                     }
 
                     for (TranslatedBlock block : blocks) {
@@ -3495,19 +3489,19 @@ public class ButtonMappingService extends AccessibilityService {
                         blockTv.setTextColor(0xFFFFFFFF);
                         blockTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, finalSizeSp);
                         blockTv.setTypeface(Typeface.DEFAULT_BOLD);
-                        blockTv.setGravity(Gravity.CENTER);
+                        blockTv.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
                         blockTv.setShadowLayer(3f, 0f, 1f, 0xFF000000);
-                        blockTv.setPadding(padPx, Math.round(3 * density), padPx, Math.round(3 * density));
+                        blockTv.setPadding(padPx, Math.round(4 * density), padPx, Math.round(4 * density));
                         blockTv.setLineSpacing(0, 1.15f);
 
                         android.graphics.drawable.GradientDrawable blockBg = new android.graphics.drawable.GradientDrawable();
-                        blockBg.setColor(Color.argb(bgAlpha, 16, 20, 28));
+                        blockBg.setColor(Color.argb(bgAlpha, 14, 18, 26));
                         blockBg.setCornerRadius(6 * density);
                         blockBg.setStroke(Math.round(1f * density), Color.argb(60, 255, 255, 255));
                         blockTv.setBackground(blockBg);
 
                         int minW = Math.round(50 * density);
-                        int minH = Math.round(22 * density);
+                        int minH = Math.round(24 * density);
                         int targetW = Math.max(box.width() + padPx * 2, minW);
                         int targetH = Math.max(box.height() + padPx, minH);
 
