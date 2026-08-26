@@ -3083,38 +3083,22 @@ public class ButtonMappingService extends AccessibilityService {
         String trimmed = txt.trim();
         if (trimmed.length() <= 1) return false;
 
-        // 1. Filter out pure numbers, timestamps, durations like 0:39, 4:53, 01:40, 1080p, 4k, 60fps
+        // 1. Skip pure numbers, timestamps, durations like 0:39, 4:53, 01:40, 1080p, 4k, 60fps
         if (trimmed.matches("^(?:\\d{1,2}:\\d{2}(?::\\d{2})?|\\d+[kKmMbB]?|\\d+\\s*(?:fps|p|k|hz)|\\W+)$")) {
             return false;
         }
 
-        // 2. Filter out YouTube metadata (views, ago, days, months, etc.)
-        String lower = trimmed.toLowerCase(Locale.ROOT);
-        if (lower.matches(".*\\b(?:views?|vistas?|subscribers?|suscriptores?|ago|hace|days?|d[ií]as?|months?|meses?|years?|a[ñn]os?|hours?|horas?|mins?|minutos?|secs?|segundos?)\\b.*")) {
-            if (!containsKorean(trimmed) && !containsJapanese(trimmed) && !containsChinese(trimmed)) {
-                return false;
-            }
-        }
-
-        // 3. Filter out Toast / System / App UI phrases
-        if (lower.contains("capturando") || lower.contains("traduciendo") || lower.contains("pantalla")
-                || lower.contains("buscar") || lower.contains("premium") || lower.contains("new to you")
-                || lower.contains("lessons and more") || lower.contains("subscriptions")
-                || lower.contains("tv control hub")) {
-            return false;
-        }
-
-        // 4. If it contains Korean, Japanese, or Chinese, ALWAYS translate!
-        if (containsKorean(trimmed) || containsJapanese(trimmed) || containsChinese(trimmed)) {
+        // 2. If it contains Japanese, Korean, or Chinese, ALWAYS translate (keeping any mixed words/numbers intact)!
+        if (containsJapanese(trimmed) || containsKorean(trimmed) || containsChinese(trimmed)) {
             return true;
         }
 
-        // 5. If user specifically selected an Asian language mode, ignore other plain Latin text
-        if (srcLangIdx == 1 || srcLangIdx == 2 || srcLangIdx == 3) {
-            return false;
+        // 3. If source language is specifically set to English (4), translate English
+        if (srcLangIdx == 4) {
+            return true;
         }
 
-        // 6. In automatic mode, skip plain English/Spanish phrases (do not translate what is already known)
+        // 4. Otherwise (pure English/Spanish text with no foreign characters), do not overlay
         return false;
     }
 
@@ -3134,7 +3118,8 @@ public class ButtonMappingService extends AccessibilityService {
             } else if (srcLangIdx == 4) {
                 recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
             } else {
-                recognizer = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
+                // Auto mode: Default to Japanese recognizer which supports Kanji, Hiragana, Katakana, Latin, and CJK punctuation
+                recognizer = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
             }
 
             InputImage image = InputImage.fromBitmap(bitmap, 0);
@@ -3175,16 +3160,18 @@ public class ButtonMappingService extends AccessibilityService {
         int chineseCount = 0;
 
         for (Text.TextBlock textBlock : visionText.getTextBlocks()) {
-            String txt = textBlock.getText();
-            Rect box = textBlock.getBoundingBox();
-            if (txt != null && !txt.trim().isEmpty() && box != null) {
-                if (!isTranslatableBlock(txt, srcIdx)) {
-                    continue;
+            for (Text.Line line : textBlock.getLines()) {
+                String txt = line.getText();
+                Rect box = line.getBoundingBox();
+                if (txt != null && !txt.trim().isEmpty() && box != null) {
+                    if (!isTranslatableBlock(txt, srcIdx)) {
+                        continue;
+                    }
+                    if (containsJapanese(txt)) japaneseCount++;
+                    else if (containsKorean(txt)) koreanCount++;
+                    else if (containsChinese(txt)) chineseCount++;
+                    blocks.add(new TranslatedBlock(box, txt));
                 }
-                if (containsKorean(txt)) koreanCount++;
-                else if (containsJapanese(txt)) japaneseCount++;
-                else if (containsChinese(txt)) chineseCount++;
-                blocks.add(new TranslatedBlock(box, txt));
             }
         }
 
@@ -3197,16 +3184,16 @@ public class ButtonMappingService extends AccessibilityService {
         final String targetLangCode = targetLangIdx == 0 ? TranslateLanguage.SPANISH : TranslateLanguage.ENGLISH;
         final String targetLangName = targetLangIdx == 0 ? "Español" : "English";
 
-        String detectedLangCode = TranslateLanguage.KOREAN;
+        String detectedLangCode = TranslateLanguage.JAPANESE;
         if (srcIdx == 1) detectedLangCode = TranslateLanguage.KOREAN;
         else if (srcIdx == 2) detectedLangCode = TranslateLanguage.JAPANESE;
         else if (srcIdx == 3) detectedLangCode = TranslateLanguage.CHINESE;
         else if (srcIdx == 4) detectedLangCode = TranslateLanguage.ENGLISH;
         else {
-            if (koreanCount > 0) detectedLangCode = TranslateLanguage.KOREAN;
-            else if (japaneseCount > 0) detectedLangCode = TranslateLanguage.JAPANESE;
+            if (japaneseCount > 0) detectedLangCode = TranslateLanguage.JAPANESE;
+            else if (koreanCount > 0) detectedLangCode = TranslateLanguage.KOREAN;
             else if (chineseCount > 0) detectedLangCode = TranslateLanguage.CHINESE;
-            else detectedLangCode = TranslateLanguage.KOREAN;
+            else detectedLangCode = TranslateLanguage.JAPANESE;
         }
 
         translateBlocks(blocks, detectedLangCode, targetLangCode, targetLangName);
@@ -3245,24 +3232,24 @@ public class ButtonMappingService extends AccessibilityService {
                         for (final TranslatedBlock block : blocks) {
                             translator.translate(block.originalText)
                                     .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<String>() {
-                                        @Override
-                                        public void onSuccess(String translated) {
-                                            block.translatedText = translated;
-                                            completedCount[0]++;
-                                            if (completedCount[0] == total) {
-                                                showTranslationOverlay(blocks, finalSrcName, targetLangName);
-                                            }
-                                        }
-                                    })
+                                         @Override
+                                         public void onSuccess(String translated) {
+                                             block.translatedText = translated;
+                                             completedCount[0]++;
+                                             if (completedCount[0] == total) {
+                                                 showTranslationOverlay(blocks, finalSrcName, targetLangName);
+                                             }
+                                         }
+                                     })
                                     .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
-                                        @Override
-                                        public void onFailure(Exception e) {
-                                            completedCount[0]++;
-                                            if (completedCount[0] == total) {
-                                                showTranslationOverlay(blocks, finalSrcName, targetLangName);
-                                            }
-                                        }
-                                    });
+                                         @Override
+                                         public void onFailure(Exception e) {
+                                             completedCount[0]++;
+                                             if (completedCount[0] == total) {
+                                                 showTranslationOverlay(blocks, finalSrcName, targetLangName);
+                                             }
+                                         }
+                                     });
                         }
                     }
                 })
@@ -3287,6 +3274,7 @@ public class ButtonMappingService extends AccessibilityService {
                     SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                     int alphaPct = prefs.getInt("translate_bg_alpha_pct", 85);
                     int textSizeSp = prefs.getInt("translate_text_size_sp", 14);
+                    boolean showTopBar = prefs.getBoolean("translate_show_top_bar", false);
 
                     float density = getResources().getDisplayMetrics().density;
                     int padPx = Math.round(6 * density);
@@ -3296,29 +3284,31 @@ public class ButtonMappingService extends AccessibilityService {
                     root.setFocusable(true);
                     root.setClickable(true);
 
-                    root.setBackgroundColor(Color.argb(80, 0, 0, 0));
+                    root.setBackgroundColor(Color.argb(70, 0, 0, 0));
 
-                    TextView topPill = new TextView(ButtonMappingService.this);
-                    topPill.setText("🌐  " + srcLangName + " ➔ " + targetLangName + "   [ OK: Reanudar  |  Atrás: Cerrar ]");
-                    topPill.setTextColor(0xFFFFFFFF);
-                    topPill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-                    topPill.setTypeface(Typeface.DEFAULT_BOLD);
-                    topPill.setGravity(Gravity.CENTER);
-                    topPill.setPadding(Math.round(20 * density), Math.round(10 * density), Math.round(20 * density), Math.round(10 * density));
+                    if (showTopBar) {
+                        TextView topPill = new TextView(ButtonMappingService.this);
+                        topPill.setText("🌐  " + srcLangName + " ➔ " + targetLangName + "   [ OK: Reanudar  |  Atrás: Cerrar ]");
+                        topPill.setTextColor(0xFFFFFFFF);
+                        topPill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+                        topPill.setTypeface(Typeface.DEFAULT_BOLD);
+                        topPill.setGravity(Gravity.CENTER);
+                        topPill.setPadding(Math.round(20 * density), Math.round(10 * density), Math.round(20 * density), Math.round(10 * density));
 
-                    android.graphics.drawable.GradientDrawable pillBg = new android.graphics.drawable.GradientDrawable();
-                    pillBg.setColor(Color.argb(230, 20, 24, 33));
-                    pillBg.setCornerRadius(20 * density);
-                    pillBg.setStroke(Math.round(1.5f * density), 0xFF81D4FA);
-                    topPill.setBackground(pillBg);
+                        android.graphics.drawable.GradientDrawable pillBg = new android.graphics.drawable.GradientDrawable();
+                        pillBg.setColor(Color.argb(230, 20, 24, 33));
+                        pillBg.setCornerRadius(20 * density);
+                        pillBg.setStroke(Math.round(1.5f * density), 0xFF81D4FA);
+                        topPill.setBackground(pillBg);
 
-                    android.widget.FrameLayout.LayoutParams lpTop = new android.widget.FrameLayout.LayoutParams(
-                            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-                            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
-                    );
-                    lpTop.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-                    lpTop.topMargin = Math.round(24 * density);
-                    root.addView(topPill, lpTop);
+                        android.widget.FrameLayout.LayoutParams lpTop = new android.widget.FrameLayout.LayoutParams(
+                                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+                        );
+                        lpTop.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                        lpTop.topMargin = Math.round(24 * density);
+                        root.addView(topPill, lpTop);
+                    }
 
                     for (TranslatedBlock block : blocks) {
                         Rect box = block.box;
@@ -3330,16 +3320,17 @@ public class ButtonMappingService extends AccessibilityService {
                         blockTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp);
                         blockTv.setTypeface(Typeface.DEFAULT_BOLD);
                         blockTv.setGravity(Gravity.CENTER);
+                        blockTv.setShadowLayer(3f, 0f, 1f, 0xFF000000);
                         blockTv.setPadding(padPx, padPx / 2, padPx, padPx / 2);
 
                         android.graphics.drawable.GradientDrawable blockBg = new android.graphics.drawable.GradientDrawable();
-                        blockBg.setColor(Color.argb(bgAlpha, 15, 18, 26));
-                        blockBg.setCornerRadius(8 * density);
-                        blockBg.setStroke(Math.round(1f * density), Color.argb(140, 255, 215, 64));
+                        blockBg.setColor(Color.argb(bgAlpha, 16, 20, 28));
+                        blockBg.setCornerRadius(6 * density);
+                        blockBg.setStroke(Math.round(1f * density), Color.argb(60, 255, 255, 255));
                         blockTv.setBackground(blockBg);
 
-                        int minW = Math.round(60 * density);
-                        int minH = Math.round(26 * density);
+                        int minW = Math.round(50 * density);
+                        int minH = Math.round(24 * density);
                         int targetW = Math.max(box.width() + padPx * 2, minW);
                         int targetH = Math.max(box.height() + padPx, minH);
 

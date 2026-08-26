@@ -197,6 +197,7 @@ public class QuickMenuOverlay {
     private TextView btnTranslateSourceLang;
     private TextView btnTranslateAutoPause;
     private TextView btnTranslateAutoResume;
+    private TextView btnTranslateTopBar;
     private TextView btnTranslateBgAlphaDec, btnTranslateBgAlphaInc, txtTranslateBgAlpha;
     private TextView btnTranslateTextSizeDec, btnTranslateTextSizeInc, txtTranslateTextSize;
     private TextView btnTestTranslate, btnApplyTranslate;
@@ -207,8 +208,6 @@ public class QuickMenuOverlay {
     private TextView btnComboMuteOk, btnComboMuteRight, btnComboMuteLeft;
     private TextView btnComboYoutube190Mute;
     private TextView btnComboInputOk;
-    private TextView btnComboMuteClick4;
-    private TextView btnComboYoutube190Click4;
     private TextView btnApplyCombos;
 
     // Clock Config Panel Fields
@@ -385,6 +384,7 @@ public class QuickMenuOverlay {
             btnConfigClick1      = rootView.findViewById(R.id.btn_config_click_1);
             btnConfigClick2      = rootView.findViewById(R.id.btn_config_click_2);
             btnConfigClick3      = rootView.findViewById(R.id.btn_config_click_3);
+            btnConfigClick4      = rootView.findViewById(R.id.btn_config_click_4);
             btnConfigLong        = rootView.findViewById(R.id.btn_config_long);
             btnConfigDurationDec = rootView.findViewById(R.id.btn_config_duration_dec);
             btnConfigDurationInc = rootView.findViewById(R.id.btn_config_duration_inc);
@@ -566,6 +566,7 @@ public class QuickMenuOverlay {
             btnTranslateSourceLang       = rootView.findViewById(R.id.btn_translate_source_lang);
             btnTranslateAutoPause        = rootView.findViewById(R.id.btn_translate_auto_pause);
             btnTranslateAutoResume       = rootView.findViewById(R.id.btn_translate_auto_resume);
+            btnTranslateTopBar           = rootView.findViewById(R.id.btn_translate_top_bar);
             btnTranslateBgAlphaDec       = rootView.findViewById(R.id.btn_translate_bg_alpha_dec);
             txtTranslateBgAlpha          = rootView.findViewById(R.id.txt_translate_bg_alpha);
             btnTranslateBgAlphaInc       = rootView.findViewById(R.id.btn_translate_bg_alpha_inc);
@@ -583,8 +584,6 @@ public class QuickMenuOverlay {
             btnComboMuteLeft             = rootView.findViewById(R.id.btn_combo_mute_left);
             btnComboYoutube190Mute       = rootView.findViewById(R.id.btn_combo_youtube190_mute);
             btnComboInputOk              = rootView.findViewById(R.id.btn_combo_input_ok);
-            btnComboMuteClick4           = rootView.findViewById(R.id.btn_combo_mute_click4);
-            btnComboYoutube190Click4     = rootView.findViewById(R.id.btn_combo_youtube190_click4);
             btnApplyCombos               = rootView.findViewById(R.id.btn_apply_combos);
 
             setupSubPanelListeners();
@@ -1271,6 +1270,18 @@ public class QuickMenuOverlay {
                     if (configuringButton == null) return;
                     String key = "btn_" + configuringButton + "_click_3_action";
                     int def = "mute".equals(configuringButton) ? 8 : 0;
+                    int cur = getOverlayPrefs().getInt(key, def);
+                    cycleActionConfig(key, cur);
+                }
+            });
+        }
+        if (btnConfigClick4 != null) {
+            btnConfigClick4.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (configuringButton == null) return;
+                    String key = "btn_" + configuringButton + "_click_4_action";
+                    int def = "mute".equals(configuringButton) ? 23 : 0;
                     int cur = getOverlayPrefs().getInt(key, def);
                     cycleActionConfig(key, cur);
                 }
@@ -2036,6 +2047,15 @@ public class QuickMenuOverlay {
                 }
             });
         }
+        if (btnTranslateTopBar != null) {
+            btnTranslateTopBar.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean("translate_show_top_bar", false);
+                    getOverlayPrefs().edit().putBoolean("translate_show_top_bar", !cur).apply();
+                    updateTranslateConfigPanel();
+                }
+            });
+        }
         setupAutoRepeatStepButton(btnTranslateBgAlphaDec, -1, new StepAdjuster() {
             @Override public void adjust(int step) {
                 adjustIntPref("translate_bg_alpha_pct", 85, step * 5, 10, 100, null);
@@ -2123,22 +2143,6 @@ public class QuickMenuOverlay {
             btnComboInputOk.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     cycleActionConfig("combo_input_ok_action", getOverlayPrefs().getInt("combo_input_ok_action", 0));
-                    updateButtonCombosPanel();
-                }
-            });
-        }
-        if (btnComboMuteClick4 != null) {
-            btnComboMuteClick4.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) {
-                    cycleActionConfig("btn_mute_click_4_action", getOverlayPrefs().getInt("btn_mute_click_4_action", 23));
-                    updateButtonCombosPanel();
-                }
-            });
-        }
-        if (btnComboYoutube190Click4 != null) {
-            btnComboYoutube190Click4.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) {
-                    cycleActionConfig("btn_youtube_190_click_4_action", getOverlayPrefs().getInt("btn_youtube_190_click_4_action", 0));
                     updateButtonCombosPanel();
                 }
             });
@@ -2767,17 +2771,17 @@ public class QuickMenuOverlay {
         SharedPreferences prefs = getOverlayPrefs();
         String btnName = configuringButton;
         
-        int defClick1 = 0, defClick2 = 0, defClick3 = 0, defLong = 0, defDur = 1000;
+        int defClick1 = 0, defClick2 = 0, defClick3 = 0, defClick4 = 0, defLong = 0, defDur = 1000;
         String title = "Configurar Botón: ";
         if ("mute".equals(btnName)) {
             title += "Mute";
-            defClick1 = 1; defClick2 = 7; defClick3 = 8; defLong = 2; defDur = 1000;
+            defClick1 = 1; defClick2 = 7; defClick3 = 8; defClick4 = 23; defLong = 2; defDur = 1000;
         } else if ("youtube_190".equals(btnName)) {
             title += "YouTube (190)";
-            defClick1 = 5; defClick2 = 4; defClick3 = 0; defLong = 3; defDur = 2000;
+            defClick1 = 5; defClick2 = 4; defClick3 = 0; defClick4 = 0; defLong = 3; defDur = 2000;
         } else if ("youtube_189".equals(btnName)) {
             title += "YouTube (189)";
-            defClick1 = 5; defClick2 = 0; defClick3 = 0; defLong = 4; defDur = 2000;
+            defClick1 = 5; defClick2 = 0; defClick3 = 0; defClick4 = 0; defLong = 4; defDur = 2000;
         }
 
         if (txtConfigTitle != null) txtConfigTitle.setText(title);
@@ -2785,12 +2789,14 @@ public class QuickMenuOverlay {
         int actClick1 = prefs.getInt("btn_" + btnName + "_click_1_action", defClick1);
         int actClick2 = prefs.getInt("btn_" + btnName + "_click_2_action", defClick2);
         int actClick3 = prefs.getInt("btn_" + btnName + "_click_3_action", defClick3);
+        int actClick4 = prefs.getInt("btn_" + btnName + "_click_4_action", defClick4);
         int actLong   = prefs.getInt("btn_" + btnName + "_long_action", defLong);
         int durationMs = prefs.getInt("btn_" + btnName + "_long_duration_ms", defDur);
 
         if (btnConfigClick1 != null) btnConfigClick1.setText("   Click Simple:  " + getActionName(actClick1));
         if (btnConfigClick2 != null) btnConfigClick2.setText("   Doble Click:  " + getActionName(actClick2));
         if (btnConfigClick3 != null) btnConfigClick3.setText("   Triple Click:  " + getActionName(actClick3));
+        if (btnConfigClick4 != null) btnConfigClick4.setText("   Cuádruple Clic (4x):  " + getActionName(actClick4));
         if (btnConfigLong != null)   btnConfigLong.setText("   Sostenido:  " + getActionName(actLong));
         
         if (txtConfigDuration != null) {
@@ -3679,6 +3685,7 @@ public class QuickMenuOverlay {
         int srcIdx = op.getInt("translate_source_lang_idx", 0);
         boolean autoPause = op.getBoolean("translate_auto_pause", true);
         boolean autoResume = op.getBoolean("translate_auto_resume", true);
+        boolean showTopBar = op.getBoolean("translate_show_top_bar", false);
         int alpha = op.getInt("translate_bg_alpha_pct", 85);
         int size = op.getInt("translate_text_size_sp", 14);
 
@@ -3689,6 +3696,7 @@ public class QuickMenuOverlay {
         if (btnTranslateSourceLang != null) btnTranslateSourceLang.setText("   Idioma de Origen:  " + TRANSLATE_SOURCE_LANGS[srcIdx]);
         if (btnTranslateAutoPause != null) btnTranslateAutoPause.setText("   Pausar Video al Iniciar:  " + (autoPause ? "SÍ" : "NO"));
         if (btnTranslateAutoResume != null) btnTranslateAutoResume.setText("   Reanudar al Salir con OK:  " + (autoResume ? "SÍ" : "NO"));
+        if (btnTranslateTopBar != null) btnTranslateTopBar.setText("   Cartel Superior:  " + (showTopBar ? "MOSTRAR" : "OCULTAR"));
         if (txtTranslateBgAlpha != null) txtTranslateBgAlpha.setText(alpha + "%");
         if (txtTranslateTextSize != null) txtTranslateTextSize.setText(size + "sp");
     }
@@ -3701,8 +3709,6 @@ public class QuickMenuOverlay {
         int muteLeft = op.getInt("combo_mute_left_action", 25);
         int ytMute = op.getInt("combo_youtube190_mute_action", 0);
         int inputOk = op.getInt("combo_input_ok_action", 0);
-        int muteClick4 = op.getInt("btn_mute_click_4_action", 23);
-        int ytClick4 = op.getInt("btn_youtube_190_click_4_action", 0);
 
         if (btnCombosMasterToggle != null) {
             btnCombosMasterToggle.setText("   Combinaciones:  " + (enabled ? "ACTIVADO" : "DESACTIVADO"));
@@ -3713,8 +3719,6 @@ public class QuickMenuOverlay {
         if (btnComboMuteLeft != null) btnComboMuteLeft.setText("   Mute + Flecha Izq:  " + getActionName(muteLeft));
         if (btnComboYoutube190Mute != null) btnComboYoutube190Mute.setText("   YouTube + Mute:  " + getActionName(ytMute));
         if (btnComboInputOk != null) btnComboInputOk.setText("   TV Input + OK:  " + getActionName(inputOk));
-        if (btnComboMuteClick4 != null) btnComboMuteClick4.setText("   Mute (4 Clics):  " + getActionName(muteClick4));
-        if (btnComboYoutube190Click4 != null) btnComboYoutube190Click4.setText("   YouTube 190 (4 Clics):  " + getActionName(ytClick4));
     }
 
     private void adjustIntPref(String key, int def, int delta, int min, int max, String actionName) {
