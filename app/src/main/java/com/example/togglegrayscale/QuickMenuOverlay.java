@@ -2140,7 +2140,14 @@ public class QuickMenuOverlay {
                 break;
             case "grayscale":
                 sendServiceAction("ACTION_TOGGLE_GRAYSCALE");
-                dismiss();
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override public void run() {
+                        if (isShowing()) {
+                            buildMenu();
+                        }
+                    }
+                }, 100);
+                buildMenu();
                 break;
             case "cine_mode":
                 if ("cine".equals(openSubPanel)) {
