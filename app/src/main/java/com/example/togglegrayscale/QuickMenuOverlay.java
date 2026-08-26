@@ -30,7 +30,7 @@ public class QuickMenuOverlay {
         "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
         "pause_screen_off", "scheduled_sleep", "cycle_brightness", "mindful_delay", "still_watching",
-        "night_schedule", "oled_saver", "translate", "button_combos",
+        "night_schedule", "oled_saver", "trigger_translate", "translate", "button_combos",
         "config_mute", "config_youtube_190", "config_youtube_189",
         "developer_options"
     };
@@ -2534,6 +2534,10 @@ public class QuickMenuOverlay {
                     if (btnMindfulDelayToggle != null) btnMindfulDelayToggle.requestFocus();
                 }
                 break;
+            case "trigger_translate":
+                dismiss();
+                sendServiceAction("ACTION_TRANSLATE_SCREEN");
+                break;
             case "translate":
                 if ("translate_config".equals(openSubPanel)) {
                     closeSubPanels();
@@ -2622,7 +2626,8 @@ public class QuickMenuOverlay {
             }
             case "night_schedule": return fmtToggle("🌙  Horario Nocturno", op.getBoolean(ButtonMappingService.KEY_NIGHT_SCHEDULE, false));
             case "oled_saver": return fmtToggle("🛡️  Protector OLED (Burn-In)", op.getBoolean(ButtonMappingService.KEY_OLED_SAVER, false));
-            case "translate": return "🌐  Traducir Pantalla (CTS)";
+            case "trigger_translate": return "🌐  Traducir Pantalla Ahora";
+            case "translate": return "⚙️  Configurar Traductor (CTS)";
             case "button_combos": return "⚡  Combinaciones de Teclas";
             case "config_mute":        return "Config  Configurar Botón Mute";
             case "config_youtube_190": return "Config  Configurar YouTube (190)";
@@ -3156,8 +3161,22 @@ public class QuickMenuOverlay {
         String saved = prefs.getString(KEY_ORDER, null);
         if (saved == null || saved.isEmpty()) return ALL_ITEM_IDS.clone();
         String[] loaded = saved.split(",");
-        if (loaded.length == ALL_ITEM_IDS.length) return loaded;
-        return ALL_ITEM_IDS.clone();
+        java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<>();
+        java.util.HashSet<String> validIds = new java.util.HashSet<>(java.util.Arrays.asList(ALL_ITEM_IDS));
+        for (String s : loaded) {
+            String trimmed = s.trim();
+            if (validIds.contains(trimmed)) {
+                set.add(trimmed);
+            }
+        }
+        for (String id : ALL_ITEM_IDS) {
+            set.add(id);
+        }
+        String[] result = set.toArray(new String[0]);
+        if (result.length != loaded.length) {
+            saveMenuOrder(result);
+        }
+        return result;
     }
 
     private void saveMenuOrder(String[] order) {
