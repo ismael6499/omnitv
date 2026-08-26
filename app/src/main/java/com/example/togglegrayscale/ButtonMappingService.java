@@ -25,6 +25,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 import android.widget.TextView;
+import android.widget.LinearLayout;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
@@ -224,6 +225,8 @@ public class ButtonMappingService extends AccessibilityService {
     };
 
     private View systemInfoOverlayView = null;
+    private View frameStepHudView = null;
+    private boolean isFrameStepHudActive = false;
 
     private int clockShowRetries = 0;
     private int blueLightShowRetries = 0;
@@ -972,11 +975,17 @@ public class ButtonMappingService extends AccessibilityService {
             case 23: // Traducir Pantalla (CTS)
                 triggerScreenTranslation();
                 break;
-            case 24: // Avanzar 1 Frame (YouTube)
+            case 24: // Control Cuadro por Cuadro (HUD)
+                toggleFrameStepHud();
+                break;
+            case 25: // Avanzar 1 Frame (YouTube)
                 stepVideoFrame(1);
                 break;
-            case 25: // Retroceder 1 Frame (YouTube)
+            case 26: // Retroceder 1 Frame (YouTube)
                 stepVideoFrame(-1);
+                break;
+            case 27: // Opciones de Desarrollador
+                launchDeveloperOptions();
                 break;
         }
     }
@@ -2650,6 +2659,34 @@ public class ButtonMappingService extends AccessibilityService {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
 
+        // 0. Frame Step HUD Key Interception:
+        if (isFrameStepHudActive) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    stepVideoFrame(-1);
+                    updateFrameStepHudFeedback("◄ Retroceder Frame (-1)");
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    stepVideoFrame(1);
+                    updateFrameStepHudFeedback("Avanzar Frame (+1) ►");
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    sendMediaPlayPause();
+                    updateFrameStepHudFeedback("⏯️ Play / Pausa");
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    dismissFrameStepHud();
+                }
+                return true;
+            }
+        }
+
         // 0. Translation Overlay key interception:
         if (isTranslationOverlayActive) {
             if (keyCode == KeyEvent.KEYCODE_BACK) {
@@ -2988,17 +3025,209 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void stepVideoFrame(final int direction) {
-        new Thread(new Runnable() {
+        try {
+            if (audioManager != null) {
+                int keyStep = direction > 0 ? KeyEvent.KEYCODE_MEDIA_STEP_FORWARD : KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD;
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, keyStep));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   keyStep));
+
+                int keyFwd = direction > 0 ? KeyEvent.KEYCODE_MEDIA_FAST_FORWARD : KeyEvent.KEYCODE_MEDIA_REWIND;
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, keyFwd));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   keyFwd));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in audioManager media step", e);
+        }
+
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root != null) {
+                findAndScrollVideoPlayer(root, direction > 0);
+                root.recycle();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in accessibility node scroll", e);
+        }
+    }
+
+    private boolean findAndScrollVideoPlayer(AccessibilityNodeInfo node, boolean forward) {
+        if (node == null) return false;
+        CharSequence className = node.getClassName();
+        if (className != null) {
+            String c = className.toString();
+            if (c.contains("SeekBar") || c.contains("ProgressBar") || c.contains("Timeline") || c.contains("PlayerView") || c.contains("VideoSurfaceView") || c.contains("RecyclerView") || c.contains("ScrollView")) {
+                int action = forward ? AccessibilityNodeInfo.ACTION_SCROLL_FORWARD : AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD;
+                if ((node.getActions() & action) != 0) {
+                    node.performAction(action);
+                    return true;
+                }
+            }
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                boolean scrolled = findAndScrollVideoPlayer(child, forward);
+                child.recycle();
+                if (scrolled) return true;
+            }
+        }
+        return false;
+    }
+
+    private void launchDeveloperOptions() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            Log.d(TAG, "Successfully opened Developer Options via standard Action");
+        } catch (Exception e) {
+            try {
+                Intent intent = new Intent();
+                intent.setClassName("com.android.tv.settings", "com.android.tv.settings.system.development.DevelopmentActivity");
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+                Log.d(TAG, "Successfully opened Developer Options via DevelopmentActivity class");
+            } catch (Exception e2) {
+                Log.e(TAG, "Failed to open Developer Options", e2);
+            }
+        }
+    }
+
+    private void sendMediaPlayPause() {
+        try {
+            if (audioManager != null) {
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in sendMediaPlayPause", e);
+        }
+    }
+
+    public void toggleFrameStepHud() {
+        if (isFrameStepHudActive) {
+            dismissFrameStepHud();
+        } else {
+            showFrameStepHud();
+        }
+    }
+
+    private void showFrameStepHud() {
+        handler.post(new Runnable() {
             @Override
             public void run() {
                 try {
-                    int keyCode = direction > 0 ? 56 : 55; // 56 = PERIOD (.), 55 = COMMA (,)
-                    Runtime.getRuntime().exec(new String[]{"input", "keyevent", String.valueOf(keyCode)});
+                    dismissFrameStepHud();
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm == null) return;
+
+                    float density = getResources().getDisplayMetrics().density;
+
+                    LinearLayout root = new LinearLayout(ButtonMappingService.this);
+                    root.setOrientation(LinearLayout.VERTICAL);
+                    root.setGravity(Gravity.CENTER);
+                    root.setPadding(Math.round(24 * density), Math.round(14 * density), Math.round(24 * density), Math.round(14 * density));
+
+                    android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+                    bg.setColor(Color.argb(240, 18, 22, 30));
+                    bg.setCornerRadius(20 * density);
+                    bg.setStroke(Math.round(1.5f * density), 0xFF81D4FA);
+                    root.setBackground(bg);
+
+                    // Row 1: Action controls
+                    LinearLayout rowControls = new LinearLayout(ButtonMappingService.this);
+                    rowControls.setOrientation(LinearLayout.HORIZONTAL);
+                    rowControls.setGravity(Gravity.CENTER);
+
+                    TextView btnLeft = new TextView(ButtonMappingService.this);
+                    btnLeft.setText("  ◄◄  -1 Frame  ");
+                    btnLeft.setTextColor(0xFF81D4FA);
+                    btnLeft.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+                    btnLeft.setTypeface(Typeface.DEFAULT_BOLD);
+                    rowControls.addView(btnLeft);
+
+                    TextView btnMid = new TextView(ButtonMappingService.this);
+                    btnMid.setText("   |   ⏯️ Play / Pausa   |   ");
+                    btnMid.setTextColor(0xFFFFFFFF);
+                    btnMid.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+                    btnMid.setTypeface(Typeface.DEFAULT_BOLD);
+                    rowControls.addView(btnMid);
+
+                    TextView btnRight = new TextView(ButtonMappingService.this);
+                    btnRight.setText("  +1 Frame  ►►  ");
+                    btnRight.setTextColor(0xFF81D4FA);
+                    btnRight.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+                    btnRight.setTypeface(Typeface.DEFAULT_BOLD);
+                    rowControls.addView(btnRight);
+
+                    root.addView(rowControls);
+
+                    // Row 2: Status / Instruction
+                    TextView statusTv = new TextView(ButtonMappingService.this);
+                    statusTv.setId(1001);
+                    statusTv.setText("🎞️ Presiona ◄ / ► para mover cuadro por cuadro  •  [ Atrás: Salir ]");
+                    statusTv.setTextColor(0xFFB0BEC5);
+                    statusTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                    statusTv.setGravity(Gravity.CENTER);
+                    statusTv.setPadding(0, Math.round(6 * density), 0, 0);
+                    root.addView(statusTv);
+
+                    WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                            WindowManager.LayoutParams.WRAP_CONTENT,
+                            WindowManager.LayoutParams.WRAP_CONTENT,
+                            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                                    | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                            PixelFormat.TRANSLUCENT
+                    );
+                    params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+                    params.y = Math.round(36 * density);
+
+                    wm.addView(root, params);
+                    frameStepHudView = root;
+                    isFrameStepHudActive = true;
+                    Log.d(TAG, "Frame Step HUD displayed.");
                 } catch (Exception e) {
-                    Log.e(TAG, "Error injecting frame step key", e);
+                    Log.e(TAG, "Error displaying Frame Step HUD", e);
                 }
             }
-        }).start();
+        });
+    }
+
+    private void updateFrameStepHudFeedback(final String msg) {
+        if (frameStepHudView != null) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        TextView statusTv = frameStepHudView.findViewById(1001);
+                        if (statusTv != null) {
+                            statusTv.setText("🎞️ " + msg + "  •  [ Atrás: Salir ]");
+                            statusTv.setTextColor(0xFFFFEB3B);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
+    }
+
+    private void dismissFrameStepHud() {
+        if (frameStepHudView != null) {
+            final View v = frameStepHudView;
+            frameStepHudView = null;
+            isFrameStepHudActive = false;
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                        if (wm != null) wm.removeView(v);
+                        Log.d(TAG, "Frame Step HUD dismissed.");
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
     }
 
     public void triggerScreenTranslation() {

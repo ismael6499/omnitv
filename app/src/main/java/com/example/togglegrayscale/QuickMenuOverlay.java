@@ -60,6 +60,7 @@ public class QuickMenuOverlay {
         "Ciclar Brillo",
         "¿Sigues viendo?",
         "Traducir Pantalla (CTS)",
+        "Control Cuadro por Cuadro (HUD)",
         "Avanzar 1 Frame (YouTube)",
         "Retroceder 1 Frame (YouTube)",
         "Opciones de Desarrollador"
@@ -3712,14 +3713,29 @@ public class QuickMenuOverlay {
         int inputOk = op.getInt("combo_input_ok_action", 0);
 
         if (btnCombosMasterToggle != null) {
-            btnCombosMasterToggle.setText("   Combinaciones:  " + (enabled ? "ACTIVADO" : "DESACTIVADO"));
+            btnCombosMasterToggle.setText("   Combinaciones:  " + (enabled ? "[ ACTIVADO ]" : "[ DESACTIVADO ]"));
             btnCombosMasterToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFFF5252);
         }
-        if (btnComboMuteOk != null) btnComboMuteOk.setText("   Mute + OK:  " + getActionName(muteOk));
-        if (btnComboMuteRight != null) btnComboMuteRight.setText("   Mute + Flecha Der:  " + getActionName(muteRight));
-        if (btnComboMuteLeft != null) btnComboMuteLeft.setText("   Mute + Flecha Izq:  " + getActionName(muteLeft));
-        if (btnComboYoutube190Mute != null) btnComboYoutube190Mute.setText("   YouTube + Mute:  " + getActionName(ytMute));
-        if (btnComboInputOk != null) btnComboInputOk.setText("   TV Input + OK:  " + getActionName(inputOk));
+        if (btnComboMuteOk != null) {
+            btnComboMuteOk.setText("   Mute + OK:  " + (muteOk == 0 ? "[ DESACTIVADO ]" : getActionName(muteOk)));
+            btnComboMuteOk.setTextColor(muteOk == 0 ? 0xFF888888 : 0xFF81D4FA);
+        }
+        if (btnComboMuteRight != null) {
+            btnComboMuteRight.setText("   Mute + Flecha Der:  " + (muteRight == 0 ? "[ DESACTIVADO ]" : getActionName(muteRight)));
+            btnComboMuteRight.setTextColor(muteRight == 0 ? 0xFF888888 : 0xFF81D4FA);
+        }
+        if (btnComboMuteLeft != null) {
+            btnComboMuteLeft.setText("   Mute + Flecha Izq:  " + (muteLeft == 0 ? "[ DESACTIVADO ]" : getActionName(muteLeft)));
+            btnComboMuteLeft.setTextColor(muteLeft == 0 ? 0xFF888888 : 0xFF81D4FA);
+        }
+        if (btnComboYoutube190Mute != null) {
+            btnComboYoutube190Mute.setText("   YouTube + Mute:  " + (ytMute == 0 ? "[ DESACTIVADO ]" : getActionName(ytMute)));
+            btnComboYoutube190Mute.setTextColor(ytMute == 0 ? 0xFF888888 : 0xFF81D4FA);
+        }
+        if (btnComboInputOk != null) {
+            btnComboInputOk.setText("   TV Input + OK:  " + (inputOk == 0 ? "[ DESACTIVADO ]" : getActionName(inputOk)));
+            btnComboInputOk.setTextColor(inputOk == 0 ? 0xFF888888 : 0xFF81D4FA);
+        }
     }
 
     private void adjustIntPref(String key, int def, int delta, int min, int max, String actionName) {
