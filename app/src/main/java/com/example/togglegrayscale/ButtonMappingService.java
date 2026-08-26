@@ -46,10 +46,16 @@ import com.google.mlkit.nl.translate.TranslateLanguage;
 import com.google.mlkit.nl.translate.Translation;
 import com.google.mlkit.nl.translate.Translator;
 import com.google.mlkit.nl.translate.TranslatorOptions;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import java.util.Date;
 import java.util.Locale;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.HashMap;
 
 public class ButtonMappingService extends AccessibilityService {
 
@@ -725,9 +731,11 @@ public class ButtonMappingService extends AccessibilityService {
         // Start night schedule checker
         handler.postDelayed(nightScheduleCheckRunnable, 3000);
 
-        // Register screen state receiver for auto-reset on wake
+        // Register screen state and service actions receiver
         try {
-            IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(Intent.ACTION_SCREEN_ON);
+            filter.addAction("com.example.togglegrayscale.ACTION_TRANSLATE_SCREEN");
             registerReceiver(screenStateReceiver, filter);
         } catch (Exception e) {
             Log.e(TAG, "Failed to register screenStateReceiver", e);
@@ -737,6 +745,11 @@ public class ButtonMappingService extends AccessibilityService {
     private final BroadcastReceiver screenStateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            if (intent == null || intent.getAction() == null) return;
+            if ("com.example.togglegrayscale.ACTION_TRANSLATE_SCREEN".equals(intent.getAction())) {
+                triggerScreenTranslation();
+                return;
+            }
             if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
                 Log.d(TAG, "Screen ON detected! Performing auto-reset of temporary modes.");
                 SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
@@ -2945,14 +2958,16 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     public static class TranslatedBlock {
-        public final Rect box;
-        public final String originalText;
+        public Rect box;
+        public String originalText;
         public String translatedText;
+        public String sourceLanguageCode;
 
-        public TranslatedBlock(Rect box, String originalText) {
-            this.box = box;
+        public TranslatedBlock(Rect box, String originalText, String sourceLanguageCode) {
+            this.box = new Rect(box);
             this.originalText = originalText;
             this.translatedText = originalText;
+            this.sourceLanguageCode = sourceLanguageCode;
         }
     }
 
@@ -2989,6 +3004,14 @@ public class ButtonMappingService extends AccessibilityService {
         }
 
         QuickMenuOverlay.getInstance().dismiss();
+        captureAndTranslateScreen();
+    }
+
+    private void captureAndTranslateScreen() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            Toast.makeText(getApplicationContext(), "Traducción requiere Android 11+", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         boolean autoPause = prefs.getBoolean("translate_auto_pause", true);
@@ -2996,40 +3019,39 @@ public class ButtonMappingService extends AccessibilityService {
             sendMediaPause();
         }
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            Toast.makeText(getApplicationContext(), "Requiere Android 11+ para capturar pantalla", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        Toast.makeText(getApplicationContext(), "🌐 Capturando y traduciendo pantalla...", Toast.LENGTH_SHORT).show();
 
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 try {
-                    takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new AccessibilityService.TakeScreenshotCallback() {
+                    takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new TakeScreenshotCallback() {
                         @Override
-                        public void onSuccess(AccessibilityService.ScreenshotResult screenshotResult) {
+                        public void onSuccess(ScreenshotResult result) {
                             try {
-                                HardwareBuffer buffer = screenshotResult.getHardwareBuffer();
-                                Bitmap bitmap = Bitmap.wrapHardwareBuffer(buffer, screenshotResult.getColorSpace());
-                                if (bitmap != null) {
-                                    Bitmap swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
-                                    bitmap.recycle();
-                                    buffer.close();
-                                    processScreenshotForTranslation(swBitmap);
-                                } else {
-                                    buffer.close();
-                                    Toast.makeText(getApplicationContext(), "Error al decodificar imagen", Toast.LENGTH_SHORT).show();
+                                HardwareBuffer hardwareBuffer = result.getHardwareBuffer();
+                                Bitmap rawBitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, result.getColorSpace());
+                                hardwareBuffer.close();
+
+                                if (rawBitmap == null) {
+                                    Toast.makeText(getApplicationContext(), "Error al obtener captura", Toast.LENGTH_SHORT).show();
+                                    return;
                                 }
+
+                                Bitmap bitmap = rawBitmap.copy(Bitmap.Config.ARGB_8888, true);
+                                rawBitmap.recycle();
+
+                                processScreenshotForTranslation(bitmap);
                             } catch (Exception e) {
-                                Log.e(TAG, "Error in screenshot callback", e);
-                                Toast.makeText(getApplicationContext(), "Error al procesar captura", Toast.LENGTH_SHORT).show();
+                                Log.e(TAG, "Error processing screenshot bitmap", e);
+                                Toast.makeText(getApplicationContext(), "Error procesando imagen", Toast.LENGTH_SHORT).show();
                             }
                         }
 
                         @Override
                         public void onFailure(int errorCode) {
-                            Log.e(TAG, "Screenshot failed: " + errorCode);
-                            Toast.makeText(getApplicationContext(), "No se pudo tomar la captura (" + errorCode + ")", Toast.LENGTH_SHORT).show();
+                            Log.e(TAG, "takeScreenshot failed: " + errorCode);
+                            Toast.makeText(getApplicationContext(), "No se pudo capturar la pantalla (" + errorCode + ")", Toast.LENGTH_SHORT).show();
                         }
                     });
                 } catch (Exception e) {
@@ -3052,7 +3074,7 @@ public class ButtonMappingService extends AccessibilityService {
         return false;
     }
 
-    private static boolean containsJapanese(String s) {
+    private static boolean containsJapaneseKana(String s) {
         if (s == null) return false;
         for (char c : s.toCharArray()) {
             Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
@@ -3065,7 +3087,7 @@ public class ButtonMappingService extends AccessibilityService {
         return false;
     }
 
-    private static boolean containsChinese(String s) {
+    private static boolean containsChineseHanzi(String s) {
         if (s == null) return false;
         for (char c : s.toCharArray()) {
             Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
@@ -3078,6 +3100,31 @@ public class ButtonMappingService extends AccessibilityService {
         return false;
     }
 
+    private static boolean containsCyrillic(String s) {
+        if (s == null) return false;
+        for (char c : s.toCharArray()) {
+            Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
+            if (block == Character.UnicodeBlock.CYRILLIC
+                    || block == Character.UnicodeBlock.CYRILLIC_SUPPLEMENTARY) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String detectBlockLanguage(String txt, int userSrcLangIdx) {
+        if (userSrcLangIdx == 1) return TranslateLanguage.KOREAN;
+        if (userSrcLangIdx == 2) return TranslateLanguage.JAPANESE;
+        if (userSrcLangIdx == 3) return TranslateLanguage.CHINESE;
+        if (userSrcLangIdx == 4) return TranslateLanguage.ENGLISH;
+
+        if (containsKorean(txt)) return TranslateLanguage.KOREAN;
+        if (containsJapaneseKana(txt)) return TranslateLanguage.JAPANESE;
+        if (containsChineseHanzi(txt)) return TranslateLanguage.CHINESE;
+        if (containsCyrillic(txt)) return TranslateLanguage.RUSSIAN;
+        return TranslateLanguage.JAPANESE;
+    }
+
     private static boolean isTranslatableBlock(String txt, int srcLangIdx) {
         if (txt == null) return false;
         String trimmed = txt.trim();
@@ -3088,8 +3135,8 @@ public class ButtonMappingService extends AccessibilityService {
             return false;
         }
 
-        // 2. If it contains Japanese, Korean, or Chinese, ALWAYS translate (keeping any mixed words/numbers intact)!
-        if (containsJapanese(trimmed) || containsKorean(trimmed) || containsChinese(trimmed)) {
+        // 2. If it contains Japanese, Korean, Chinese, or Cyrillic, ALWAYS translate!
+        if (containsJapaneseKana(trimmed) || containsKorean(trimmed) || containsChineseHanzi(trimmed) || containsCyrillic(trimmed)) {
             return true;
         }
 
@@ -3102,164 +3149,240 @@ public class ButtonMappingService extends AccessibilityService {
         return false;
     }
 
+    private static List<TranslatedBlock> mergeAndDeduplicateBlocks(List<TranslatedBlock> rawBlocks) {
+        if (rawBlocks == null || rawBlocks.size() <= 1) return rawBlocks != null ? rawBlocks : new ArrayList<TranslatedBlock>();
+
+        // 1. Sort top-to-bottom, left-to-right
+        Collections.sort(rawBlocks, new Comparator<TranslatedBlock>() {
+            @Override public int compare(TranslatedBlock a, TranslatedBlock b) {
+                if (Math.abs(a.box.top - b.box.top) > 25) {
+                    return Integer.compare(a.box.top, b.box.top);
+                }
+                return Integer.compare(a.box.left, b.box.left);
+            }
+        });
+
+        // 2. Merge vertically stacked lines of the same card/paragraph
+        List<TranslatedBlock> merged = new ArrayList<>();
+        for (TranslatedBlock block : rawBlocks) {
+            boolean mergedIntoExisting = false;
+            for (TranslatedBlock existing : merged) {
+                boolean sameLang = (block.sourceLanguageCode != null && block.sourceLanguageCode.equals(existing.sourceLanguageCode));
+                if (sameLang) {
+                    int verticalGap = block.box.top - existing.box.bottom;
+                    int xOverlap = Math.min(block.box.right, existing.box.right) - Math.max(block.box.left, existing.box.left);
+
+                    // If adjacent vertically (gap <= 40px) and horizontally aligned
+                    if (verticalGap >= -25 && verticalGap <= 40 && xOverlap > -30) {
+                        existing.box.union(block.box);
+                        existing.originalText = existing.originalText + " " + block.originalText;
+                        mergedIntoExisting = true;
+                        break;
+                    }
+                }
+            }
+            if (!mergedIntoExisting) {
+                merged.add(block);
+            }
+        }
+        return merged;
+    }
+
     private void processScreenshotForTranslation(final Bitmap bitmap) {
         if (bitmap == null) return;
         try {
-            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-            int srcLangIdx = prefs.getInt("translate_source_lang_idx", 0);
-            
-            TextRecognizer recognizer;
-            if (srcLangIdx == 1) {
-                recognizer = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
-            } else if (srcLangIdx == 2) {
-                recognizer = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
-            } else if (srcLangIdx == 3) {
-                recognizer = TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build());
-            } else if (srcLangIdx == 4) {
-                recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
-            } else {
-                // Auto mode: Default to Japanese recognizer which supports Kanji, Hiragana, Katakana, Latin, and CJK punctuation
-                recognizer = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
-            }
+            final SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+            final int srcLangIdx = prefs.getInt("translate_source_lang_idx", 0);
+            final InputImage image = InputImage.fromBitmap(bitmap, 0);
 
-            InputImage image = InputImage.fromBitmap(bitmap, 0);
-            recognizer.process(image)
-                    .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<Text>() {
-                        @Override
-                        public void onSuccess(Text visionText) {
-                            bitmap.recycle();
-                            handleOcrSuccess(visionText);
-                        }
-                    })
-                    .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
-                        @Override
-                        public void onFailure(Exception e) {
-                            bitmap.recycle();
-                            Log.e(TAG, "OCR recognition failed", e);
-                            Toast.makeText(getApplicationContext(), "Error en reconocimiento OCR", Toast.LENGTH_SHORT).show();
-                        }
-                    });
+            if (srcLangIdx == 0) { // Auto mode: Parallel OCR with Japanese (JP/ZH) + Korean engines
+                TextRecognizer recJa = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
+                TextRecognizer recKo = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
+
+                final Task<Text> taskJa = recJa.process(image);
+                final Task<Text> taskKo = recKo.process(image);
+
+                Tasks.whenAllComplete(taskJa, taskKo)
+                        .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<List<Task<?>>>() {
+                            @Override
+                            public void onSuccess(List<Task<?>> tasks) {
+                                bitmap.recycle();
+                                Text textJa = taskJa.isSuccessful() ? taskJa.getResult() : null;
+                                Text textKo = taskKo.isSuccessful() ? taskKo.getResult() : null;
+                                handleMultiOcrSuccess(textJa, textKo, srcLangIdx);
+                            }
+                        })
+                        .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                            @Override
+                            public void onFailure(Exception e) {
+                                bitmap.recycle();
+                                Log.e(TAG, "Parallel OCR recognition failed", e);
+                                Toast.makeText(getApplicationContext(), "Error en reconocimiento OCR", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+            } else {
+                TextRecognizer recognizer;
+                if (srcLangIdx == 1) {
+                    recognizer = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
+                } else if (srcLangIdx == 2) {
+                    recognizer = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
+                } else if (srcLangIdx == 3) {
+                    recognizer = TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build());
+                } else {
+                    recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+                }
+
+                recognizer.process(image)
+                        .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<Text>() {
+                            @Override
+                            public void onSuccess(Text visionText) {
+                                bitmap.recycle();
+                                handleMultiOcrSuccess(visionText, null, srcLangIdx);
+                            }
+                        })
+                        .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                            @Override
+                            public void onFailure(Exception e) {
+                                bitmap.recycle();
+                                Log.e(TAG, "OCR recognition failed", e);
+                                Toast.makeText(getApplicationContext(), "Error en reconocimiento OCR", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error starting OCR", e);
             bitmap.recycle();
         }
     }
 
-    private void handleOcrSuccess(Text visionText) {
-        if (visionText == null || visionText.getTextBlocks().isEmpty()) {
-            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto en pantalla", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    private void handleMultiOcrSuccess(Text textJa, Text textKo, int srcLangIdx) {
+        final List<TranslatedBlock> rawBlocks = new ArrayList<>();
 
-        final SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-        final int srcIdx = prefs.getInt("translate_source_lang_idx", 0);
+        // 1. Extract from Japanese engine: Only keep Japanese Kana, Chinese Hanzi, or Cyrillic (ignore Latin/English/Korean)
+        if (textJa != null) {
+            for (Text.TextBlock textBlock : textJa.getTextBlocks()) {
+                for (Text.Line line : textBlock.getLines()) {
+                    String txt = line.getText();
+                    Rect box = line.getBoundingBox();
+                    if (txt != null && box != null) {
+                        String trimmed = txt.trim();
+                        if (trimmed.length() <= 1) continue;
+                        if (containsKorean(trimmed)) continue; // Handled accurately by Korean recognizer
 
-        final List<TranslatedBlock> blocks = new ArrayList<>();
-        int koreanCount = 0;
-        int japaneseCount = 0;
-        int chineseCount = 0;
-
-        for (Text.TextBlock textBlock : visionText.getTextBlocks()) {
-            for (Text.Line line : textBlock.getLines()) {
-                String txt = line.getText();
-                Rect box = line.getBoundingBox();
-                if (txt != null && !txt.trim().isEmpty() && box != null) {
-                    if (!isTranslatableBlock(txt, srcIdx)) {
-                        continue;
+                        if (containsJapaneseKana(trimmed)) {
+                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.JAPANESE));
+                        } else if (containsChineseHanzi(trimmed)) {
+                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.CHINESE));
+                        } else if (containsCyrillic(trimmed)) {
+                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.RUSSIAN));
+                        } else if (srcLangIdx == 4) { // Explicit English source mode
+                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.ENGLISH));
+                        }
                     }
-                    if (containsJapanese(txt)) japaneseCount++;
-                    else if (containsKorean(txt)) koreanCount++;
-                    else if (containsChinese(txt)) chineseCount++;
-                    blocks.add(new TranslatedBlock(box, txt));
                 }
             }
         }
 
-        if (blocks.isEmpty()) {
+        // 2. Extract from Korean engine: Only keep Korean Hangul text
+        if (textKo != null) {
+            for (Text.TextBlock textBlock : textKo.getTextBlocks()) {
+                for (Text.Line line : textBlock.getLines()) {
+                    String txt = line.getText();
+                    Rect box = line.getBoundingBox();
+                    if (txt != null && box != null) {
+                        String trimmed = txt.trim();
+                        if (trimmed.length() <= 1) continue;
+                        if (containsKorean(trimmed)) {
+                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.KOREAN));
+                        }
+                    }
+                }
+            }
+        }
+
+        if (rawBlocks.isEmpty()) {
             Toast.makeText(getApplicationContext(), "🔍 No se detectó texto extranjero para traducir", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        final int targetLangIdx = prefs.getInt("translate_target_lang_idx", 0);
-        final String targetLangCode = targetLangIdx == 0 ? TranslateLanguage.SPANISH : TranslateLanguage.ENGLISH;
-        final String targetLangName = targetLangIdx == 0 ? "Español" : "English";
+        List<TranslatedBlock> mergedBlocks = mergeAndDeduplicateBlocks(rawBlocks);
 
-        String detectedLangCode = TranslateLanguage.JAPANESE;
-        if (srcIdx == 1) detectedLangCode = TranslateLanguage.KOREAN;
-        else if (srcIdx == 2) detectedLangCode = TranslateLanguage.JAPANESE;
-        else if (srcIdx == 3) detectedLangCode = TranslateLanguage.CHINESE;
-        else if (srcIdx == 4) detectedLangCode = TranslateLanguage.ENGLISH;
-        else {
-            if (japaneseCount > 0) detectedLangCode = TranslateLanguage.JAPANESE;
-            else if (koreanCount > 0) detectedLangCode = TranslateLanguage.KOREAN;
-            else if (chineseCount > 0) detectedLangCode = TranslateLanguage.CHINESE;
-            else detectedLangCode = TranslateLanguage.JAPANESE;
-        }
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int targetLangIdx = prefs.getInt("translate_target_lang_idx", 0);
+        String targetLangCode = targetLangIdx == 0 ? TranslateLanguage.SPANISH : TranslateLanguage.ENGLISH;
+        String targetLangName = targetLangIdx == 0 ? "Español" : "English";
 
-        translateBlocks(blocks, detectedLangCode, targetLangCode, targetLangName);
+        translateMultiLanguageBlocks(mergedBlocks, targetLangCode, targetLangName);
     }
 
-    private void translateBlocks(final List<TranslatedBlock> blocks, final String srcLangCode, final String targetLangCode, final String targetLangName) {
-        String srcName = new Locale(srcLangCode).getDisplayLanguage(new Locale("es", "ES"));
-        if (srcName == null || srcName.isEmpty() || srcName.equals(srcLangCode)) {
-            if ("ko".equals(srcLangCode)) srcName = "Coreano";
-            else if ("ja".equals(srcLangCode)) srcName = "Japonés";
-            else if ("zh".equals(srcLangCode)) srcName = "Chino";
-            else if ("fr".equals(srcLangCode)) srcName = "Francés";
-            else if ("pt".equals(srcLangCode)) srcName = "Portugués";
-            else if ("en".equals(srcLangCode)) srcName = "Inglés";
-            else srcName = srcLangCode.toUpperCase(Locale.ROOT);
-        } else {
-            srcName = Character.toUpperCase(srcName.charAt(0)) + srcName.substring(1);
+    private void translateMultiLanguageBlocks(final List<TranslatedBlock> blocks, final String targetLangCode, final String targetLangName) {
+        if (blocks == null || blocks.isEmpty()) return;
+
+        final Map<String, List<TranslatedBlock>> langGroups = new HashMap<>();
+        for (TranslatedBlock b : blocks) {
+            String src = b.sourceLanguageCode != null ? b.sourceLanguageCode : TranslateLanguage.JAPANESE;
+            if (!langGroups.containsKey(src)) {
+                langGroups.put(src, new ArrayList<TranslatedBlock>());
+            }
+            langGroups.get(src).add(b);
         }
-        final String finalSrcName = srcName;
 
-        TranslatorOptions options = new TranslatorOptions.Builder()
-                .setSourceLanguage(srcLangCode)
-                .setTargetLanguage(targetLangCode)
-                .build();
+        final int totalBlocks = blocks.size();
+        final int[] completedBlocks = {0};
 
-        final Translator translator = Translation.getClient(options);
-        com.google.mlkit.common.model.DownloadConditions conditions = new com.google.mlkit.common.model.DownloadConditions.Builder().build();
+        for (Map.Entry<String, List<TranslatedBlock>> entry : langGroups.entrySet()) {
+            final String srcLang = entry.getKey();
+            final List<TranslatedBlock> groupBlocks = entry.getValue();
 
-        translator.downloadModelIfNeeded(conditions)
-                .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void unused) {
-                        final int[] completedCount = {0};
-                        final int total = blocks.size();
+            TranslatorOptions options = new TranslatorOptions.Builder()
+                    .setSourceLanguage(srcLang)
+                    .setTargetLanguage(targetLangCode)
+                    .build();
 
-                        for (final TranslatedBlock block : blocks) {
-                            translator.translate(block.originalText)
-                                    .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<String>() {
-                                         @Override
-                                         public void onSuccess(String translated) {
-                                             block.translatedText = translated;
-                                             completedCount[0]++;
-                                             if (completedCount[0] == total) {
-                                                 showTranslationOverlay(blocks, finalSrcName, targetLangName);
-                                             }
-                                         }
-                                     })
-                                    .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
-                                         @Override
-                                         public void onFailure(Exception e) {
-                                             completedCount[0]++;
-                                             if (completedCount[0] == total) {
-                                                 showTranslationOverlay(blocks, finalSrcName, targetLangName);
-                                             }
-                                         }
-                                     });
+            final Translator translator = Translation.getClient(options);
+            com.google.mlkit.common.model.DownloadConditions conditions = new com.google.mlkit.common.model.DownloadConditions.Builder().build();
+
+            translator.downloadModelIfNeeded(conditions)
+                    .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<Void>() {
+                        @Override
+                        public void onSuccess(Void unused) {
+                            for (final TranslatedBlock block : groupBlocks) {
+                                translator.translate(block.originalText)
+                                        .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<String>() {
+                                            @Override
+                                            public void onSuccess(String translated) {
+                                                block.translatedText = translated;
+                                                completedBlocks[0]++;
+                                                if (completedBlocks[0] == totalBlocks) {
+                                                    showTranslationOverlay(blocks, "Auto", targetLangName);
+                                                }
+                                            }
+                                        })
+                                        .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                                            @Override
+                                            public void onFailure(Exception e) {
+                                                completedBlocks[0]++;
+                                                if (completedBlocks[0] == totalBlocks) {
+                                                    showTranslationOverlay(blocks, "Auto", targetLangName);
+                                                }
+                                            }
+                                        });
+                            }
                         }
-                    }
-                })
-                .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
-                    @Override
-                    public void onFailure(Exception e) {
-                        Log.e(TAG, "Failed to download translation model", e);
-                        Toast.makeText(getApplicationContext(), "Error al cargar modelo de " + finalSrcName, Toast.LENGTH_SHORT).show();
-                    }
-                });
+                    })
+                    .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                        @Override
+                        public void onFailure(Exception e) {
+                            Log.e(TAG, "Failed downloading translation model for " + srcLang, e);
+                            for (TranslatedBlock b : groupBlocks) {
+                                completedBlocks[0]++;
+                            }
+                            if (completedBlocks[0] == totalBlocks) {
+                                showTranslationOverlay(blocks, "Auto", targetLangName);
+                            }
+                        }
+                    });
+        }
     }
 
     private void showTranslationOverlay(final List<TranslatedBlock> blocks, final String srcLangName, final String targetLangName) {
@@ -3314,14 +3437,24 @@ public class ButtonMappingService extends AccessibilityService {
                         Rect box = block.box;
                         if (box == null || block.translatedText == null || block.translatedText.trim().isEmpty()) continue;
 
+                        int length = block.translatedText.length();
+                        float finalSizeSp = textSizeSp;
+                        if (length > 35 && finalSizeSp > 12) {
+                            finalSizeSp = 12;
+                        }
+                        if (length > 65 && finalSizeSp > 11) {
+                            finalSizeSp = 11;
+                        }
+
                         TextView blockTv = new TextView(ButtonMappingService.this);
                         blockTv.setText(block.translatedText);
                         blockTv.setTextColor(0xFFFFFFFF);
-                        blockTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp);
+                        blockTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, finalSizeSp);
                         blockTv.setTypeface(Typeface.DEFAULT_BOLD);
                         blockTv.setGravity(Gravity.CENTER);
                         blockTv.setShadowLayer(3f, 0f, 1f, 0xFF000000);
-                        blockTv.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+                        blockTv.setPadding(padPx, Math.round(3 * density), padPx, Math.round(3 * density));
+                        blockTv.setLineSpacing(0, 1.15f);
 
                         android.graphics.drawable.GradientDrawable blockBg = new android.graphics.drawable.GradientDrawable();
                         blockBg.setColor(Color.argb(bgAlpha, 16, 20, 28));
@@ -3330,13 +3463,13 @@ public class ButtonMappingService extends AccessibilityService {
                         blockTv.setBackground(blockBg);
 
                         int minW = Math.round(50 * density);
-                        int minH = Math.round(24 * density);
+                        int minH = Math.round(22 * density);
                         int targetW = Math.max(box.width() + padPx * 2, minW);
                         int targetH = Math.max(box.height() + padPx, minH);
 
                         android.widget.FrameLayout.LayoutParams lpBlock = new android.widget.FrameLayout.LayoutParams(targetW, targetH);
                         lpBlock.leftMargin = Math.max(0, box.left - padPx);
-                        lpBlock.topMargin = Math.max(0, box.top - padPx / 2);
+                        lpBlock.topMargin = Math.max(0, box.top - Math.round(2 * density));
                         root.addView(blockTv, lpBlock);
                     }
 
