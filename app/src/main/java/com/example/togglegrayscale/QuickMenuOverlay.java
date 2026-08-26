@@ -67,11 +67,12 @@ public class QuickMenuOverlay {
 
     private static final String[] TRANSLATE_TARGET_LANGS = {"Español", "English"};
     private static final String[] TRANSLATE_SOURCE_LANGS = {
-        "Detección Automática (Todos)",
+        "Auto (Modo Clásico Original)",
         "Coreano (Hangul)",
         "Japonés (Kanji/Kana)",
         "Chino (Hanzi)",
-        "Latino / Francés / Portugués"
+        "Inglés / Otros",
+        "Multi-Idioma (Paralelo JP+KO)"
     };
 
     private static final String[] STILL_WATCHING_POSITIONS = {"Arriba Izquierda", "Arriba Derecha", "Abajo Izquierda", "Abajo Derecha", "Centro"};

@@ -2963,6 +2963,10 @@ public class ButtonMappingService extends AccessibilityService {
         public String translatedText;
         public String sourceLanguageCode;
 
+        public TranslatedBlock(Rect box, String originalText) {
+            this(box, originalText, null);
+        }
+
         public TranslatedBlock(Rect box, String originalText, String sourceLanguageCode) {
             this.box = new Rect(box);
             this.originalText = originalText;
@@ -3234,7 +3238,7 @@ public class ButtonMappingService extends AccessibilityService {
             final int srcLangIdx = prefs.getInt("translate_source_lang_idx", 0);
             final InputImage image = InputImage.fromBitmap(bitmap, 0);
 
-            if (srcLangIdx == 0) { // Auto mode: Parallel OCR with Japanese (JP/ZH) + Korean engines
+            if (srcLangIdx == 5) { // Multi-Idioma Paralelo JP + KO
                 TextRecognizer recJa = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
                 TextRecognizer recKo = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
 
@@ -3267,8 +3271,11 @@ public class ButtonMappingService extends AccessibilityService {
                     recognizer = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
                 } else if (srcLangIdx == 3) {
                     recognizer = TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build());
-                } else {
+                } else if (srcLangIdx == 4) {
                     recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+                } else {
+                    // Auto / Modo Clásico: El motor original basado en Japanese OCR
+                    recognizer = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
                 }
 
                 recognizer.process(image)
@@ -3276,7 +3283,7 @@ public class ButtonMappingService extends AccessibilityService {
                             @Override
                             public void onSuccess(Text visionText) {
                                 bitmap.recycle();
-                                handleMultiOcrSuccess(visionText, null, srcLangIdx);
+                                handleClassicOcrSuccess(visionText, srcLangIdx);
                             }
                         })
                         .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
@@ -3294,45 +3301,163 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
+    private void handleClassicOcrSuccess(Text visionText, int srcLangIdx) {
+        if (visionText == null || visionText.getTextBlocks().isEmpty()) {
+            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto en pantalla", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final List<TranslatedBlock> rawBlocks = new ArrayList<>();
+        int koreanCount = 0;
+        int japaneseCount = 0;
+        int chineseCount = 0;
+
+        for (Text.TextBlock textBlock : visionText.getTextBlocks()) {
+            for (Text.Line line : textBlock.getLines()) {
+                String txt = line.getText();
+                Rect box = line.getBoundingBox();
+                if (txt != null && box != null) {
+                    String trimmed = txt.trim();
+                    if (!isTranslatableBlock(trimmed, srcLangIdx)) continue;
+                    if (box.left < 130 && box.width() < 180) continue; // Skip sidebar navigation
+
+                    if (containsJapaneseKana(trimmed)) japaneseCount++;
+                    else if (containsKorean(trimmed)) koreanCount++;
+                    else if (containsChineseHanzi(trimmed)) chineseCount++;
+
+                    rawBlocks.add(new TranslatedBlock(box, trimmed));
+                }
+            }
+        }
+
+        if (rawBlocks.isEmpty()) {
+            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto extranjero para traducir", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        List<TranslatedBlock> mergedBlocks = mergeAndDeduplicateBlocks(rawBlocks);
+
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int targetLangIdx = prefs.getInt("translate_target_lang_idx", 0);
+        String targetLangCode = targetLangIdx == 0 ? TranslateLanguage.SPANISH : TranslateLanguage.ENGLISH;
+        String targetLangName = targetLangIdx == 0 ? "Español" : "English";
+
+        String detectedLangCode = TranslateLanguage.JAPANESE;
+        if (srcLangIdx == 1) detectedLangCode = TranslateLanguage.KOREAN;
+        else if (srcLangIdx == 2) detectedLangCode = TranslateLanguage.JAPANESE;
+        else if (srcLangIdx == 3) detectedLangCode = TranslateLanguage.CHINESE;
+        else if (srcLangIdx == 4) detectedLangCode = TranslateLanguage.ENGLISH;
+        else {
+            if (koreanCount > 0 && koreanCount >= japaneseCount) detectedLangCode = TranslateLanguage.KOREAN;
+            else if (japaneseCount > 0) detectedLangCode = TranslateLanguage.JAPANESE;
+            else if (chineseCount > 0) detectedLangCode = TranslateLanguage.CHINESE;
+            else detectedLangCode = TranslateLanguage.JAPANESE;
+        }
+
+        translateClassicBlocks(mergedBlocks, detectedLangCode, targetLangCode, targetLangName);
+    }
+
+    private void translateClassicBlocks(final List<TranslatedBlock> blocks, final String srcLangCode, final String targetLangCode, final String targetLangName) {
+        String srcName = new Locale(srcLangCode).getDisplayLanguage(new Locale("es", "ES"));
+        if (srcName == null || srcName.isEmpty() || srcName.equals(srcLangCode)) {
+            if ("ko".equals(srcLangCode)) srcName = "Coreano";
+            else if ("ja".equals(srcLangCode)) srcName = "Japonés";
+            else if ("zh".equals(srcLangCode)) srcName = "Chino";
+            else if ("fr".equals(srcLangCode)) srcName = "Francés";
+            else if ("pt".equals(srcLangCode)) srcName = "Portugués";
+            else if ("en".equals(srcLangCode)) srcName = "Inglés";
+            else srcName = srcLangCode.toUpperCase(Locale.ROOT);
+        } else {
+            srcName = Character.toUpperCase(srcName.charAt(0)) + srcName.substring(1);
+        }
+        final String finalSrcName = srcName;
+
+        TranslatorOptions options = new TranslatorOptions.Builder()
+                .setSourceLanguage(srcLangCode)
+                .setTargetLanguage(targetLangCode)
+                .build();
+
+        final Translator translator = Translation.getClient(options);
+        com.google.mlkit.common.model.DownloadConditions conditions = new com.google.mlkit.common.model.DownloadConditions.Builder().build();
+
+        final int total = blocks.size();
+        final int[] completedCount = {0};
+
+        translator.downloadModelIfNeeded(conditions)
+                .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void unused) {
+                        for (final TranslatedBlock block : blocks) {
+                            translator.translate(block.originalText)
+                                    .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<String>() {
+                                        @Override
+                                        public void onSuccess(String translated) {
+                                            block.translatedText = translated;
+                                            completedCount[0]++;
+                                            if (completedCount[0] == total) {
+                                                showTranslationOverlay(blocks, finalSrcName, targetLangName);
+                                            }
+                                        }
+                                    })
+                                    .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                                        @Override
+                                        public void onFailure(Exception e) {
+                                            completedCount[0]++;
+                                            if (completedCount[0] == total) {
+                                                showTranslationOverlay(blocks, finalSrcName, targetLangName);
+                                            }
+                                        }
+                                    });
+                        }
+                    }
+                })
+                .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                    @Override
+                    public void onFailure(Exception e) {
+                        Log.e(TAG, "Failed to download translation model", e);
+                        Toast.makeText(getApplicationContext(), "Error al cargar modelo de " + finalSrcName, Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
     private void handleMultiOcrSuccess(Text textJa, Text textKo, int srcLangIdx) {
         final List<TranslatedBlock> rawBlocks = new ArrayList<>();
 
-        // 1. Extract from Japanese engine at TextBlock (paragraph) level for coherent sentences
         if (textJa != null) {
             for (Text.TextBlock textBlock : textJa.getTextBlocks()) {
-                String txt = textBlock.getText();
-                Rect box = textBlock.getBoundingBox();
-                if (txt != null && box != null) {
-                    String trimmed = txt.trim();
-                    if (trimmed.length() <= 1) continue;
-                    if (box.left < 130 && box.width() < 180) continue; // Skip sidebar navigation
-                    if (isPureLatinOrSpanish(trimmed) && srcLangIdx != 4) continue; // Skip plain English/Spanish
-                    if (containsKorean(trimmed)) continue; // Handled accurately by Korean recognizer
+                for (Text.Line line : textBlock.getLines()) {
+                    String txt = line.getText();
+                    Rect box = line.getBoundingBox();
+                    if (txt != null && box != null) {
+                        String trimmed = txt.trim();
+                        if (!isTranslatableBlock(trimmed, srcLangIdx)) continue;
+                        if (box.left < 130 && box.width() < 180) continue;
+                        if (containsKorean(trimmed)) continue;
 
-                    if (containsJapaneseKana(trimmed)) {
-                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.JAPANESE));
-                    } else if (containsChineseHanzi(trimmed)) {
-                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.CHINESE));
-                    } else if (containsCyrillic(trimmed)) {
-                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.RUSSIAN));
-                    } else if (srcLangIdx == 4) { // Explicit English source mode
-                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.ENGLISH));
+                        if (containsJapaneseKana(trimmed)) {
+                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.JAPANESE));
+                        } else if (containsChineseHanzi(trimmed)) {
+                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.CHINESE));
+                        } else if (containsCyrillic(trimmed)) {
+                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.RUSSIAN));
+                        }
                     }
                 }
             }
         }
 
-        // 2. Extract from Korean engine at TextBlock (paragraph) level
         if (textKo != null) {
             for (Text.TextBlock textBlock : textKo.getTextBlocks()) {
-                String txt = textBlock.getText();
-                Rect box = textBlock.getBoundingBox();
-                if (txt != null && box != null) {
-                    String trimmed = txt.trim();
-                    if (trimmed.length() <= 1) continue;
-                    if (box.left < 130 && box.width() < 180) continue; // Skip sidebar navigation
-                    if (containsKorean(trimmed)) {
-                        rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.KOREAN));
+                for (Text.Line line : textBlock.getLines()) {
+                    String txt = line.getText();
+                    Rect box = line.getBoundingBox();
+                    if (txt != null && box != null) {
+                        String trimmed = txt.trim();
+                        if (!isTranslatableBlock(trimmed, srcLangIdx)) continue;
+                        if (box.left < 130 && box.width() < 180) continue;
+                        if (containsKorean(trimmed)) {
+                            rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.KOREAN));
+                        }
                     }
                 }
             }
