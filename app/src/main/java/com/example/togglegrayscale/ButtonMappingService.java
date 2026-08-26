@@ -3001,7 +3001,6 @@ public class ButtonMappingService extends AccessibilityService {
             return;
         }
 
-        Toast.makeText(getApplicationContext(), "🌐 Capturando y traduciendo pantalla...", Toast.LENGTH_SHORT).show();
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -3079,6 +3078,46 @@ public class ButtonMappingService extends AccessibilityService {
         return false;
     }
 
+    private static boolean isTranslatableBlock(String txt, int srcLangIdx) {
+        if (txt == null) return false;
+        String trimmed = txt.trim();
+        if (trimmed.length() <= 1) return false;
+
+        // 1. Filter out pure numbers, timestamps, durations like 0:39, 4:53, 01:40, 1080p, 4k, 60fps
+        if (trimmed.matches("^(?:\\d{1,2}:\\d{2}(?::\\d{2})?|\\d+[kKmMbB]?|\\d+\\s*(?:fps|p|k|hz)|\\W+)$")) {
+            return false;
+        }
+
+        // 2. Filter out YouTube metadata (views, ago, days, months, etc.)
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (lower.matches(".*\\b(?:views?|vistas?|subscribers?|suscriptores?|ago|hace|days?|d[ií]as?|months?|meses?|years?|a[ñn]os?|hours?|horas?|mins?|minutos?|secs?|segundos?)\\b.*")) {
+            if (!containsKorean(trimmed) && !containsJapanese(trimmed) && !containsChinese(trimmed)) {
+                return false;
+            }
+        }
+
+        // 3. Filter out Toast / System / App UI phrases
+        if (lower.contains("capturando") || lower.contains("traduciendo") || lower.contains("pantalla")
+                || lower.contains("buscar") || lower.contains("premium") || lower.contains("new to you")
+                || lower.contains("lessons and more") || lower.contains("subscriptions")
+                || lower.contains("tv control hub")) {
+            return false;
+        }
+
+        // 4. If it contains Korean, Japanese, or Chinese, ALWAYS translate!
+        if (containsKorean(trimmed) || containsJapanese(trimmed) || containsChinese(trimmed)) {
+            return true;
+        }
+
+        // 5. If user specifically selected an Asian language mode, ignore other plain Latin text
+        if (srcLangIdx == 1 || srcLangIdx == 2 || srcLangIdx == 3) {
+            return false;
+        }
+
+        // 6. In automatic mode, skip plain English/Spanish phrases (do not translate what is already known)
+        return false;
+    }
+
     private void processScreenshotForTranslation(final Bitmap bitmap) {
         if (bitmap == null) return;
         try {
@@ -3127,6 +3166,9 @@ public class ButtonMappingService extends AccessibilityService {
             return;
         }
 
+        final SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        final int srcIdx = prefs.getInt("translate_source_lang_idx", 0);
+
         final List<TranslatedBlock> blocks = new ArrayList<>();
         int koreanCount = 0;
         int japaneseCount = 0;
@@ -3136,6 +3178,9 @@ public class ButtonMappingService extends AccessibilityService {
             String txt = textBlock.getText();
             Rect box = textBlock.getBoundingBox();
             if (txt != null && !txt.trim().isEmpty() && box != null) {
+                if (!isTranslatableBlock(txt, srcIdx)) {
+                    continue;
+                }
                 if (containsKorean(txt)) koreanCount++;
                 else if (containsJapanese(txt)) japaneseCount++;
                 else if (containsChinese(txt)) chineseCount++;
@@ -3144,16 +3189,14 @@ public class ButtonMappingService extends AccessibilityService {
         }
 
         if (blocks.isEmpty()) {
-            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto legible", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto extranjero para traducir", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        final SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         final int targetLangIdx = prefs.getInt("translate_target_lang_idx", 0);
         final String targetLangCode = targetLangIdx == 0 ? TranslateLanguage.SPANISH : TranslateLanguage.ENGLISH;
         final String targetLangName = targetLangIdx == 0 ? "Español" : "English";
 
-        int srcIdx = prefs.getInt("translate_source_lang_idx", 0);
         String detectedLangCode = TranslateLanguage.KOREAN;
         if (srcIdx == 1) detectedLangCode = TranslateLanguage.KOREAN;
         else if (srcIdx == 2) detectedLangCode = TranslateLanguage.JAPANESE;

@@ -749,6 +749,8 @@ public class QuickMenuOverlay {
             case "oled_saver": return panelOledSaver;
             case "scheduled_sleep": return panelScheduledSleep;
             case "mindful_delay_config": return panelMindfulDelay;
+            case "translate_config": return panelTranslateConfig;
+            case "button_combos_config": return panelButtonCombos;
             default: return panelButtonConfig;
         }
     }
