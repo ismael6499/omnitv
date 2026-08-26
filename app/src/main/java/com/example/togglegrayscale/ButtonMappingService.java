@@ -3000,7 +3000,6 @@ public class ButtonMappingService extends AccessibilityService {
     public void triggerScreenTranslation() {
         if (isTranslationOverlayActive) {
             dismissTranslationOverlay();
-            return;
         }
 
         QuickMenuOverlay.getInstance().dismiss();
@@ -3206,7 +3205,26 @@ public class ButtonMappingService extends AccessibilityService {
                 merged.add(block);
             }
         }
+        resolveBoxCollisions(merged);
         return merged;
+    }
+
+    private static void resolveBoxCollisions(List<TranslatedBlock> blocks) {
+        if (blocks == null || blocks.size() <= 1) return;
+        for (int i = 0; i < blocks.size(); i++) {
+            for (int j = i + 1; j < blocks.size(); j++) {
+                TranslatedBlock a = blocks.get(i);
+                TranslatedBlock b = blocks.get(j);
+                int xOverlap = Math.min(a.box.right, b.box.right) - Math.max(a.box.left, b.box.left);
+                if (xOverlap > 0) {
+                    if (b.box.top < a.box.bottom + 8 && b.box.top >= a.box.top) {
+                        int shift = (a.box.bottom + 8) - b.box.top;
+                        b.box.top += shift;
+                        b.box.bottom += shift;
+                    }
+                }
+            }
+        }
     }
 
     private void processScreenshotForTranslation(final Bitmap bitmap) {
