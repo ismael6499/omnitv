@@ -60,6 +60,8 @@ public class QuickMenuOverlay {
         "Ciclar Brillo",
         "¿Sigues viendo?",
         "Traducir Pantalla (CTS)",
+        "Avanzar 1 Frame (YouTube)",
+        "Retroceder 1 Frame (YouTube)",
         "Opciones de Desarrollador"
     };
 
@@ -202,7 +204,7 @@ public class QuickMenuOverlay {
     // Button Combos Fields
     private LinearLayout panelButtonCombos;
     private TextView btnCombosMasterToggle;
-    private TextView btnComboMuteOk;
+    private TextView btnComboMuteOk, btnComboMuteRight, btnComboMuteLeft;
     private TextView btnComboYoutube190Mute;
     private TextView btnComboInputOk;
     private TextView btnComboMuteClick4;
@@ -274,6 +276,7 @@ public class QuickMenuOverlay {
     private TextView btnMindfulAppTwitch, btnMindfulAppTiktok, btnMindfulAppSmarttube;
     private TextView btnMindfulAppStremio, btnMindfulAppPlex;
     private TextView btnTestMindfulDelay, btnApplyMindfulDelay;
+
 
     // Custom Timer fields
     private TextView txtCustomHours;
@@ -576,6 +579,8 @@ public class QuickMenuOverlay {
             panelButtonCombos            = rootView.findViewById(R.id.panel_button_combos);
             btnCombosMasterToggle        = rootView.findViewById(R.id.btn_combos_master_toggle);
             btnComboMuteOk               = rootView.findViewById(R.id.btn_combo_mute_ok);
+            btnComboMuteRight            = rootView.findViewById(R.id.btn_combo_mute_right);
+            btnComboMuteLeft             = rootView.findViewById(R.id.btn_combo_mute_left);
             btnComboYoutube190Mute       = rootView.findViewById(R.id.btn_combo_youtube190_mute);
             btnComboInputOk              = rootView.findViewById(R.id.btn_combo_input_ok);
             btnComboMuteClick4           = rootView.findViewById(R.id.btn_combo_mute_click4);
@@ -2084,6 +2089,22 @@ public class QuickMenuOverlay {
             btnComboMuteOk.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     cycleActionConfig("combo_mute_ok_action", getOverlayPrefs().getInt("combo_mute_ok_action", 23));
+                    updateButtonCombosPanel();
+                }
+            });
+        }
+        if (btnComboMuteRight != null) {
+            btnComboMuteRight.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleActionConfig("combo_mute_right_action", getOverlayPrefs().getInt("combo_mute_right_action", 24));
+                    updateButtonCombosPanel();
+                }
+            });
+        }
+        if (btnComboMuteLeft != null) {
+            btnComboMuteLeft.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleActionConfig("combo_mute_left_action", getOverlayPrefs().getInt("combo_mute_left_action", 25));
                     updateButtonCombosPanel();
                 }
             });
@@ -3674,6 +3695,8 @@ public class QuickMenuOverlay {
         SharedPreferences op = getOverlayPrefs();
         boolean enabled = op.getBoolean("btn_combos_enabled", true);
         int muteOk = op.getInt("combo_mute_ok_action", 23);
+        int muteRight = op.getInt("combo_mute_right_action", 24);
+        int muteLeft = op.getInt("combo_mute_left_action", 25);
         int ytMute = op.getInt("combo_youtube190_mute_action", 0);
         int inputOk = op.getInt("combo_input_ok_action", 0);
         int muteClick4 = op.getInt("btn_mute_click_4_action", 23);
@@ -3684,6 +3707,8 @@ public class QuickMenuOverlay {
             btnCombosMasterToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFFF5252);
         }
         if (btnComboMuteOk != null) btnComboMuteOk.setText("   Mute + OK:  " + getActionName(muteOk));
+        if (btnComboMuteRight != null) btnComboMuteRight.setText("   Mute + Flecha Der:  " + getActionName(muteRight));
+        if (btnComboMuteLeft != null) btnComboMuteLeft.setText("   Mute + Flecha Izq:  " + getActionName(muteLeft));
         if (btnComboYoutube190Mute != null) btnComboYoutube190Mute.setText("   YouTube + Mute:  " + getActionName(ytMute));
         if (btnComboInputOk != null) btnComboInputOk.setText("   TV Input + OK:  " + getActionName(inputOk));
         if (btnComboMuteClick4 != null) btnComboMuteClick4.setText("   Mute (4 Clics):  " + getActionName(muteClick4));

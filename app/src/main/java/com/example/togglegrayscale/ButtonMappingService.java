@@ -959,6 +959,12 @@ public class ButtonMappingService extends AccessibilityService {
             case 23: // Traducir Pantalla (CTS)
                 triggerScreenTranslation();
                 break;
+            case 24: // Avanzar 1 Frame (YouTube)
+                stepVideoFrame(1);
+                break;
+            case 25: // Retroceder 1 Frame (YouTube)
+                stepVideoFrame(-1);
+                break;
         }
     }
 
@@ -2675,6 +2681,26 @@ public class ButtonMappingService extends AccessibilityService {
                         }
                         return true;
                     }
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    int actionId = prefs.getInt("combo_mute_right_action", 24);
+                    if (actionId > 0) {
+                        if (action == KeyEvent.ACTION_DOWN) {
+                            muteState.cancel();
+                            isDismissingComboKey = true;
+                            executeAction(actionId);
+                        }
+                        return true;
+                    }
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    int actionId = prefs.getInt("combo_mute_left_action", 25);
+                    if (actionId > 0) {
+                        if (action == KeyEvent.ACTION_DOWN) {
+                            muteState.cancel();
+                            isDismissingComboKey = true;
+                            executeAction(actionId);
+                        }
+                        return true;
+                    }
                 } else if (keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190) {
                     int actionId = prefs.getInt("combo_youtube190_mute_action", 0);
                     if (actionId > 0) {
@@ -2942,11 +2968,27 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
+    private void stepVideoFrame(final int direction) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    int keyCode = direction > 0 ? 56 : 55; // 56 = PERIOD (.), 55 = COMMA (,)
+                    Runtime.getRuntime().exec(new String[]{"input", "keyevent", String.valueOf(keyCode)});
+                } catch (Exception e) {
+                    Log.e(TAG, "Error injecting frame step key", e);
+                }
+            }
+        }).start();
+    }
+
     public void triggerScreenTranslation() {
         if (isTranslationOverlayActive) {
             dismissTranslationOverlay();
             return;
         }
+
+        QuickMenuOverlay.getInstance().dismiss();
 
         SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         boolean autoPause = prefs.getBoolean("translate_auto_pause", true);
@@ -2959,38 +3001,82 @@ public class ButtonMappingService extends AccessibilityService {
             return;
         }
 
-        try {
-            Toast.makeText(getApplicationContext(), "🌐 Capturando y traduciendo pantalla...", Toast.LENGTH_SHORT).show();
-            takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new AccessibilityService.TakeScreenshotCallback() {
-                @Override
-                public void onSuccess(AccessibilityService.ScreenshotResult screenshotResult) {
-                    try {
-                        HardwareBuffer buffer = screenshotResult.getHardwareBuffer();
-                        Bitmap bitmap = Bitmap.wrapHardwareBuffer(buffer, screenshotResult.getColorSpace());
-                        if (bitmap != null) {
-                            Bitmap swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
-                            bitmap.recycle();
-                            buffer.close();
-                            processScreenshotForTranslation(swBitmap);
-                        } else {
-                            buffer.close();
-                            Toast.makeText(getApplicationContext(), "Error al decodificar imagen", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), "🌐 Capturando y traduciendo pantalla...", Toast.LENGTH_SHORT).show();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new AccessibilityService.TakeScreenshotCallback() {
+                        @Override
+                        public void onSuccess(AccessibilityService.ScreenshotResult screenshotResult) {
+                            try {
+                                HardwareBuffer buffer = screenshotResult.getHardwareBuffer();
+                                Bitmap bitmap = Bitmap.wrapHardwareBuffer(buffer, screenshotResult.getColorSpace());
+                                if (bitmap != null) {
+                                    Bitmap swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                                    bitmap.recycle();
+                                    buffer.close();
+                                    processScreenshotForTranslation(swBitmap);
+                                } else {
+                                    buffer.close();
+                                    Toast.makeText(getApplicationContext(), "Error al decodificar imagen", Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error in screenshot callback", e);
+                                Toast.makeText(getApplicationContext(), "Error al procesar captura", Toast.LENGTH_SHORT).show();
+                            }
                         }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error in screenshot callback", e);
-                        Toast.makeText(getApplicationContext(), "Error al procesar captura", Toast.LENGTH_SHORT).show();
-                    }
-                }
 
-                @Override
-                public void onFailure(int errorCode) {
-                    Log.e(TAG, "Screenshot failed: " + errorCode);
-                    Toast.makeText(getApplicationContext(), "No se pudo tomar la captura (" + errorCode + ")", Toast.LENGTH_SHORT).show();
+                        @Override
+                        public void onFailure(int errorCode) {
+                            Log.e(TAG, "Screenshot failed: " + errorCode);
+                            Toast.makeText(getApplicationContext(), "No se pudo tomar la captura (" + errorCode + ")", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } catch (Exception e) {
+                    Log.e(TAG, "Error initiating takeScreenshot", e);
                 }
-            });
-        } catch (Exception e) {
-            Log.e(TAG, "Error initiating takeScreenshot", e);
+            }
+        }, 400);
+    }
+
+    private static boolean containsKorean(String s) {
+        if (s == null) return false;
+        for (char c : s.toCharArray()) {
+            Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
+            if (block == Character.UnicodeBlock.HANGUL_SYLLABLES
+                    || block == Character.UnicodeBlock.HANGUL_JAMO
+                    || block == Character.UnicodeBlock.HANGUL_COMPATIBILITY_JAMO) {
+                return true;
+            }
         }
+        return false;
+    }
+
+    private static boolean containsJapanese(String s) {
+        if (s == null) return false;
+        for (char c : s.toCharArray()) {
+            Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
+            if (block == Character.UnicodeBlock.HIRAGANA
+                    || block == Character.UnicodeBlock.KATAKANA
+                    || block == Character.UnicodeBlock.KATAKANA_PHONETIC_EXTENSIONS) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsChinese(String s) {
+        if (s == null) return false;
+        for (char c : s.toCharArray()) {
+            Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
+            if (block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
+                    || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A
+                    || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void processScreenshotForTranslation(final Bitmap bitmap) {
@@ -3042,14 +3128,18 @@ public class ButtonMappingService extends AccessibilityService {
         }
 
         final List<TranslatedBlock> blocks = new ArrayList<>();
-        final StringBuilder allTextBuilder = new StringBuilder();
+        int koreanCount = 0;
+        int japaneseCount = 0;
+        int chineseCount = 0;
 
         for (Text.TextBlock textBlock : visionText.getTextBlocks()) {
             String txt = textBlock.getText();
             Rect box = textBlock.getBoundingBox();
             if (txt != null && !txt.trim().isEmpty() && box != null) {
+                if (containsKorean(txt)) koreanCount++;
+                else if (containsJapanese(txt)) japaneseCount++;
+                else if (containsChinese(txt)) chineseCount++;
                 blocks.add(new TranslatedBlock(box, txt));
-                allTextBuilder.append(txt).append("\n");
             }
         }
 
@@ -3063,30 +3153,20 @@ public class ButtonMappingService extends AccessibilityService {
         final String targetLangCode = targetLangIdx == 0 ? TranslateLanguage.SPANISH : TranslateLanguage.ENGLISH;
         final String targetLangName = targetLangIdx == 0 ? "Español" : "English";
 
-        LanguageIdentifier languageIdentifier = LanguageIdentification.getClient();
-        languageIdentifier.identifyLanguage(allTextBuilder.toString())
-                .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<String>() {
-                    @Override
-                    public void onSuccess(String languageCode) {
-                        String effectiveSourceLang = languageCode;
-                        if ("und".equals(languageCode) || languageCode == null) {
-                            int srcIdx = prefs.getInt("translate_source_lang_idx", 0);
-                            if (srcIdx == 1) effectiveSourceLang = TranslateLanguage.KOREAN;
-                            else if (srcIdx == 2) effectiveSourceLang = TranslateLanguage.JAPANESE;
-                            else if (srcIdx == 3) effectiveSourceLang = TranslateLanguage.CHINESE;
-                            else if (srcIdx == 4) effectiveSourceLang = TranslateLanguage.FRENCH;
-                            else effectiveSourceLang = TranslateLanguage.KOREAN;
-                        }
+        int srcIdx = prefs.getInt("translate_source_lang_idx", 0);
+        String detectedLangCode = TranslateLanguage.KOREAN;
+        if (srcIdx == 1) detectedLangCode = TranslateLanguage.KOREAN;
+        else if (srcIdx == 2) detectedLangCode = TranslateLanguage.JAPANESE;
+        else if (srcIdx == 3) detectedLangCode = TranslateLanguage.CHINESE;
+        else if (srcIdx == 4) detectedLangCode = TranslateLanguage.ENGLISH;
+        else {
+            if (koreanCount > 0) detectedLangCode = TranslateLanguage.KOREAN;
+            else if (japaneseCount > 0) detectedLangCode = TranslateLanguage.JAPANESE;
+            else if (chineseCount > 0) detectedLangCode = TranslateLanguage.CHINESE;
+            else detectedLangCode = TranslateLanguage.KOREAN;
+        }
 
-                        translateBlocks(blocks, effectiveSourceLang, targetLangCode, targetLangName);
-                    }
-                })
-                .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
-                    @Override
-                    public void onFailure(Exception e) {
-                        translateBlocks(blocks, TranslateLanguage.KOREAN, targetLangCode, targetLangName);
-                    }
-                });
+        translateBlocks(blocks, detectedLangCode, targetLangCode, targetLangName);
     }
 
     private void translateBlocks(final List<TranslatedBlock> blocks, final String srcLangCode, final String targetLangCode, final String targetLangName) {
