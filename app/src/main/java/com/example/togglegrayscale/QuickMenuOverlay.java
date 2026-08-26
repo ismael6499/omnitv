@@ -30,7 +30,7 @@ public class QuickMenuOverlay {
         "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
         "pause_screen_off", "scheduled_sleep", "cycle_brightness", "mindful_delay", "still_watching",
-        "night_schedule", "oled_saver",
+        "night_schedule", "oled_saver", "translate", "button_combos",
         "config_mute", "config_youtube_190", "config_youtube_189",
         "developer_options"
     };
@@ -59,7 +59,17 @@ public class QuickMenuOverlay {
         "Subir Brillo (Dimmer)",
         "Ciclar Brillo",
         "¿Sigues viendo?",
+        "Traducir Pantalla (CTS)",
         "Opciones de Desarrollador"
+    };
+
+    private static final String[] TRANSLATE_TARGET_LANGS = {"Español", "English"};
+    private static final String[] TRANSLATE_SOURCE_LANGS = {
+        "Detección Automática (Todos)",
+        "Coreano (Hangul)",
+        "Japonés (Kanji/Kana)",
+        "Chino (Hanzi)",
+        "Latino / Francés / Portugués"
     };
 
     private static final String[] STILL_WATCHING_POSITIONS = {"Arriba Izquierda", "Arriba Derecha", "Abajo Izquierda", "Abajo Derecha", "Centro"};
@@ -172,11 +182,32 @@ public class QuickMenuOverlay {
     private TextView btnConfigClick1;
     private TextView btnConfigClick2;
     private TextView btnConfigClick3;
+    private TextView btnConfigClick4;
     private TextView btnConfigLong;
     private TextView btnConfigDurationDec;
     private TextView btnConfigDurationInc;
     private TextView txtConfigDuration;
     private String configuringButton = null;
+
+    // Translate Config Fields
+    private LinearLayout panelTranslateConfig;
+    private TextView btnTranslateTargetLang;
+    private TextView btnTranslateSourceLang;
+    private TextView btnTranslateAutoPause;
+    private TextView btnTranslateAutoResume;
+    private TextView btnTranslateBgAlphaDec, btnTranslateBgAlphaInc, txtTranslateBgAlpha;
+    private TextView btnTranslateTextSizeDec, btnTranslateTextSizeInc, txtTranslateTextSize;
+    private TextView btnTestTranslate, btnApplyTranslate;
+
+    // Button Combos Fields
+    private LinearLayout panelButtonCombos;
+    private TextView btnCombosMasterToggle;
+    private TextView btnComboMuteOk;
+    private TextView btnComboYoutube190Mute;
+    private TextView btnComboInputOk;
+    private TextView btnComboMuteClick4;
+    private TextView btnComboYoutube190Click4;
+    private TextView btnApplyCombos;
 
     // Clock Config Panel Fields
     private LinearLayout panelClockConfig;
@@ -525,6 +556,31 @@ public class QuickMenuOverlay {
             btnMindfulAppPlex            = rootView.findViewById(R.id.btn_mindful_app_plex);
             btnTestMindfulDelay          = rootView.findViewById(R.id.btn_test_mindful_delay);
             btnApplyMindfulDelay         = rootView.findViewById(R.id.btn_apply_mindful_delay);
+
+            // Translate panel
+            panelTranslateConfig         = rootView.findViewById(R.id.panel_translate_config);
+            btnTranslateTargetLang       = rootView.findViewById(R.id.btn_translate_target_lang);
+            btnTranslateSourceLang       = rootView.findViewById(R.id.btn_translate_source_lang);
+            btnTranslateAutoPause        = rootView.findViewById(R.id.btn_translate_auto_pause);
+            btnTranslateAutoResume       = rootView.findViewById(R.id.btn_translate_auto_resume);
+            btnTranslateBgAlphaDec       = rootView.findViewById(R.id.btn_translate_bg_alpha_dec);
+            txtTranslateBgAlpha          = rootView.findViewById(R.id.txt_translate_bg_alpha);
+            btnTranslateBgAlphaInc       = rootView.findViewById(R.id.btn_translate_bg_alpha_inc);
+            btnTranslateTextSizeDec      = rootView.findViewById(R.id.btn_translate_text_size_dec);
+            txtTranslateTextSize         = rootView.findViewById(R.id.txt_translate_text_size);
+            btnTranslateTextSizeInc      = rootView.findViewById(R.id.btn_translate_text_size_inc);
+            btnTestTranslate             = rootView.findViewById(R.id.btn_test_translate);
+            btnApplyTranslate            = rootView.findViewById(R.id.btn_apply_translate);
+
+            // Button combos panel
+            panelButtonCombos            = rootView.findViewById(R.id.panel_button_combos);
+            btnCombosMasterToggle        = rootView.findViewById(R.id.btn_combos_master_toggle);
+            btnComboMuteOk               = rootView.findViewById(R.id.btn_combo_mute_ok);
+            btnComboYoutube190Mute       = rootView.findViewById(R.id.btn_combo_youtube190_mute);
+            btnComboInputOk              = rootView.findViewById(R.id.btn_combo_input_ok);
+            btnComboMuteClick4           = rootView.findViewById(R.id.btn_combo_mute_click4);
+            btnComboYoutube190Click4     = rootView.findViewById(R.id.btn_combo_youtube190_click4);
+            btnApplyCombos               = rootView.findViewById(R.id.btn_apply_combos);
 
             setupSubPanelListeners();
             buildMenu();
@@ -1933,6 +1989,145 @@ public class QuickMenuOverlay {
                 }
             });
         }
+
+        // Translate Panel Listeners
+        if (btnTranslateTargetLang != null) {
+            btnTranslateTargetLang.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    int cur = getOverlayPrefs().getInt("translate_target_lang_idx", 0);
+                    int next = (cur + 1) % TRANSLATE_TARGET_LANGS.length;
+                    getOverlayPrefs().edit().putInt("translate_target_lang_idx", next).apply();
+                    updateTranslateConfigPanel();
+                }
+            });
+        }
+        if (btnTranslateSourceLang != null) {
+            btnTranslateSourceLang.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    int cur = getOverlayPrefs().getInt("translate_source_lang_idx", 0);
+                    int next = (cur + 1) % TRANSLATE_SOURCE_LANGS.length;
+                    getOverlayPrefs().edit().putInt("translate_source_lang_idx", next).apply();
+                    updateTranslateConfigPanel();
+                }
+            });
+        }
+        if (btnTranslateAutoPause != null) {
+            btnTranslateAutoPause.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean("translate_auto_pause", true);
+                    getOverlayPrefs().edit().putBoolean("translate_auto_pause", !cur).apply();
+                    updateTranslateConfigPanel();
+                }
+            });
+        }
+        if (btnTranslateAutoResume != null) {
+            btnTranslateAutoResume.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean("translate_auto_resume", true);
+                    getOverlayPrefs().edit().putBoolean("translate_auto_resume", !cur).apply();
+                    updateTranslateConfigPanel();
+                }
+            });
+        }
+        setupAutoRepeatStepButton(btnTranslateBgAlphaDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("translate_bg_alpha_pct", 85, step * 5, 10, 100, null);
+                updateTranslateConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnTranslateBgAlphaInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("translate_bg_alpha_pct", 85, step * 5, 10, 100, null);
+                updateTranslateConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnTranslateTextSizeDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("translate_text_size_sp", 14, step, 9, 28, null);
+                updateTranslateConfigPanel();
+            }
+        });
+        setupAutoRepeatStepButton(btnTranslateTextSizeInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) {
+                adjustIntPref("translate_text_size_sp", 14, step, 9, 28, null);
+                updateTranslateConfigPanel();
+            }
+        });
+        if (btnTestTranslate != null) {
+            btnTestTranslate.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    dismiss();
+                    sendServiceAction("ACTION_TRANSLATE_SCREEN");
+                }
+            });
+        }
+        if (btnApplyTranslate != null) {
+            btnApplyTranslate.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    closeSubPanels();
+                    buildMenu();
+                }
+            });
+        }
+
+        // Button Combos Listeners
+        if (btnCombosMasterToggle != null) {
+            btnCombosMasterToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean("btn_combos_enabled", true);
+                    getOverlayPrefs().edit().putBoolean("btn_combos_enabled", !cur).apply();
+                    updateButtonCombosPanel();
+                }
+            });
+        }
+        if (btnComboMuteOk != null) {
+            btnComboMuteOk.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleActionConfig("combo_mute_ok_action", getOverlayPrefs().getInt("combo_mute_ok_action", 23));
+                    updateButtonCombosPanel();
+                }
+            });
+        }
+        if (btnComboYoutube190Mute != null) {
+            btnComboYoutube190Mute.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleActionConfig("combo_youtube190_mute_action", getOverlayPrefs().getInt("combo_youtube190_mute_action", 0));
+                    updateButtonCombosPanel();
+                }
+            });
+        }
+        if (btnComboInputOk != null) {
+            btnComboInputOk.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleActionConfig("combo_input_ok_action", getOverlayPrefs().getInt("combo_input_ok_action", 0));
+                    updateButtonCombosPanel();
+                }
+            });
+        }
+        if (btnComboMuteClick4 != null) {
+            btnComboMuteClick4.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleActionConfig("btn_mute_click_4_action", getOverlayPrefs().getInt("btn_mute_click_4_action", 23));
+                    updateButtonCombosPanel();
+                }
+            });
+        }
+        if (btnComboYoutube190Click4 != null) {
+            btnComboYoutube190Click4.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleActionConfig("btn_youtube_190_click_4_action", getOverlayPrefs().getInt("btn_youtube_190_click_4_action", 0));
+                    updateButtonCombosPanel();
+                }
+            });
+        }
+        if (btnApplyCombos != null) {
+            btnApplyCombos.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    closeSubPanels();
+                    buildMenu();
+                }
+            });
+        }
     }
 
     private void updateCustomTimerUI() {
@@ -2046,6 +2241,8 @@ public class QuickMenuOverlay {
         if (panelOledSaver != null) panelOledSaver.setVisibility(View.GONE);
         if (panelScheduledSleep != null) panelScheduledSleep.setVisibility(View.GONE);
         if (panelMindfulDelay != null) panelMindfulDelay.setVisibility(View.GONE);
+        if (panelTranslateConfig != null) panelTranslateConfig.setVisibility(View.GONE);
+        if (panelButtonCombos != null) panelButtonCombos.setVisibility(View.GONE);
         openSubPanel = null;
         configuringButton = null;
         if (menuContainer != null) {
@@ -2337,6 +2534,34 @@ public class QuickMenuOverlay {
                     if (btnMindfulDelayToggle != null) btnMindfulDelayToggle.requestFocus();
                 }
                 break;
+            case "translate":
+                if ("translate_config".equals(openSubPanel)) {
+                    closeSubPanels();
+                    buildMenu();
+                } else {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelTranslateConfig != null) panelTranslateConfig.setVisibility(View.VISIBLE);
+                    openSubPanel = "translate_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateTranslateConfigPanel();
+                    if (btnTranslateTargetLang != null) btnTranslateTargetLang.requestFocus();
+                }
+                break;
+            case "button_combos":
+                if ("button_combos_config".equals(openSubPanel)) {
+                    closeSubPanels();
+                    buildMenu();
+                } else {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelButtonCombos != null) panelButtonCombos.setVisibility(View.VISIBLE);
+                    openSubPanel = "button_combos_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateButtonCombosPanel();
+                    if (btnCombosMasterToggle != null) btnCombosMasterToggle.requestFocus();
+                }
+                break;
             default:
                 Log.w(TAG, "Unknown item: " + id);
         }
@@ -2397,6 +2622,8 @@ public class QuickMenuOverlay {
             }
             case "night_schedule": return fmtToggle("🌙  Horario Nocturno", op.getBoolean(ButtonMappingService.KEY_NIGHT_SCHEDULE, false));
             case "oled_saver": return fmtToggle("🛡️  Protector OLED (Burn-In)", op.getBoolean(ButtonMappingService.KEY_OLED_SAVER, false));
+            case "translate": return "🌐  Traducir Pantalla (CTS)";
+            case "button_combos": return "⚡  Combinaciones de Teclas";
             case "config_mute":        return "Config  Configurar Botón Mute";
             case "config_youtube_190": return "Config  Configurar YouTube (190)";
             case "config_youtube_189": return "Config  Configurar YouTube (189)";
@@ -3402,6 +3629,46 @@ public class QuickMenuOverlay {
         if (btn == null) return;
         btn.setText(name + ":   " + (active ? "[ SÍ ]" : "[ NO ]"));
         btn.setTextColor(active ? 0xFF81D4FA : 0xFF888888);
+    }
+
+    private void updateTranslateConfigPanel() {
+        SharedPreferences op = getOverlayPrefs();
+        int targetIdx = op.getInt("translate_target_lang_idx", 0);
+        int srcIdx = op.getInt("translate_source_lang_idx", 0);
+        boolean autoPause = op.getBoolean("translate_auto_pause", true);
+        boolean autoResume = op.getBoolean("translate_auto_resume", true);
+        int alpha = op.getInt("translate_bg_alpha_pct", 85);
+        int size = op.getInt("translate_text_size_sp", 14);
+
+        if (targetIdx < 0 || targetIdx >= TRANSLATE_TARGET_LANGS.length) targetIdx = 0;
+        if (srcIdx < 0 || srcIdx >= TRANSLATE_SOURCE_LANGS.length) srcIdx = 0;
+
+        if (btnTranslateTargetLang != null) btnTranslateTargetLang.setText("   Idioma de Destino:  " + TRANSLATE_TARGET_LANGS[targetIdx]);
+        if (btnTranslateSourceLang != null) btnTranslateSourceLang.setText("   Idioma de Origen:  " + TRANSLATE_SOURCE_LANGS[srcIdx]);
+        if (btnTranslateAutoPause != null) btnTranslateAutoPause.setText("   Pausar Video al Iniciar:  " + (autoPause ? "SÍ" : "NO"));
+        if (btnTranslateAutoResume != null) btnTranslateAutoResume.setText("   Reanudar al Salir con OK:  " + (autoResume ? "SÍ" : "NO"));
+        if (txtTranslateBgAlpha != null) txtTranslateBgAlpha.setText(alpha + "%");
+        if (txtTranslateTextSize != null) txtTranslateTextSize.setText(size + "sp");
+    }
+
+    private void updateButtonCombosPanel() {
+        SharedPreferences op = getOverlayPrefs();
+        boolean enabled = op.getBoolean("btn_combos_enabled", true);
+        int muteOk = op.getInt("combo_mute_ok_action", 23);
+        int ytMute = op.getInt("combo_youtube190_mute_action", 0);
+        int inputOk = op.getInt("combo_input_ok_action", 0);
+        int muteClick4 = op.getInt("btn_mute_click_4_action", 23);
+        int ytClick4 = op.getInt("btn_youtube_190_click_4_action", 0);
+
+        if (btnCombosMasterToggle != null) {
+            btnCombosMasterToggle.setText("   Combinaciones:  " + (enabled ? "ACTIVADO" : "DESACTIVADO"));
+            btnCombosMasterToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFFF5252);
+        }
+        if (btnComboMuteOk != null) btnComboMuteOk.setText("   Mute + OK:  " + getActionName(muteOk));
+        if (btnComboYoutube190Mute != null) btnComboYoutube190Mute.setText("   YouTube + Mute:  " + getActionName(ytMute));
+        if (btnComboInputOk != null) btnComboInputOk.setText("   TV Input + OK:  " + getActionName(inputOk));
+        if (btnComboMuteClick4 != null) btnComboMuteClick4.setText("   Mute (4 Clics):  " + getActionName(muteClick4));
+        if (btnComboYoutube190Click4 != null) btnComboYoutube190Click4.setText("   YouTube 190 (4 Clics):  " + getActionName(ytClick4));
     }
 
     private void adjustIntPref(String key, int def, int delta, int min, int max, String actionName) {

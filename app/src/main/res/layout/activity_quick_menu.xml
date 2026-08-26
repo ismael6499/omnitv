@@ -667,6 +667,119 @@
                 </LinearLayout>
             </com.example.togglegrayscale.MaxHeightScrollView>
         </LinearLayout>
+
+        <!-- SUBPANEL: Configuración de Traducción de Pantalla (CTS) -->
+        <LinearLayout
+            android:id="@+id/panel_translate_config"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.example.togglegrayscale.MaxHeightScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fadeScrollbars="false"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Traductor en Pantalla (CTS)"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp"
+                        android:paddingStart="4dp" />
+
+                    <!-- Idioma Destino -->
+                    <TextView android:id="@+id/btn_translate_target_lang" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Idioma Origen -->
+                    <TextView android:id="@+id/btn_translate_source_lang" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Auto Pausar Video -->
+                    <TextView android:id="@+id/btn_translate_auto_pause" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Auto Reanudar Video con OK -->
+                    <TextView android:id="@+id/btn_translate_auto_resume" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Opacidad de Fondos In-Place -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Opacidad del Parche:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_translate_bg_alpha_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_translate_bg_alpha" android:layout_width="60dp" android:layout_height="wrap_content" android:text="85%" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_translate_bg_alpha_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Tamaño de Texto -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Tamaño de Fuente:" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
+                        <TextView android:id="@+id/btn_translate_text_size_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                        <TextView android:id="@+id/txt_translate_text_size" android:layout_width="60dp" android:layout_height="wrap_content" android:text="14sp" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/btn_translate_text_size_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
+                    </LinearLayout>
+
+                    <!-- Botón de Prueba y Guardar -->
+                    <TextView android:id="@+id/btn_test_translate" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="👁️  Probar Traductor en Pantalla" android:textColor="#81D4FA" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginTop="6dp" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_apply_translate" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="✓  Listo" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                </LinearLayout>
+            </com.example.togglegrayscale.MaxHeightScrollView>
+        </LinearLayout>
+
+        <!-- SUBPANEL: Combinaciones de Teclas (Zero-Delay) -->
+        <LinearLayout
+            android:id="@+id/panel_button_combos"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.example.togglegrayscale.MaxHeightScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fadeScrollbars="false"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Combinaciones de Teclas"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp"
+                        android:paddingStart="4dp" />
+
+                    <!-- Interruptor Maestro -->
+                    <TextView android:id="@+id/btn_combos_master_toggle" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Combos de 2 botones -->
+                    <TextView android:id="@+id/btn_combo_mute_ok" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_combo_youtube190_mute" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_combo_input_ok" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- 4 Clics -->
+                    <TextView android:id="@+id/btn_combo_mute_click4" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+                    <TextView android:id="@+id/btn_combo_youtube190_click4" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
+                    <!-- Guardar -->
+                    <TextView android:id="@+id/btn_apply_combos" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="✓  Listo" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginTop="6dp" android:layout_marginBottom="4dp" />
+                </LinearLayout>
+            </com.example.togglegrayscale.MaxHeightScrollView>
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Internal eye-care filter overlays (ensures zero-flash dimming when menu opens) -->

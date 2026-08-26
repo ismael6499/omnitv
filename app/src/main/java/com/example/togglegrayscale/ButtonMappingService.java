@@ -24,12 +24,32 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
+import android.widget.TextView;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
-import android.widget.TextView;
+import android.graphics.Bitmap;
+import android.graphics.Rect;
+import android.hardware.HardwareBuffer;
+import android.view.Display;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.Text;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.TextRecognizer;
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions;
+import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions;
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
+import com.google.mlkit.nl.languageid.LanguageIdentification;
+import com.google.mlkit.nl.languageid.LanguageIdentifier;
+import com.google.mlkit.nl.translate.TranslateLanguage;
+import com.google.mlkit.nl.translate.Translation;
+import com.google.mlkit.nl.translate.Translator;
+import com.google.mlkit.nl.translate.TranslatorOptions;
 import java.util.Date;
 import java.util.Locale;
+import java.util.List;
+import java.util.ArrayList;
 
 public class ButtonMappingService extends AccessibilityService {
 
@@ -52,6 +72,9 @@ public class ButtonMappingService extends AccessibilityService {
 
     private boolean isInputPressed = false;
     private boolean isInputLongPressTriggered = false;
+    private boolean isDismissingComboKey = false;
+    private boolean isTranslationOverlayActive = false;
+    private View translationOverlayView = null;
 
     static final String OVERLAY_PREFS = "overlay_prefs";
     static final String KEY_BLUE_LIGHT = "blue_light";
@@ -213,6 +236,7 @@ public class ButtonMappingService extends AccessibilityService {
         final int defaultClick1;
         final int defaultClick2;
         final int defaultClick3;
+        final int defaultClick4;
         final int defaultLong;
         final int defaultDurationMs;
 
@@ -246,17 +270,20 @@ public class ButtonMappingService extends AccessibilityService {
                     actionId = prefs.getInt("btn_" + name + "_click_2_action", defaultClick2);
                 } else if (count == 3) {
                     actionId = prefs.getInt("btn_" + name + "_click_3_action", defaultClick3);
+                } else if (count >= 4) {
+                    actionId = prefs.getInt("btn_" + name + "_click_4_action", defaultClick4);
                 }
                 Log.d(TAG, name + " " + count + "-click executed. Running action: " + actionId);
                 executeAction(actionId);
             }
         };
 
-        ButtonState(String name, int defaultClick1, int defaultClick2, int defaultClick3, int defaultLong, int defaultDurationMs) {
+        ButtonState(String name, int defaultClick1, int defaultClick2, int defaultClick3, int defaultClick4, int defaultLong, int defaultDurationMs) {
             this.name = name;
             this.defaultClick1 = defaultClick1;
             this.defaultClick2 = defaultClick2;
             this.defaultClick3 = defaultClick3;
+            this.defaultClick4 = defaultClick4;
             this.defaultLong = defaultLong;
             this.defaultDurationMs = defaultDurationMs;
         }
@@ -277,7 +304,7 @@ public class ButtonMappingService extends AccessibilityService {
             if (!isLongPressTriggered && isPressed) {
                 clickCount++;
                 handler.removeCallbacks(clickTimeoutRunnable);
-                if (clickCount == 3) {
+                if (clickCount == 4) {
                     clickTimeoutRunnable.run();
                 } else {
                     handler.postDelayed(clickTimeoutRunnable, 300);
@@ -286,11 +313,19 @@ public class ButtonMappingService extends AccessibilityService {
             isPressed = false;
             isLongPressTriggered = false;
         }
+
+        void cancel() {
+            handler.removeCallbacks(longPressRunnable);
+            handler.removeCallbacks(clickTimeoutRunnable);
+            clickCount = 0;
+            isPressed = false;
+            isLongPressTriggered = false;
+        }
     }
 
-    private final ButtonState muteState = new ButtonState("mute", 1, 7, 8, 2, 500);
-    private final ButtonState youtube190State = new ButtonState("youtube_190", 5, 4, 3, 18, 500);
-    private final ButtonState youtube189State = new ButtonState("youtube_189", 5, 0, 0, 4, 2000);
+    private final ButtonState muteState = new ButtonState("mute", 1, 7, 8, 23, 2, 500);
+    private final ButtonState youtube190State = new ButtonState("youtube_190", 5, 4, 3, 0, 18, 500);
+    private final ButtonState youtube189State = new ButtonState("youtube_189", 5, 0, 0, 0, 4, 2000);
 
     private long lastAutoPauseTime = 0;
     private long lastCountdownDetectTime = 0;
@@ -822,6 +857,10 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_TEST_MINDFUL_DELAY":
                 showMindfulDelayOverlay("YouTube (Prueba)", "test", 10);
                 break;
+            case "ACTION_TRIGGER_TRANSLATE":
+            case "ACTION_TRANSLATE_SCREEN":
+                triggerScreenTranslation();
+                break;
             case "ACTION_UPDATE_MINDFUL_DELAY":
                 // Preference state refreshed
                 break;
@@ -916,6 +955,9 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case 22: // ¿Sigues viendo? (Inactividad)
                 toggleStillWatching();
+                break;
+            case 23: // Traducir Pantalla (CTS)
+                triggerScreenTranslation();
                 break;
         }
     }
@@ -2589,6 +2631,105 @@ public class ButtonMappingService extends AccessibilityService {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
 
+        // 0. Translation Overlay key interception:
+        if (isTranslationOverlayActive) {
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    dismissTranslationOverlay();
+                }
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                    || keyCode == KeyEvent.KEYCODE_ENTER
+                    || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY
+                    || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                    || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    dismissTranslationOverlay();
+                    SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    if (prefs.getBoolean("translate_auto_resume", true)) {
+                        sendMediaPlay();
+                    }
+                }
+                return true;
+            }
+            if (action == KeyEvent.ACTION_DOWN) {
+                dismissTranslationOverlay();
+            }
+            return true;
+        }
+
+        // 0. Zero-Delay Button Combos Detection
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        boolean combosEnabled = prefs.getBoolean("btn_combos_enabled", true);
+        if (combosEnabled) {
+            // Combo: MUTE + (OK / YouTube)
+            if (muteState.isPressed) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+                    int actionId = prefs.getInt("combo_mute_ok_action", 23); // default Traducir Pantalla
+                    if (actionId > 0) {
+                        if (action == KeyEvent.ACTION_DOWN) {
+                            muteState.cancel();
+                            isDismissingComboKey = true;
+                            executeAction(actionId);
+                        }
+                        return true;
+                    }
+                } else if (keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190) {
+                    int actionId = prefs.getInt("combo_youtube190_mute_action", 0);
+                    if (actionId > 0) {
+                        if (action == KeyEvent.ACTION_DOWN) {
+                            muteState.cancel();
+                            youtube190State.cancel();
+                            isDismissingComboKey = true;
+                            executeAction(actionId);
+                        }
+                        return true;
+                    }
+                }
+            }
+
+            // Combo: YOUTUBE (190) + MUTE
+            if (youtube190State.isPressed) {
+                if (keyCode == KeyEvent.KEYCODE_VOLUME_MUTE || keyCode == 140) {
+                    int actionId = prefs.getInt("combo_youtube190_mute_action", 0);
+                    if (actionId > 0) {
+                        if (action == KeyEvent.ACTION_DOWN) {
+                            youtube190State.cancel();
+                            muteState.cancel();
+                            isDismissingComboKey = true;
+                            executeAction(actionId);
+                        }
+                        return true;
+                    }
+                }
+            }
+
+            // Combo: TV INPUT + OK
+            if (isInputPressed) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                    int actionId = prefs.getInt("combo_input_ok_action", 0);
+                    if (actionId > 0) {
+                        if (action == KeyEvent.ACTION_DOWN) {
+                            isInputPressed = false;
+                            isInputLongPressTriggered = false;
+                            handler.removeCallbacks(inputLongPressRunnable);
+                            isDismissingComboKey = true;
+                            executeAction(actionId);
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (isDismissingComboKey) {
+            if (action == KeyEvent.ACTION_UP) {
+                isDismissingComboKey = false;
+            }
+            return true;
+        }
+
         // 0. Mindful Delay key interception: Back/Home cancels and goes to Home; all other keys are blocked
         if (isMindfulDelayActive) {
             if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_HOME) {
@@ -2775,5 +2916,352 @@ public class ButtonMappingService extends AccessibilityService {
         }
 
         return super.onKeyEvent(event);
+    }
+
+    public static class TranslatedBlock {
+        public final Rect box;
+        public final String originalText;
+        public String translatedText;
+
+        public TranslatedBlock(Rect box, String originalText) {
+            this.box = box;
+            this.originalText = originalText;
+            this.translatedText = originalText;
+        }
+    }
+
+    private void sendMediaPlay() {
+        try {
+            if (audioManager != null) {
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PLAY));
+                Log.d(TAG, "Sent KEYCODE_MEDIA_PLAY to system");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to send media play", e);
+        }
+    }
+
+    public void triggerScreenTranslation() {
+        if (isTranslationOverlayActive) {
+            dismissTranslationOverlay();
+            return;
+        }
+
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        boolean autoPause = prefs.getBoolean("translate_auto_pause", true);
+        if (autoPause) {
+            sendMediaPause();
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            Toast.makeText(getApplicationContext(), "Requiere Android 11+ para capturar pantalla", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            Toast.makeText(getApplicationContext(), "🌐 Capturando y traduciendo pantalla...", Toast.LENGTH_SHORT).show();
+            takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new AccessibilityService.TakeScreenshotCallback() {
+                @Override
+                public void onSuccess(AccessibilityService.ScreenshotResult screenshotResult) {
+                    try {
+                        HardwareBuffer buffer = screenshotResult.getHardwareBuffer();
+                        Bitmap bitmap = Bitmap.wrapHardwareBuffer(buffer, screenshotResult.getColorSpace());
+                        if (bitmap != null) {
+                            Bitmap swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                            bitmap.recycle();
+                            buffer.close();
+                            processScreenshotForTranslation(swBitmap);
+                        } else {
+                            buffer.close();
+                            Toast.makeText(getApplicationContext(), "Error al decodificar imagen", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error in screenshot callback", e);
+                        Toast.makeText(getApplicationContext(), "Error al procesar captura", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onFailure(int errorCode) {
+                    Log.e(TAG, "Screenshot failed: " + errorCode);
+                    Toast.makeText(getApplicationContext(), "No se pudo tomar la captura (" + errorCode + ")", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Error initiating takeScreenshot", e);
+        }
+    }
+
+    private void processScreenshotForTranslation(final Bitmap bitmap) {
+        if (bitmap == null) return;
+        try {
+            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+            int srcLangIdx = prefs.getInt("translate_source_lang_idx", 0);
+            
+            TextRecognizer recognizer;
+            if (srcLangIdx == 1) {
+                recognizer = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
+            } else if (srcLangIdx == 2) {
+                recognizer = TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build());
+            } else if (srcLangIdx == 3) {
+                recognizer = TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build());
+            } else if (srcLangIdx == 4) {
+                recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+            } else {
+                recognizer = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
+            }
+
+            InputImage image = InputImage.fromBitmap(bitmap, 0);
+            recognizer.process(image)
+                    .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<Text>() {
+                        @Override
+                        public void onSuccess(Text visionText) {
+                            bitmap.recycle();
+                            handleOcrSuccess(visionText);
+                        }
+                    })
+                    .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                        @Override
+                        public void onFailure(Exception e) {
+                            bitmap.recycle();
+                            Log.e(TAG, "OCR recognition failed", e);
+                            Toast.makeText(getApplicationContext(), "Error en reconocimiento OCR", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting OCR", e);
+            bitmap.recycle();
+        }
+    }
+
+    private void handleOcrSuccess(Text visionText) {
+        if (visionText == null || visionText.getTextBlocks().isEmpty()) {
+            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto en pantalla", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final List<TranslatedBlock> blocks = new ArrayList<>();
+        final StringBuilder allTextBuilder = new StringBuilder();
+
+        for (Text.TextBlock textBlock : visionText.getTextBlocks()) {
+            String txt = textBlock.getText();
+            Rect box = textBlock.getBoundingBox();
+            if (txt != null && !txt.trim().isEmpty() && box != null) {
+                blocks.add(new TranslatedBlock(box, txt));
+                allTextBuilder.append(txt).append("\n");
+            }
+        }
+
+        if (blocks.isEmpty()) {
+            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto legible", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        final int targetLangIdx = prefs.getInt("translate_target_lang_idx", 0);
+        final String targetLangCode = targetLangIdx == 0 ? TranslateLanguage.SPANISH : TranslateLanguage.ENGLISH;
+        final String targetLangName = targetLangIdx == 0 ? "Español" : "English";
+
+        LanguageIdentifier languageIdentifier = LanguageIdentification.getClient();
+        languageIdentifier.identifyLanguage(allTextBuilder.toString())
+                .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<String>() {
+                    @Override
+                    public void onSuccess(String languageCode) {
+                        String effectiveSourceLang = languageCode;
+                        if ("und".equals(languageCode) || languageCode == null) {
+                            int srcIdx = prefs.getInt("translate_source_lang_idx", 0);
+                            if (srcIdx == 1) effectiveSourceLang = TranslateLanguage.KOREAN;
+                            else if (srcIdx == 2) effectiveSourceLang = TranslateLanguage.JAPANESE;
+                            else if (srcIdx == 3) effectiveSourceLang = TranslateLanguage.CHINESE;
+                            else if (srcIdx == 4) effectiveSourceLang = TranslateLanguage.FRENCH;
+                            else effectiveSourceLang = TranslateLanguage.KOREAN;
+                        }
+
+                        translateBlocks(blocks, effectiveSourceLang, targetLangCode, targetLangName);
+                    }
+                })
+                .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                    @Override
+                    public void onFailure(Exception e) {
+                        translateBlocks(blocks, TranslateLanguage.KOREAN, targetLangCode, targetLangName);
+                    }
+                });
+    }
+
+    private void translateBlocks(final List<TranslatedBlock> blocks, final String srcLangCode, final String targetLangCode, final String targetLangName) {
+        String srcName = new Locale(srcLangCode).getDisplayLanguage(new Locale("es", "ES"));
+        if (srcName == null || srcName.isEmpty() || srcName.equals(srcLangCode)) {
+            if ("ko".equals(srcLangCode)) srcName = "Coreano";
+            else if ("ja".equals(srcLangCode)) srcName = "Japonés";
+            else if ("zh".equals(srcLangCode)) srcName = "Chino";
+            else if ("fr".equals(srcLangCode)) srcName = "Francés";
+            else if ("pt".equals(srcLangCode)) srcName = "Portugués";
+            else if ("en".equals(srcLangCode)) srcName = "Inglés";
+            else srcName = srcLangCode.toUpperCase(Locale.ROOT);
+        } else {
+            srcName = Character.toUpperCase(srcName.charAt(0)) + srcName.substring(1);
+        }
+        final String finalSrcName = srcName;
+
+        TranslatorOptions options = new TranslatorOptions.Builder()
+                .setSourceLanguage(srcLangCode)
+                .setTargetLanguage(targetLangCode)
+                .build();
+
+        final Translator translator = Translation.getClient(options);
+        com.google.mlkit.common.model.DownloadConditions conditions = new com.google.mlkit.common.model.DownloadConditions.Builder().build();
+
+        translator.downloadModelIfNeeded(conditions)
+                .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void unused) {
+                        final int[] completedCount = {0};
+                        final int total = blocks.size();
+
+                        for (final TranslatedBlock block : blocks) {
+                            translator.translate(block.originalText)
+                                    .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<String>() {
+                                        @Override
+                                        public void onSuccess(String translated) {
+                                            block.translatedText = translated;
+                                            completedCount[0]++;
+                                            if (completedCount[0] == total) {
+                                                showTranslationOverlay(blocks, finalSrcName, targetLangName);
+                                            }
+                                        }
+                                    })
+                                    .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                                        @Override
+                                        public void onFailure(Exception e) {
+                                            completedCount[0]++;
+                                            if (completedCount[0] == total) {
+                                                showTranslationOverlay(blocks, finalSrcName, targetLangName);
+                                            }
+                                        }
+                                    });
+                        }
+                    }
+                })
+                .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                    @Override
+                    public void onFailure(Exception e) {
+                        Log.e(TAG, "Failed to download translation model", e);
+                        Toast.makeText(getApplicationContext(), "Error al cargar modelo de " + finalSrcName, Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void showTranslationOverlay(final List<TranslatedBlock> blocks, final String srcLangName, final String targetLangName) {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    dismissTranslationOverlay();
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm == null) return;
+
+                    SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    int alphaPct = prefs.getInt("translate_bg_alpha_pct", 85);
+                    int textSizeSp = prefs.getInt("translate_text_size_sp", 14);
+
+                    float density = getResources().getDisplayMetrics().density;
+                    int padPx = Math.round(6 * density);
+                    int bgAlpha = Math.round((alphaPct / 100f) * 255);
+
+                    android.widget.FrameLayout root = new android.widget.FrameLayout(ButtonMappingService.this);
+                    root.setFocusable(true);
+                    root.setClickable(true);
+
+                    root.setBackgroundColor(Color.argb(80, 0, 0, 0));
+
+                    TextView topPill = new TextView(ButtonMappingService.this);
+                    topPill.setText("🌐  " + srcLangName + " ➔ " + targetLangName + "   [ OK: Reanudar  |  Atrás: Cerrar ]");
+                    topPill.setTextColor(0xFFFFFFFF);
+                    topPill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+                    topPill.setTypeface(Typeface.DEFAULT_BOLD);
+                    topPill.setGravity(Gravity.CENTER);
+                    topPill.setPadding(Math.round(20 * density), Math.round(10 * density), Math.round(20 * density), Math.round(10 * density));
+
+                    android.graphics.drawable.GradientDrawable pillBg = new android.graphics.drawable.GradientDrawable();
+                    pillBg.setColor(Color.argb(230, 20, 24, 33));
+                    pillBg.setCornerRadius(20 * density);
+                    pillBg.setStroke(Math.round(1.5f * density), 0xFF81D4FA);
+                    topPill.setBackground(pillBg);
+
+                    android.widget.FrameLayout.LayoutParams lpTop = new android.widget.FrameLayout.LayoutParams(
+                            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+                    );
+                    lpTop.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                    lpTop.topMargin = Math.round(24 * density);
+                    root.addView(topPill, lpTop);
+
+                    for (TranslatedBlock block : blocks) {
+                        Rect box = block.box;
+                        if (box == null || block.translatedText == null || block.translatedText.trim().isEmpty()) continue;
+
+                        TextView blockTv = new TextView(ButtonMappingService.this);
+                        blockTv.setText(block.translatedText);
+                        blockTv.setTextColor(0xFFFFFFFF);
+                        blockTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp);
+                        blockTv.setTypeface(Typeface.DEFAULT_BOLD);
+                        blockTv.setGravity(Gravity.CENTER);
+                        blockTv.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+
+                        android.graphics.drawable.GradientDrawable blockBg = new android.graphics.drawable.GradientDrawable();
+                        blockBg.setColor(Color.argb(bgAlpha, 15, 18, 26));
+                        blockBg.setCornerRadius(8 * density);
+                        blockBg.setStroke(Math.round(1f * density), Color.argb(140, 255, 215, 64));
+                        blockTv.setBackground(blockBg);
+
+                        int minW = Math.round(60 * density);
+                        int minH = Math.round(26 * density);
+                        int targetW = Math.max(box.width() + padPx * 2, minW);
+                        int targetH = Math.max(box.height() + padPx, minH);
+
+                        android.widget.FrameLayout.LayoutParams lpBlock = new android.widget.FrameLayout.LayoutParams(targetW, targetH);
+                        lpBlock.leftMargin = Math.max(0, box.left - padPx);
+                        lpBlock.topMargin = Math.max(0, box.top - padPx / 2);
+                        root.addView(blockTv, lpBlock);
+                    }
+
+                    WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                            WindowManager.LayoutParams.MATCH_PARENT,
+                            WindowManager.LayoutParams.MATCH_PARENT,
+                            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                                    | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                            PixelFormat.TRANSLUCENT
+                    );
+
+                    wm.addView(root, params);
+                    translationOverlayView = root;
+                    isTranslationOverlayActive = true;
+                    Log.d(TAG, "Translation overlay displayed with " + blocks.size() + " blocks.");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error showing translation overlay", e);
+                }
+            }
+        });
+    }
+
+    private void dismissTranslationOverlay() {
+        if (translationOverlayView != null) {
+            final View v = translationOverlayView;
+            translationOverlayView = null;
+            isTranslationOverlayActive = false;
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                        if (wm != null) wm.removeView(v);
+                        Log.d(TAG, "Translation overlay dismissed.");
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
     }
 }
