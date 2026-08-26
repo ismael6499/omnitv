@@ -630,6 +630,11 @@ public class QuickMenuOverlay {
                     return true;
                 }
                 if (isReorderMode) {
+                    if (reorderSelectedIndex != -1) {
+                        reorderSelectedIndex = -1;
+                        buildMenu();
+                        return true;
+                    }
                     isReorderMode = false;
                     reorderSelectedIndex = -1;
                     buildMenu();
@@ -700,6 +705,38 @@ public class QuickMenuOverlay {
         if (container == null || container.getVisibility() != View.VISIBLE) return false;
 
         View current = rootView.findFocus();
+
+        // 0. Reorder Mode: When an item is grabbed (selected), D-Pad UP/DOWN moves it dynamically!
+        if (isReorderMode && reorderSelectedIndex != -1 && openSubPanel == null) {
+            String[] order = getMenuOrder();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (reorderSelectedIndex > 0) {
+                    String temp = order[reorderSelectedIndex];
+                    order[reorderSelectedIndex] = order[reorderSelectedIndex - 1];
+                    order[reorderSelectedIndex - 1] = temp;
+                    saveMenuOrder(order);
+                    reorderSelectedIndex--;
+                    lastFocusedId = order[reorderSelectedIndex];
+                    buildMenu();
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (reorderSelectedIndex < order.length - 1) {
+                    String temp = order[reorderSelectedIndex];
+                    order[reorderSelectedIndex] = order[reorderSelectedIndex + 1];
+                    order[reorderSelectedIndex + 1] = temp;
+                    saveMenuOrder(order);
+                    reorderSelectedIndex++;
+                    lastFocusedId = order[reorderSelectedIndex];
+                    buildMenu();
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                reorderSelectedIndex = -1;
+                buildMenu();
+                return true;
+            }
+        }
 
         // 1. Special handling for SeekBar progress adjustments with holding acceleration
         if (current instanceof SeekBar && (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
@@ -1920,10 +1957,18 @@ public class QuickMenuOverlay {
 
             String label = getLabelForId(id, op, tp);
             int color    = getColorForId(id);
+            if (isReorderMode && reorderSelectedIndex == i) {
+                label = "↕️  " + label;
+            }
             TextView btn = createBtn(label, color, d);
 
             if (isReorderMode && reorderSelectedIndex == i) {
-                btn.setBackgroundColor(Color.argb(210, 180, 100, 0));
+                android.graphics.drawable.GradientDrawable grabBg = new android.graphics.drawable.GradientDrawable();
+                grabBg.setColor(Color.argb(230, 230, 81, 0)); // Vibrant Amber/Orange
+                grabBg.setCornerRadius(10 * d);
+                grabBg.setStroke(Math.round(2 * d), Color.argb(255, 255, 215, 64)); // Gold Accent
+                btn.setBackground(grabBg);
+                btn.setTextColor(Color.WHITE);
             }
             final int idx = i; final String iid = id;
             btn.setOnClickListener(new View.OnClickListener() {
@@ -1962,8 +2007,10 @@ public class QuickMenuOverlay {
 
         if (isReorderMode) {
             TextView hint = new TextView(context);
-            hint.setText(reorderSelectedIndex == -1 ? "Selecciona un item para moverlo" : "Ahora selecciona donde colocarlo");
-            hint.setTextColor(Color.argb(200, 255, 200, 80));
+            hint.setText(reorderSelectedIndex == -1 
+                ? "Presioná OK en un ítem para moverlo" 
+                : "Mové con ARRIBA/ABAJO. Presioná OK o ATRÁS para soltar.");
+            hint.setTextColor(Color.argb(230, 255, 200, 80));
             hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
             hint.setGravity(Gravity.CENTER);
             hint.setPadding(0, Math.round(6 * d), 0, 0);
@@ -2008,16 +2055,13 @@ public class QuickMenuOverlay {
 
     private void handleReorderClick(int index) {
         String[] order = getMenuOrder();
-        if (reorderSelectedIndex == -1) {
-            reorderSelectedIndex = index;
-        } else if (reorderSelectedIndex == index) {
+        if (reorderSelectedIndex == index) {
             reorderSelectedIndex = -1;
         } else {
-            String temp = order[reorderSelectedIndex];
-            order[reorderSelectedIndex] = order[index];
-            order[index] = temp;
-            saveMenuOrder(order);
-            reorderSelectedIndex = -1;
+            reorderSelectedIndex = index;
+            if (index >= 0 && index < order.length) {
+                lastFocusedId = order[index];
+            }
         }
         buildMenu();
     }
