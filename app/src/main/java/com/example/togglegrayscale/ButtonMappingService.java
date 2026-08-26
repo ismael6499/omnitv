@@ -3112,6 +3112,27 @@ public class ButtonMappingService extends AccessibilityService {
         return false;
     }
 
+    private static boolean isPunctuationOrSymbol(char c) {
+        Character.UnicodeBlock b = Character.UnicodeBlock.of(c);
+        return b == Character.UnicodeBlock.GENERAL_PUNCTUATION
+                || b == Character.UnicodeBlock.SUPPLEMENTAL_PUNCTUATION
+                || b == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION
+                || b == Character.UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS
+                || b == Character.UnicodeBlock.EMOTICONS
+                || b == Character.UnicodeBlock.MISCELLANEOUS_SYMBOLS
+                || b == Character.UnicodeBlock.MISCELLANEOUS_SYMBOLS_AND_PICTOGRAPHS;
+    }
+
+    private static boolean isPureLatinOrSpanish(String s) {
+        if (s == null) return true;
+        for (char c : s.toCharArray()) {
+            if (c > 0x024F && !isPunctuationOrSymbol(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static String detectBlockLanguage(String txt, int userSrcLangIdx) {
         if (userSrcLangIdx == 1) return TranslateLanguage.KOREAN;
         if (userSrcLangIdx == 2) return TranslateLanguage.JAPANESE;
@@ -3135,18 +3156,18 @@ public class ButtonMappingService extends AccessibilityService {
             return false;
         }
 
-        // 2. If it contains Japanese, Korean, Chinese, or Cyrillic, ALWAYS translate!
-        if (containsJapaneseKana(trimmed) || containsKorean(trimmed) || containsChineseHanzi(trimmed) || containsCyrillic(trimmed)) {
-            return true;
-        }
-
-        // 3. If source language is specifically set to English (4), translate English
+        // 2. If user specifically selected English (4), allow English/Latin
         if (srcLangIdx == 4) {
             return true;
         }
 
-        // 4. Otherwise (pure English/Spanish text with no foreign characters), do not overlay
-        return false;
+        // 3. If text is 100% pure Latin/Spanish/English without foreign characters, DO NOT translate or draw boxes!
+        if (isPureLatinOrSpanish(trimmed)) {
+            return false;
+        }
+
+        // 4. Must contain actual Korean, Japanese, Chinese, or Cyrillic characters
+        return containsKorean(trimmed) || containsJapaneseKana(trimmed) || containsChineseHanzi(trimmed) || containsCyrillic(trimmed);
     }
 
     private static List<TranslatedBlock> mergeAndDeduplicateBlocks(List<TranslatedBlock> rawBlocks) {
@@ -3267,6 +3288,9 @@ public class ButtonMappingService extends AccessibilityService {
                     if (txt != null && box != null) {
                         String trimmed = txt.trim();
                         if (trimmed.length() <= 1) continue;
+                        if (box.left < 130 && box.width() < 180) continue; // Skip sidebar navigation
+                        if (box.width() < 35 || box.height() < 14) continue; // Skip tiny graphic noise
+                        if (isPureLatinOrSpanish(trimmed) && srcLangIdx != 4) continue; // Skip plain English/Spanish
                         if (containsKorean(trimmed)) continue; // Handled accurately by Korean recognizer
 
                         if (containsJapaneseKana(trimmed)) {
@@ -3292,6 +3316,8 @@ public class ButtonMappingService extends AccessibilityService {
                     if (txt != null && box != null) {
                         String trimmed = txt.trim();
                         if (trimmed.length() <= 1) continue;
+                        if (box.left < 130 && box.width() < 180) continue; // Skip sidebar navigation
+                        if (box.width() < 35 || box.height() < 14) continue; // Skip tiny graphic noise
                         if (containsKorean(trimmed)) {
                             rawBlocks.add(new TranslatedBlock(box, trimmed, TranslateLanguage.KOREAN));
                         }
