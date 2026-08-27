@@ -163,8 +163,6 @@ public class ButtonMappingService extends AccessibilityService {
 
     private View brightnessHudOverlayView = null;
     private TextView brightnessHudTextView = null;
-    private View brightnessHudDimmerFilter = null;
-    private View brightnessHudBlueFilter = null;
     private final Runnable hideBrightnessHudRunnable = new Runnable() {
         @Override
         public void run() {
@@ -2082,10 +2080,23 @@ public class ButtonMappingService extends AccessibilityService {
                             break;
                     }
 
+                    float brightnessFactor = Math.max(0.12f, currentPct / 100.0f);
+
                     int[] textColors = {0xFFFFFFFF, 0xFF000000, 0xFFFFFF00, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF};
                     int rawColor = textColors[colorIdx >= 0 && colorIdx < textColors.length ? colorIdx : 0];
                     int textAlphaVal = (int) (textAlphaPct * 2.55);
-                    int textColor = (rawColor & 0x00FFFFFF) | (textAlphaVal << 24);
+
+                    int r = Color.red(rawColor);
+                    int g = Color.green(rawColor);
+                    int b = Color.blue(rawColor);
+                    if (isBlueLightActive) {
+                        int bluePct = prefs.getInt("blue_light_pct", 50);
+                        b = (int) (b * (1.0f - (bluePct / 100.0f) * 0.7f));
+                    }
+                    int dimmedR = Math.round(r * brightnessFactor);
+                    int dimmedG = Math.round(g * brightnessFactor);
+                    int dimmedB = Math.round(b * brightnessFactor);
+                    int textColor = Color.argb(textAlphaVal, dimmedR, dimmedG, dimmedB);
 
                     int[][] bgRGBs = {
                         {0, 0, 0},
@@ -2099,7 +2110,14 @@ public class ButtonMappingService extends AccessibilityService {
                     } else {
                         int alphaVal = (int) (alphaPct * 2.55);
                         int[] rgb = bgRGBs[bgIdx >= 0 && bgIdx < bgRGBs.length ? bgIdx : 0];
-                        bgColor = Color.argb(alphaVal, rgb[0], rgb[1], rgb[2]);
+                        int bgR = Math.round(rgb[0] * brightnessFactor);
+                        int bgG = Math.round(rgb[1] * brightnessFactor);
+                        int bgB = Math.round(rgb[2] * brightnessFactor);
+                        if (isBlueLightActive) {
+                            int bluePct = prefs.getInt("blue_light_pct", 50);
+                            bgB = (int) (bgB * (1.0f - (bluePct / 100.0f) * 0.7f));
+                        }
+                        bgColor = Color.argb(alphaVal, bgR, bgG, bgB);
                     }
 
                     int[] positions = {
@@ -2117,16 +2135,7 @@ public class ButtonMappingService extends AccessibilityService {
                     int offsetX = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, xDp, dm);
                     int offsetY = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, yDp, dm);
 
-                    int dimmerAlpha = (int) ((100 - currentPct) * 2.55);
-                    int blueAlpha = 0;
-                    if (isBlueLightActive) {
-                        int bluePct = prefs.getInt("blue_light_pct", 50);
-                        blueAlpha = (int) (bluePct * 2.0);
-                    }
-
                     if (brightnessHudOverlayView == null) {
-                        FrameLayout container = new FrameLayout(ButtonMappingService.this);
-
                         TextView tv = new TextView(ButtonMappingService.this);
                         tv.setText(text);
                         tv.setTextColor(textColor);
@@ -2135,31 +2144,8 @@ public class ButtonMappingService extends AccessibilityService {
                         tv.setPadding(paddingPx, paddingPxHalf, paddingPx, paddingPxHalf);
                         tv.setBackgroundColor(bgColor);
 
-                        container.addView(tv, new FrameLayout.LayoutParams(
-                                FrameLayout.LayoutParams.WRAP_CONTENT,
-                                FrameLayout.LayoutParams.WRAP_CONTENT
-                        ));
-
-                        // Internal Dimmer Filter overlay (guarantees HUD matches the exact screen brightness)
-                        View dimmerFilter = new View(ButtonMappingService.this);
-                        dimmerFilter.setBackgroundColor(Color.argb(dimmerAlpha, 0, 0, 0));
-                        container.addView(dimmerFilter, new FrameLayout.LayoutParams(
-                                FrameLayout.LayoutParams.MATCH_PARENT,
-                                FrameLayout.LayoutParams.MATCH_PARENT
-                        ));
-
-                        // Internal Blue Light Filter overlay
-                        View blueFilter = new View(ButtonMappingService.this);
-                        blueFilter.setBackgroundColor(blueAlpha > 0 ? Color.argb(blueAlpha, 255, 140, 0) : Color.TRANSPARENT);
-                        container.addView(blueFilter, new FrameLayout.LayoutParams(
-                                FrameLayout.LayoutParams.MATCH_PARENT,
-                                FrameLayout.LayoutParams.MATCH_PARENT
-                        ));
-
                         brightnessHudTextView = tv;
-                        brightnessHudDimmerFilter = dimmerFilter;
-                        brightnessHudBlueFilter = blueFilter;
-                        brightnessHudOverlayView = container;
+                        brightnessHudOverlayView = tv;
 
                         WindowManager.LayoutParams p = new WindowManager.LayoutParams(
                                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -2183,12 +2169,6 @@ public class ButtonMappingService extends AccessibilityService {
                             brightnessHudTextView.setPadding(paddingPx, paddingPxHalf, paddingPx, paddingPxHalf);
                             brightnessHudTextView.setBackgroundColor(bgColor);
                         }
-                        if (brightnessHudDimmerFilter != null) {
-                            brightnessHudDimmerFilter.setBackgroundColor(Color.argb(dimmerAlpha, 0, 0, 0));
-                        }
-                        if (brightnessHudBlueFilter != null) {
-                            brightnessHudBlueFilter.setBackgroundColor(blueAlpha > 0 ? Color.argb(blueAlpha, 255, 140, 0) : Color.TRANSPARENT);
-                        }
                         WindowManager.LayoutParams p = (WindowManager.LayoutParams) brightnessHudOverlayView.getLayoutParams();
                         if (p != null) {
                             p.gravity = gravity;
@@ -2211,8 +2191,6 @@ public class ButtonMappingService extends AccessibilityService {
         final View v = brightnessHudOverlayView;
         brightnessHudOverlayView = null;
         brightnessHudTextView = null;
-        brightnessHudDimmerFilter = null;
-        brightnessHudBlueFilter = null;
         handler.post(new Runnable() {
             @Override
             public void run() {
