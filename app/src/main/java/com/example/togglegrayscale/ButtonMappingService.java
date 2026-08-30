@@ -11,6 +11,7 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
@@ -99,6 +100,8 @@ public class ButtonMappingService extends AccessibilityService {
     static final String KEY_STILL_WATCHING_PAD = "still_watching_pad";
     static final String KEY_STILL_WATCHING_X = "still_watching_x";
     static final String KEY_STILL_WATCHING_Y = "still_watching_y";
+    static final String KEY_STILL_WATCHING_BEEP = "still_watching_beep";
+    static final String KEY_STILL_WATCHING_BEEP_INTERVAL = "still_watching_beep_interval";
 
     static final String KEY_NIGHT_SCHEDULE = "night_schedule";
     static final String KEY_NIGHT_START = "night_start";
@@ -220,6 +223,22 @@ public class ButtonMappingService extends AccessibilityService {
                 } else {
                     updateStillWatchingPromptText();
                     handler.postDelayed(this, 1000);
+                }
+            }
+        }
+    };
+
+    private final Runnable stillWatchingBeepRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isStillWatchingPromptActive) {
+                SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                boolean beepEnabled = prefs.getBoolean(KEY_STILL_WATCHING_BEEP, true);
+                if (beepEnabled) {
+                    playStillWatchingBeep();
+                    int intervalSec = prefs.getInt(KEY_STILL_WATCHING_BEEP_INTERVAL, 7);
+                    if (intervalSec < 1) intervalSec = 1;
+                    handler.postDelayed(this, intervalSec * 1000L);
                 }
             }
         }
@@ -813,6 +832,7 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_TOGGLE_DIMMER": toggleDimmer(); break;
             case "ACTION_TOGGLE_STILL_WATCHING": toggleStillWatching(); break;
             case "ACTION_UPDATE_STILL_WATCHING": updateStillWatching(); break;
+            case "ACTION_TEST_STILL_WATCHING_BEEP": playStillWatchingBeep(); break;
             case "ACTION_TOGGLE_NIGHT_SCHEDULE":
             case "ACTION_UPDATE_NIGHT_SCHEDULE":
                 checkAndApplyNightSchedule();
@@ -2329,10 +2349,37 @@ public class ButtonMappingService extends AccessibilityService {
 
                     wm.addView(stillWatchingOverlayView, p);
                     handler.postDelayed(stillWatchingCountdownRunnable, 1000);
+
+                    boolean beepEnabled = prefs.getBoolean(KEY_STILL_WATCHING_BEEP, true);
+                    if (beepEnabled) {
+                        playStillWatchingBeep();
+                        int beepInterval = prefs.getInt(KEY_STILL_WATCHING_BEEP_INTERVAL, 7);
+                        if (beepInterval < 1) beepInterval = 1;
+                        handler.postDelayed(stillWatchingBeepRunnable, beepInterval * 1000L);
+                    }
+
                     Log.d(TAG, "Still watching prompt shown");
                 } catch (Exception e) { Log.e(TAG, "Error showing still watching prompt", e); }
             }
         });
+    }
+
+    private void playStillWatchingBeep() {
+        try {
+            // Suave beep a volumen 40 en STREAM_MUSIC para avisar cuando se escucha video sin mirar
+            final ToneGenerator toneGen = new ToneGenerator(AudioManager.STREAM_MUSIC, 40);
+            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 180);
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        toneGen.release();
+                    } catch (Exception ignored) {}
+                }
+            }, 300);
+        } catch (Exception e) {
+            Log.e(TAG, "Error playing still watching beep tone", e);
+        }
     }
 
     private void updateStillWatchingPromptText() {
@@ -2345,6 +2392,7 @@ public class ButtonMappingService extends AccessibilityService {
     private void dismissStillWatchingPrompt() {
         isStillWatchingPromptActive = false;
         handler.removeCallbacks(stillWatchingCountdownRunnable);
+        handler.removeCallbacks(stillWatchingBeepRunnable);
         if (stillWatchingOverlayView == null) return;
         final View v = stillWatchingOverlayView;
         stillWatchingOverlayView = null;

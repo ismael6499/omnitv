@@ -138,6 +138,9 @@ public class QuickMenuOverlay {
     private TextView btnStillWatchingToggle;
     private TextView btnStillWatchingIntervalDec, btnStillWatchingIntervalInc, txtStillWatchingInterval;
     private TextView btnStillWatchingTimeoutDec, btnStillWatchingTimeoutInc, txtStillWatchingTimeout;
+    private TextView btnStillWatchingBeepToggle;
+    private TextView btnStillWatchingBeepIntervalDec, btnStillWatchingBeepIntervalInc, txtStillWatchingBeepInterval;
+    private TextView btnTestStillWatchingBeep;
     private TextView btnStillWatchingActionType;
     private TextView btnStillWatchingPosition;
     private TextView btnStillWatchingAlphaDec, btnStillWatchingAlphaInc, txtStillWatchingAlpha;
@@ -424,6 +427,11 @@ public class QuickMenuOverlay {
             btnStillWatchingTimeoutDec   = rootView.findViewById(R.id.btn_still_watching_timeout_dec);
             txtStillWatchingTimeout      = rootView.findViewById(R.id.txt_still_watching_timeout);
             btnStillWatchingTimeoutInc   = rootView.findViewById(R.id.btn_still_watching_timeout_inc);
+            btnStillWatchingBeepToggle   = rootView.findViewById(R.id.btn_still_watching_beep_toggle);
+            btnStillWatchingBeepIntervalDec = rootView.findViewById(R.id.btn_still_watching_beep_interval_dec);
+            txtStillWatchingBeepInterval = rootView.findViewById(R.id.txt_still_watching_beep_interval);
+            btnStillWatchingBeepIntervalInc = rootView.findViewById(R.id.btn_still_watching_beep_interval_inc);
+            btnTestStillWatchingBeep     = rootView.findViewById(R.id.btn_test_still_watching_beep);
             btnStillWatchingActionType   = rootView.findViewById(R.id.btn_still_watching_action_type);
             btnStillWatchingPosition     = rootView.findViewById(R.id.btn_still_watching_position);
             btnStillWatchingAlphaDec     = rootView.findViewById(R.id.btn_still_watching_alpha_dec);
@@ -1591,6 +1599,33 @@ public class QuickMenuOverlay {
         setupAutoRepeatStepButton(btnStillWatchingTimeoutInc, 1, new StepAdjuster() {
             @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, 30, step, 1, 300); }
         });
+
+        if (btnStillWatchingBeepToggle != null) {
+            btnStillWatchingBeepToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean(ButtonMappingService.KEY_STILL_WATCHING_BEEP, true);
+                    getOverlayPrefs().edit().putBoolean(ButtonMappingService.KEY_STILL_WATCHING_BEEP, !cur).apply();
+                    sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+                    updateStillWatchingConfigPanel();
+                    btnStillWatchingBeepToggle.requestFocus();
+                }
+            });
+        }
+        setupAutoRepeatStepButton(btnStillWatchingBeepIntervalDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 7, step, 1, 60); }
+        });
+        setupAutoRepeatStepButton(btnStillWatchingBeepIntervalInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 7, step, 1, 60); }
+        });
+        if (btnTestStillWatchingBeep != null) {
+            btnTestStillWatchingBeep.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    sendServiceAction("ACTION_TEST_STILL_WATCHING_BEEP");
+                    btnTestStillWatchingBeep.requestFocus();
+                }
+            });
+        }
+
         if (btnStillWatchingActionType != null) {
             btnStillWatchingActionType.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { cycleStillWatchingAction(); }
@@ -3331,6 +3366,8 @@ public class QuickMenuOverlay {
         boolean active = prefs.getBoolean(ButtonMappingService.KEY_STILL_WATCHING, false);
         int interval = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_INTERVAL, 30);
         int timeout = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, 30);
+        boolean beepActive = prefs.getBoolean(ButtonMappingService.KEY_STILL_WATCHING_BEEP, true);
+        int beepInterval = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 7);
         int actionIdx = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_ACTION, 0);
         int posIdx = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_POS, 0);
         int alpha = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85);
@@ -3344,6 +3381,11 @@ public class QuickMenuOverlay {
         if (btnStillWatchingToggle != null) btnStillWatchingToggle.setText("   Estado:  " + (active ? "ACTIVADO" : "DESACTIVADO"));
         if (txtStillWatchingInterval != null) txtStillWatchingInterval.setText(interval + "m");
         if (txtStillWatchingTimeout != null) txtStillWatchingTimeout.setText(timeout + "s");
+        if (btnStillWatchingBeepToggle != null) {
+            btnStillWatchingBeepToggle.setText("   Sonido Beep:  " + (beepActive ? "[ ACTIVADO ]" : "[ DESACTIVADO ]"));
+            btnStillWatchingBeepToggle.setTextColor(beepActive ? 0xFF4CAF50 : 0xFFFF5252);
+        }
+        if (txtStillWatchingBeepInterval != null) txtStillWatchingBeepInterval.setText(beepInterval + "s");
         if (btnStillWatchingActionType != null) btnStillWatchingActionType.setText("   Acción Inactividad:  " + STILL_WATCHING_ACTIONS[actionIdx]);
         if (btnStillWatchingPosition != null) btnStillWatchingPosition.setText("   Posición:  " + STILL_WATCHING_POSITIONS[posIdx]);
         if (txtStillWatchingAlpha != null) txtStillWatchingAlpha.setText(alpha + "%");
