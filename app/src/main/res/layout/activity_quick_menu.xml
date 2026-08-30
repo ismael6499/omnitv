@@ -405,7 +405,7 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
                         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="   Intervalo Beep (s):" android:textColor="#CCCCCC" android:textSize="14sp" android:paddingStart="4dp" />
                         <TextView android:id="@+id/btn_still_watching_beep_interval_dec" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="-" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
-                        <TextView android:id="@+id/txt_still_watching_beep_interval" android:layout_width="60dp" android:layout_height="wrap_content" android:text="7s" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
+                        <TextView android:id="@+id/txt_still_watching_beep_interval" android:layout_width="60dp" android:layout_height="wrap_content" android:text="10s" android:textColor="#FFFFFF" android:textSize="14sp" android:gravity="center" />
                         <TextView android:id="@+id/btn_still_watching_beep_interval_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
                     </LinearLayout>
 

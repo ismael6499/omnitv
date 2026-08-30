@@ -19,6 +19,10 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.media.AudioAttributes;
+import android.media.AudioFormat;
+import android.media.AudioTrack;
+import android.media.AudioManager;
 
 public class QuickMenuOverlay {
 
@@ -1612,15 +1616,15 @@ public class QuickMenuOverlay {
             });
         }
         setupAutoRepeatStepButton(btnStillWatchingBeepIntervalDec, -1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 7, step, 1, 60); }
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 10, step, 1, 60); }
         });
         setupAutoRepeatStepButton(btnStillWatchingBeepIntervalInc, 1, new StepAdjuster() {
-            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 7, step, 1, 60); }
+            @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 10, step, 1, 60); }
         });
         if (btnTestStillWatchingBeep != null) {
             btnTestStillWatchingBeep.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    sendServiceAction("ACTION_TEST_STILL_WATCHING_BEEP");
+                    playStillWatchingBeepSound();
                     btnTestStillWatchingBeep.requestFocus();
                 }
             });
@@ -3367,7 +3371,7 @@ public class QuickMenuOverlay {
         int interval = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_INTERVAL, 30);
         int timeout = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_TIMEOUT, 30);
         boolean beepActive = prefs.getBoolean(ButtonMappingService.KEY_STILL_WATCHING_BEEP, true);
-        int beepInterval = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 7);
+        int beepInterval = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 10);
         int actionIdx = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_ACTION, 0);
         int posIdx = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_POS, 0);
         int alpha = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85);
@@ -3794,5 +3798,73 @@ public class QuickMenuOverlay {
     private void adjustStillWatchingIntPref(String key, int def, int delta, int min, int max) {
         adjustIntPref(key, def, delta, min, max, "ACTION_UPDATE_STILL_WATCHING");
         updateStillWatchingConfigPanel();
+    }
+
+    public static void playStillWatchingBeepSound() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    int sampleRate = 44100;
+                    int durationMs = 400;
+                    int numSamples = (sampleRate * durationMs) / 1000;
+                    double freq = 800.0;
+                    short[] buffer = new short[numSamples];
+                    
+                    int fadeSamples = (sampleRate * 30) / 1000;
+                    double amplitude = 32767.0 * 0.65; // 65% amplitud (audible, claro y cálido)
+
+                    for (int i = 0; i < numSamples; i++) {
+                        double angle = 2.0 * Math.PI * i * freq / sampleRate;
+                        double sample = Math.sin(angle);
+                        
+                        double gain = 1.0;
+                        if (i < fadeSamples) {
+                            gain = (double) i / fadeSamples;
+                        } else if (i > numSamples - fadeSamples) {
+                            gain = (double) (numSamples - i) / fadeSamples;
+                        }
+                        
+                        buffer[i] = (short) (sample * amplitude * gain);
+                    }
+
+                    int minBufferSize = AudioTrack.getMinBufferSize(
+                            sampleRate,
+                            AudioFormat.CHANNEL_OUT_MONO,
+                            AudioFormat.ENCODING_PCM_16BIT
+                    );
+                    int bufSize = Math.max(minBufferSize, numSamples * 2);
+
+                    AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build();
+
+                    AudioFormat audioFormat = new AudioFormat.Builder()
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .build();
+
+                    AudioTrack track = new AudioTrack(
+                            audioAttributes,
+                            audioFormat,
+                            bufSize,
+                            AudioTrack.MODE_STATIC,
+                            AudioManager.AUDIO_SESSION_ID_GENERATE
+                    );
+
+                    track.write(buffer, 0, numSamples);
+                    track.play();
+
+                    try {
+                        Thread.sleep(durationMs + 60);
+                    } catch (InterruptedException ignored) {}
+
+                    track.stop();
+                    track.release();
+                } catch (Exception ignored) {}
+            }
+        }).start();
     }
 }

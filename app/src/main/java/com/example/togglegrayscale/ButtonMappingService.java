@@ -11,6 +11,9 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.media.AudioManager;
+import android.media.AudioAttributes;
+import android.media.AudioFormat;
+import android.media.AudioTrack;
 import android.media.ToneGenerator;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -236,7 +239,7 @@ public class ButtonMappingService extends AccessibilityService {
                 boolean beepEnabled = prefs.getBoolean(KEY_STILL_WATCHING_BEEP, true);
                 if (beepEnabled) {
                     playStillWatchingBeep();
-                    int intervalSec = prefs.getInt(KEY_STILL_WATCHING_BEEP_INTERVAL, 7);
+                    int intervalSec = prefs.getInt(KEY_STILL_WATCHING_BEEP_INTERVAL, 10);
                     if (intervalSec < 1) intervalSec = 1;
                     handler.postDelayed(this, intervalSec * 1000L);
                 }
@@ -759,7 +762,11 @@ public class ButtonMappingService extends AccessibilityService {
             IntentFilter filter = new IntentFilter();
             filter.addAction(Intent.ACTION_SCREEN_ON);
             filter.addAction("com.example.togglegrayscale.ACTION_TRANSLATE_SCREEN");
-            registerReceiver(screenStateReceiver, filter);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(screenStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(screenStateReceiver, filter);
+            }
         } catch (Exception e) {
             Log.e(TAG, "Failed to register screenStateReceiver", e);
         }
@@ -2353,7 +2360,7 @@ public class ButtonMappingService extends AccessibilityService {
                     boolean beepEnabled = prefs.getBoolean(KEY_STILL_WATCHING_BEEP, true);
                     if (beepEnabled) {
                         playStillWatchingBeep();
-                        int beepInterval = prefs.getInt(KEY_STILL_WATCHING_BEEP_INTERVAL, 7);
+                        int beepInterval = prefs.getInt(KEY_STILL_WATCHING_BEEP_INTERVAL, 10);
                         if (beepInterval < 1) beepInterval = 1;
                         handler.postDelayed(stillWatchingBeepRunnable, beepInterval * 1000L);
                     }
@@ -2365,21 +2372,87 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void playStillWatchingBeep() {
-        try {
-            // Suave beep a volumen 40 en STREAM_MUSIC para avisar cuando se escucha video sin mirar
-            final ToneGenerator toneGen = new ToneGenerator(AudioManager.STREAM_MUSIC, 40);
-            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 180);
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    int sampleRate = 44100;
+                    int durationMs = 400;
+                    int numSamples = (sampleRate * durationMs) / 1000;
+                    double freq = 800.0;
+                    short[] buffer = new short[numSamples];
+                    
+                    // Suave fade-in y fade-out de 30ms para evitar cualquier chasquido o click en los parlantes
+                    int fadeSamples = (sampleRate * 30) / 1000;
+                    double amplitude = 32767.0 * 0.65; // 65% de amplitud (audible, claro y cálido)
+
+                    for (int i = 0; i < numSamples; i++) {
+                        double angle = 2.0 * Math.PI * i * freq / sampleRate;
+                        double sample = Math.sin(angle);
+                        
+                        double gain = 1.0;
+                        if (i < fadeSamples) {
+                            gain = (double) i / fadeSamples;
+                        } else if (i > numSamples - fadeSamples) {
+                            gain = (double) (numSamples - i) / fadeSamples;
+                        }
+                        
+                        buffer[i] = (short) (sample * amplitude * gain);
+                    }
+
+                    int minBufferSize = AudioTrack.getMinBufferSize(
+                            sampleRate,
+                            AudioFormat.CHANNEL_OUT_MONO,
+                            AudioFormat.ENCODING_PCM_16BIT
+                    );
+                    int bufSize = Math.max(minBufferSize, numSamples * 2);
+
+                    AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build();
+
+                    AudioFormat audioFormat = new AudioFormat.Builder()
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .build();
+
+                    AudioTrack track = new AudioTrack(
+                            audioAttributes,
+                            audioFormat,
+                            bufSize,
+                            AudioTrack.MODE_STATIC,
+                            AudioManager.AUDIO_SESSION_ID_GENERATE
+                    );
+
+                    track.write(buffer, 0, numSamples);
+                    track.play();
+
                     try {
-                        toneGen.release();
-                    } catch (Exception ignored) {}
+                        Thread.sleep(durationMs + 60);
+                    } catch (InterruptedException ignored) {}
+
+                    track.stop();
+                    track.release();
+                    Log.d(TAG, "Still watching beep played successfully via AudioTrack.");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error playing still watching beep via AudioTrack, fallback to ToneGenerator", e);
+                    try {
+                        ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_MUSIC, 60);
+                        tg.startTone(ToneGenerator.TONE_PROP_BEEP, 200);
+                        handler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                try { tg.release(); } catch (Exception ignored) {}
+                            }
+                        }, 350);
+                    } catch (Exception ex) {
+                        Log.e(TAG, "ToneGenerator fallback failed", ex);
+                    }
                 }
-            }, 300);
-        } catch (Exception e) {
-            Log.e(TAG, "Error playing still watching beep tone", e);
-        }
+            }
+        }).start();
     }
 
     private void updateStillWatchingPromptText() {
