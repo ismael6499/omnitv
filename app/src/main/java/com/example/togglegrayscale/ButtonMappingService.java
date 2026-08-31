@@ -3,6 +3,7 @@ package com.example.togglegrayscale;
 import android.accessibilityservice.AccessibilityService;
 import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -862,6 +863,14 @@ public class ButtonMappingService extends AccessibilityService {
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to set AccessibilityServiceInfo programmatically", e);
+        }
+
+        try {
+            android.service.notification.NotificationListenerService.requestRebind(
+                    new ComponentName(this, MediaNotificationListener.class));
+            Log.d(TAG, "Requested rebind for MediaNotificationListener");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to requestRebind for MediaNotificationListener", e);
         }
 
         final SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
