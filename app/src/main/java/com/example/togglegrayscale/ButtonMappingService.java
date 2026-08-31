@@ -19,6 +19,7 @@ import android.media.ToneGenerator;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.format.DateFormat;
@@ -214,9 +215,40 @@ public class ButtonMappingService extends AccessibilityService {
     private final Runnable stillWatchingIntervalRunnable = new Runnable() {
         @Override
         public void run() {
-            if (isStillWatchingActive) {
-                showStillWatchingPrompt();
+            if (!isStillWatchingActive) return;
+
+            // 1. Check if black screen is active
+            if (isBlackScreenActive) {
+                Log.d(TAG, "Still watching skipped: Black Screen is active.");
+                handler.postDelayed(this, cachedStillWatchingIntervalMs);
+                return;
             }
+
+            // 2. Check if device screen is interactive (screen on vs standby/off)
+            try {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (pm != null && !pm.isInteractive()) {
+                    Log.d(TAG, "Still watching skipped: Screen is not interactive (turned off / standby).");
+                    handler.postDelayed(this, cachedStillWatchingIntervalMs);
+                    return;
+                }
+            } catch (Exception ignored) {}
+
+            // 3. Check if media / video is actively playing
+            boolean isPlaying = false;
+            try {
+                if (audioManager != null && audioManager.isMusicActive()) {
+                    isPlaying = true;
+                }
+            } catch (Exception ignored) {}
+
+            if (!isPlaying) {
+                Log.d(TAG, "Still watching skipped: No video/media is actively playing.");
+                handler.postDelayed(this, cachedStillWatchingIntervalMs);
+                return;
+            }
+
+            showStillWatchingPrompt();
         }
     };
 
@@ -238,7 +270,12 @@ public class ButtonMappingService extends AccessibilityService {
     private final Runnable stillWatchingBeepRunnable = new Runnable() {
         @Override
         public void run() {
-            if (isStillWatchingPromptActive) {
+            if (isStillWatchingPromptActive && !isBlackScreenActive) {
+                try {
+                    PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                    if (pm != null && !pm.isInteractive()) return;
+                } catch (Exception ignored) {}
+
                 SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                 boolean beepEnabled = prefs.getBoolean(KEY_STILL_WATCHING_BEEP, true);
                 if (beepEnabled) {
@@ -1603,6 +1640,7 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void showBlackScreen() {
         if (isBlackScreenActive) return;
+        dismissStillWatchingPrompt();
 
         handler.post(new Runnable() {
             @Override
@@ -2627,6 +2665,12 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void playStillWatchingBeep() {
+        if (!isStillWatchingPromptActive || isBlackScreenActive) return;
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null && !pm.isInteractive()) return;
+        } catch (Exception ignored) {}
+
         new Thread(new Runnable() {
             @Override
             public void run() {
