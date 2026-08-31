@@ -446,6 +446,7 @@ public class ButtonMappingService extends AccessibilityService {
 
         ScreenInfo info = new ScreenInfo();
         scanScreen(root, info);
+        Log.d(TAG, "processRootNode: pkg=" + pkg + ", mode=" + mode + ", isMusic=" + musicActive + ", texts=" + info.texts);
 
         if (info.texts.isEmpty() && !info.isProgressBarNearEnd) {
             return false;
@@ -1101,10 +1102,25 @@ public class ButtonMappingService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null) return;
         int eventType = event.getEventType();
-        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
-            CharSequence pkgSeq = event.getPackageName();
-            if (pkgSeq != null) {
-                handleForegroundPackageChanged(pkgSeq.toString());
+        CharSequence pkgSeq = event.getPackageName();
+        if (pkgSeq != null) {
+            String pkg = pkgSeq.toString();
+            if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+                handleForegroundPackageChanged(pkg);
+            }
+            if (pkg.contains("youtube") || pkg.contains("netflix") || pkg.contains("smarttube") || pkg.contains("disney")) {
+                Log.d(TAG, "Streaming AccEvent: pkg=" + pkg + ", type=0x" + Integer.toHexString(eventType) 
+                        + ", class=" + event.getClassName() + ", text=" + event.getText() 
+                        + ", desc=" + event.getContentDescription() 
+                        + ", items=" + event.getCurrentItemIndex() + "/" + event.getItemCount());
+                
+                // Trigger auto pause check immediately on relevant streaming changes
+                if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED 
+                        || eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                        || eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED
+                        || eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
+                    checkAutoPause();
+                }
             }
         }
     }
