@@ -594,7 +594,14 @@ public class ButtonMappingService extends AccessibilityService {
 
     private int playlistVideosPlayed = 0;
 
+    public static final String KEY_AUTO_DISMISS_UP_NEXT = "auto_dismiss_up_next";
+    private long currentVideoDuration = 0;
+    private long lastDismissUpNextTime = 0;
+
     public void onStreamingVideoChanged(String pkg, String title, String artist, long duration) {
+        if (duration > 0) {
+            currentVideoDuration = duration;
+        }
         if (title == null || title.isEmpty()) return;
         Log.d(TAG, "onStreamingVideoChanged: pkg=" + pkg + ", title='" + title + "', artist='" + artist + "', dur=" + duration);
         
@@ -642,7 +649,52 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     public void onStreamingPlaybackStateChanged(String pkg, int state, long position) {
-        // Log playback state changes for debugging
+        if (pkg == null || (!pkg.contains("youtube") && !pkg.contains("smarttube"))) return;
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        boolean autoDismiss = op.getBoolean(KEY_AUTO_DISMISS_UP_NEXT, true);
+        if (!autoDismiss) return;
+
+        if (currentVideoDuration > 30000 && position >= (currentVideoDuration - 18000)) {
+            long now = SystemClock.elapsedRealtime();
+            if (now - lastDismissUpNextTime > 15000) {
+                checkAndDismissUpNextCard();
+            }
+        }
+    }
+
+    private void checkAndDismissUpNextCard() {
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root == null) return;
+            ScreenInfo info = new ScreenInfo();
+            scanScreen(root, info);
+            
+            boolean cardFound = false;
+            for (String text : info.texts) {
+                if (text == null) continue;
+                String lower = text.toLowerCase(Locale.ROOT);
+                if (lower.contains("se reproducirá")
+                        || lower.contains("a continuación")
+                        || lower.contains("up next")
+                        || lower.contains("cancelar")
+                        || lower.contains("cancel")
+                        || lower.contains("siguiente video")
+                        || lower.contains("reproducir ahora")
+                        || lower.contains("play now")
+                        || lower.equals("x")) {
+                    cardFound = true;
+                    break;
+                }
+            }
+
+            if (cardFound) {
+                Log.d(TAG, "Up Next preview card confirmed on screen! Dismissing with BACK key.");
+                performGlobalAction(GLOBAL_ACTION_BACK);
+                lastDismissUpNextTime = SystemClock.elapsedRealtime();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking Up Next card", e);
+        }
     }
 
     private void sendMediaPause() {

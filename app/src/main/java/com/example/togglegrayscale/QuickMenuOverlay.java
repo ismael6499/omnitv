@@ -185,6 +185,7 @@ public class QuickMenuOverlay {
     private TextView txtAutoPauseCount;
     private TextView btnAutoPauseCountInc;
     private TextView btnAutoPauseBlackScreen;
+    private TextView btnAutoDismissUpNext;
 
     private TextView btnCancelTimer;
     private TextView btnCineBlueLightConfig;
@@ -372,6 +373,7 @@ public class QuickMenuOverlay {
             txtAutoPauseCount      = rootView.findViewById(R.id.txt_auto_pause_count);
             btnAutoPauseCountInc   = rootView.findViewById(R.id.btn_auto_pause_count_inc);
             btnAutoPauseBlackScreen = rootView.findViewById(R.id.btn_auto_pause_black_screen);
+            btnAutoDismissUpNext   = rootView.findViewById(R.id.btn_auto_dismiss_up_next);
 
             txtCustomHours         = rootView.findViewById(R.id.txt_custom_hours);
             txtCustomMins          = rootView.findViewById(R.id.txt_custom_mins);
@@ -1588,6 +1590,18 @@ public class QuickMenuOverlay {
                     op.edit().putBoolean("auto_pause_black_screen", !cur).apply();
                     updateAutoPauseConfigPanel();
                     btnAutoPauseBlackScreen.requestFocus();
+                }
+            });
+        }
+        if (btnAutoDismissUpNext != null) {
+            btnAutoDismissUpNext.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    SharedPreferences op = getOverlayPrefs();
+                    boolean cur = op.getBoolean(ButtonMappingService.KEY_AUTO_DISMISS_UP_NEXT, true);
+                    op.edit().putBoolean(ButtonMappingService.KEY_AUTO_DISMISS_UP_NEXT, !cur).apply();
+                    updateAutoPauseConfigPanel();
+                    btnAutoDismissUpNext.requestFocus();
                 }
             });
         }
@@ -3398,6 +3412,11 @@ public class QuickMenuOverlay {
 
         if (btnAutoPauseBlackScreen != null) {
             btnAutoPauseBlackScreen.setText("   Apagar Pantalla al Pausar:  " + (blackScreen ? "ON" : "OFF"));
+        }
+
+        if (btnAutoDismissUpNext != null) {
+            boolean autoDismiss = op.getBoolean(ButtonMappingService.KEY_AUTO_DISMISS_UP_NEXT, true);
+            btnAutoDismissUpNext.setText("   Ocultar Cartel 'A continuación':  " + (autoDismiss ? "ON" : "OFF"));
         }
     }
 

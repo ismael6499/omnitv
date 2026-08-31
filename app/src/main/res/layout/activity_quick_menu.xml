@@ -267,6 +267,7 @@
             </LinearLayout>
 
             <TextView android:id="@+id/btn_auto_pause_black_screen" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+            <TextView android:id="@+id/btn_auto_dismiss_up_next" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
         </LinearLayout>
 
         <!-- Button config sub-panel -->
