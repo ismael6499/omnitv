@@ -577,6 +577,51 @@ public class ButtonMappingService extends AccessibilityService {
                 || pkg.equals("com.android.launcher");
     }
 
+    public void onStreamingVideoChanged(String pkg, String title, String artist, long duration) {
+        if (title == null || title.isEmpty()) return;
+        Log.d(TAG, "onStreamingVideoChanged: pkg=" + pkg + ", title='" + title + "', artist='" + artist + "', dur=" + duration);
+        
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int mode = op.getInt("auto_pause_mode", 0);
+        if (mode == 0) return;
+
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastAutoPauseTime < 8000) return;
+
+        if (lastSeenMediaTitle == null) {
+            lastSeenMediaTitle = title;
+            lastMediaTitleSetTime = now;
+            Log.d(TAG, "Initial video registered from MediaSession: " + title);
+            return;
+        }
+
+        if (!lastSeenMediaTitle.equalsIgnoreCase(title)) {
+            Log.d(TAG, "Video transition confirmed via MediaSession! ('" + lastSeenMediaTitle + "' -> '" + title + "')");
+            lastSeenMediaTitle = title;
+            lastMediaTitleSetTime = now;
+
+            if (mode == 1 || mode == 2 || mode == 4) {
+                Log.d(TAG, "Executing Auto-Pause on MediaSession video change (mode=" + mode + ")");
+                MediaNotificationListener.pauseAllActiveMedia(this);
+                triggerAutoPause();
+            } else if (mode == 3) {
+                int count = op.getInt("auto_pause_custom_count", 1);
+                if (count <= 1) {
+                    Log.d(TAG, "Executing Auto-Pause on custom count finished");
+                    MediaNotificationListener.pauseAllActiveMedia(this);
+                    triggerAutoPause();
+                } else {
+                    op.edit().putInt("auto_pause_custom_count", count - 1).apply();
+                    Log.d(TAG, "Custom video count decremented to: " + (count - 1));
+                }
+            }
+        }
+    }
+
+    public void onStreamingPlaybackStateChanged(String pkg, int state, long position) {
+        // Log playback state changes for debugging
+    }
+
     private void sendMediaPause() {
         try {
             if (audioManager != null) {
