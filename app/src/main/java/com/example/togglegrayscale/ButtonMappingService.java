@@ -578,6 +578,8 @@ public class ButtonMappingService extends AccessibilityService {
                 || pkg.equals("com.android.launcher");
     }
 
+    private int playlistVideosPlayed = 0;
+
     public void onStreamingVideoChanged(String pkg, String title, String artist, long duration) {
         if (title == null || title.isEmpty()) return;
         Log.d(TAG, "onStreamingVideoChanged: pkg=" + pkg + ", title='" + title + "', artist='" + artist + "', dur=" + duration);
@@ -592,29 +594,35 @@ public class ButtonMappingService extends AccessibilityService {
         if (lastSeenMediaTitle == null) {
             lastSeenMediaTitle = title;
             lastMediaTitleSetTime = now;
-            Log.d(TAG, "Initial video registered from MediaSession: " + title);
+            playlistVideosPlayed = 1;
+            Log.d(TAG, "Initial video registered from MediaSession: " + title + " (Video 1 of playlist)");
             return;
         }
 
         if (!lastSeenMediaTitle.equalsIgnoreCase(title)) {
-            Log.d(TAG, "Video transition confirmed via MediaSession! ('" + lastSeenMediaTitle + "' -> '" + title + "')");
+            playlistVideosPlayed++;
+            Log.d(TAG, "Video transition confirmed via MediaSession! ('" + lastSeenMediaTitle + "' -> '" + title + "'). Videos count in session: " + playlistVideosPlayed);
             lastSeenMediaTitle = title;
             lastMediaTitleSetTime = now;
 
-            if (mode == 1 || mode == 2 || mode == 4) {
-                Log.d(TAG, "Executing Auto-Pause on MediaSession video change (mode=" + mode + ")");
+            if (mode == 1) { // Al terminar video actual (1 sola vez)
+                Log.d(TAG, "Executing Auto-Pause (Mode 1: 1 sola vez)");
                 MediaNotificationListener.pauseAllActiveMedia(this);
                 triggerAutoPause();
-            } else if (mode == 3) {
-                int count = op.getInt("auto_pause_custom_count", 1);
-                if (count <= 1) {
-                    Log.d(TAG, "Executing Auto-Pause on custom count finished");
+            } else if (mode == 2) { // Al terminar Lista (N videos)
+                int totalInList = op.getInt("auto_pause_playlist_count", 2);
+                if (playlistVideosPlayed > totalInList) {
+                    Log.d(TAG, "Executing Auto-Pause on playlist end! (List had " + totalInList + " videos, extra video started: " + title + ")");
                     MediaNotificationListener.pauseAllActiveMedia(this);
                     triggerAutoPause();
+                    playlistVideosPlayed = 0; // Reset for next playlist
                 } else {
-                    op.edit().putInt("auto_pause_custom_count", count - 1).apply();
-                    Log.d(TAG, "Custom video count decremented to: " + (count - 1));
+                    Log.d(TAG, "Playlist video " + playlistVideosPlayed + "/" + totalInList + " started normally, continuing playback.");
                 }
+            } else if (mode == 3) { // Permanente (Cada cambio de video)
+                Log.d(TAG, "Executing Auto-Pause (Mode 3: Permanente)");
+                MediaNotificationListener.pauseAllActiveMedia(this);
+                triggerAutoPause();
             }
         }
     }
@@ -827,20 +835,13 @@ public class ButtonMappingService extends AccessibilityService {
             showBlackScreen();
         }
 
-        // Adjust mode/counters
+        // Adjust mode/counters: Only mode 1 (1 sola vez) disables itself
         int mode = op.getInt("auto_pause_mode", 0);
-        if (mode == 1 || mode == 2) {
+        if (mode == 1) {
             op.edit().putInt("auto_pause_mode", 0).apply();
-            Log.d(TAG, "Auto pause mode set to Disabled after execution (was mode " + mode + ")");
-        } else if (mode == 3) {
-            int count = op.getInt("auto_pause_custom_count", 1);
-            if (count > 1) {
-                op.edit().putInt("auto_pause_custom_count", count - 1).apply();
-                Log.d(TAG, "Auto pause count decremented to: " + (count - 1));
-            } else {
-                op.edit().putInt("auto_pause_mode", 0).putInt("auto_pause_custom_count", 0).apply();
-                Log.d(TAG, "Auto pause count reached 0, mode set to Disabled");
-            }
+            Log.d(TAG, "Auto pause mode set to Disabled after execution (was Mode 1: 1 sola vez)");
+        } else {
+            Log.d(TAG, "Auto pause mode preserved in mode: " + mode);
         }
     }
 

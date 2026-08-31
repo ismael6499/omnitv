@@ -1554,12 +1554,11 @@ public class QuickMenuOverlay {
                 @Override
                 public void onClick(View v) {
                     SharedPreferences op = getOverlayPrefs();
-                    int cur = op.getInt("auto_pause_custom_count", 1);
+                    int cur = op.getInt("auto_pause_playlist_count", 2);
                     if (cur > 1) {
                         int next = cur - 1;
-                        op.edit().putInt("auto_pause_custom_count", next).apply();
+                        op.edit().putInt("auto_pause_playlist_count", next).apply();
                         updateAutoPauseConfigPanel();
-                        buildMenu();
                     }
                     btnAutoPauseCountDec.requestFocus();
                 }
@@ -1570,11 +1569,12 @@ public class QuickMenuOverlay {
                 @Override
                 public void onClick(View v) {
                     SharedPreferences op = getOverlayPrefs();
-                    int cur = op.getInt("auto_pause_custom_count", 1);
-                    int next = cur + 1;
-                    op.edit().putInt("auto_pause_custom_count", next).apply();
-                    updateAutoPauseConfigPanel();
-                    buildMenu();
+                    int cur = op.getInt("auto_pause_playlist_count", 2);
+                    if (cur < 50) {
+                        int next = cur + 1;
+                        op.edit().putInt("auto_pause_playlist_count", next).apply();
+                        updateAutoPauseConfigPanel();
+                    }
                     btnAutoPauseCountInc.requestFocus();
                 }
             });
@@ -3373,7 +3373,7 @@ public class QuickMenuOverlay {
     private void updateAutoPauseConfigPanel() {
         SharedPreferences op = getOverlayPrefs();
         int mode = op.getInt("auto_pause_mode", 0);
-        int count = op.getInt("auto_pause_custom_count", 1);
+        int playlistCount = op.getInt("auto_pause_playlist_count", 2);
         boolean blackScreen = op.getBoolean("auto_pause_black_screen", false);
 
         if (btnAutoPauseMode != null) {
@@ -3382,19 +3382,18 @@ public class QuickMenuOverlay {
                 case 0: modeStr = "Desactivado"; break;
                 case 1: modeStr = "Al terminar video actual (1 vez)"; break;
                 case 2: modeStr = "Al terminar Lista (Ver más tarde)"; break;
-                case 3: modeStr = "Pausar tras X videos (Personalizado)"; break;
-                case 4: modeStr = "Permanente (Cada cambio de video)"; break;
+                case 3: modeStr = "Permanente (Cada cambio de video)"; break;
                 default: modeStr = "Desactivado"; break;
             }
             btnAutoPauseMode.setText("   Modo de Auto Pausa:  " + modeStr);
         }
 
         if (layoutAutoPauseCustom != null) {
-            layoutAutoPauseCustom.setVisibility(mode == 3 ? View.VISIBLE : View.GONE);
+            layoutAutoPauseCustom.setVisibility(mode == 2 ? View.VISIBLE : View.GONE);
         }
 
         if (txtAutoPauseCount != null) {
-            txtAutoPauseCount.setText(String.valueOf(count));
+            txtAutoPauseCount.setText(String.valueOf(playlistCount));
         }
 
         if (btnAutoPauseBlackScreen != null) {
