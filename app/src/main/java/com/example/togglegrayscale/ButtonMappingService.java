@@ -600,6 +600,7 @@ public class ButtonMappingService extends AccessibilityService {
     private long lastDismissUpNextTime = 0;
 
     public void onStreamingVideoChanged(String pkg, String title, String artist, long duration) {
+        lastDismissUpNextTime = 0; // Reset dismissal on video change
         if (duration > 0) {
             currentVideoDuration = duration;
             getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putLong("last_known_video_duration", duration).apply();
@@ -657,6 +658,11 @@ public class ButtonMappingService extends AccessibilityService {
         if (pkg == null || (!pkg.contains("youtube") && !pkg.contains("smarttube"))) return;
         lastPlaybackPosition = position;
         lastPlaybackPositionSetTime = SystemClock.elapsedRealtime();
+
+        // If the user rewinds/seeks back before the final 25s, unlock dismissal immediately
+        if (currentVideoDuration > 30000 && position < (currentVideoDuration - 25000)) {
+            lastDismissUpNextTime = 0;
+        }
 
         checkUpNextDismissal();
     }
