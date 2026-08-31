@@ -393,6 +393,7 @@ public class ButtonMappingService extends AccessibilityService {
         int mode = op.getInt("auto_pause_mode", 0);
         if (mode == 0) return; // Disabled
         Log.d(TAG, "checkAutoPause tick: mode=" + mode);
+        checkUpNextDismissal();
 
         long now = SystemClock.elapsedRealtime();
         if (now - lastAutoPauseTime < 15000) { // 15s cooldown
@@ -648,20 +649,47 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
+    private long lastPlaybackPosition = 0;
+    private long lastPlaybackPositionSetTime = 0;
+
     public void onStreamingPlaybackStateChanged(String pkg, int state, long position) {
         if (pkg == null || (!pkg.contains("youtube") && !pkg.contains("smarttube"))) return;
+        lastPlaybackPosition = position;
+        lastPlaybackPositionSetTime = SystemClock.elapsedRealtime();
+
+        checkUpNextDismissal();
+    }
+
+    private void checkUpNextDismissal() {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         boolean autoDismiss = op.getBoolean(KEY_AUTO_DISMISS_UP_NEXT, true);
         if (!autoDismiss) return;
 
-        // In the last 15 seconds of the video, automatically dismiss the Up Next card/bubble
-        if (currentVideoDuration > 30000 && position >= (currentVideoDuration - 15000) && position < (currentVideoDuration - 2000)) {
+        if (currentVideoDuration <= 30000) return;
+
+        long curPos = lastPlaybackPosition;
+        if (lastPlaybackPositionSetTime > 0) {
+            curPos += (SystemClock.elapsedRealtime() - lastPlaybackPositionSetTime);
+        }
+
+        // Trigger dismissal during final 18 seconds
+        if (curPos >= (currentVideoDuration - 18000) && curPos < (currentVideoDuration - 1000)) {
             long now = SystemClock.elapsedRealtime();
             if (now - lastDismissUpNextTime > 25000) {
                 lastDismissUpNextTime = now;
-                Log.d(TAG, "Triggering automatic Up Next card dismissal at pos=" + position + "/" + currentVideoDuration);
-                performGlobalAction(GLOBAL_ACTION_BACK);
+                Log.d(TAG, "Triggering automatic Up Next card dismissal at pos=" + curPos + "/" + currentVideoDuration);
+                dismissUpNextCard();
             }
+        }
+    }
+
+    private void dismissUpNextCard() {
+        try {
+            performGlobalAction(GLOBAL_ACTION_BACK);
+            Runtime.getRuntime().exec(new String[]{"sh", "-c", "input keyevent 4"});
+            Log.d(TAG, "Sent hardware BACK key for Up Next card dismissal");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to send hardware back key", e);
         }
     }
 
