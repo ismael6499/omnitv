@@ -425,6 +425,9 @@
                         <TextView android:id="@+id/btn_still_watching_beep_vol_inc" android:layout_width="36dp" android:layout_height="36dp" android:background="@drawable/card_background" android:text="+" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center" android:focusable="true" android:clickable="true" />
                     </LinearLayout>
 
+                    <!-- Beep Tone Type -->
+                    <TextView android:id="@+id/btn_still_watching_beep_tone" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
+
                     <!-- Test Beep Button -->
                     <TextView android:id="@+id/btn_test_still_watching_beep" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="   🔔  Probar Sonido Beep" android:textColor="#81D4FA" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
 

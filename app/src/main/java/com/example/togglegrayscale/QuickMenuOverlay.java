@@ -82,6 +82,7 @@ public class QuickMenuOverlay {
 
     private static final String[] STILL_WATCHING_POSITIONS = {"Arriba Izquierda", "Arriba Derecha", "Abajo Izquierda", "Abajo Derecha", "Centro"};
     private static final String[] STILL_WATCHING_ACTIONS = {"Pausar Video", "Pausar y Apagar Pantalla", "Enviar Tecla Atrás"};
+    private static final String[] STILL_WATCHING_TONES = {"Clásico (800Hz)", "Ding-Dong (Campana)", "Grave (550Hz)", "Agudo (1050Hz)"};
 
     private static final String[] MINDFUL_MSG_OPTIONS = {
         "¿Realmente querés ver algo ahora? Esperá o volvé a Home.",
@@ -146,6 +147,7 @@ public class QuickMenuOverlay {
     private TextView btnStillWatchingBeepIntervalDec, btnStillWatchingBeepIntervalInc, txtStillWatchingBeepInterval;
     private TextView btnStillWatchingBeepDelayDec, btnStillWatchingBeepDelayInc, txtStillWatchingBeepDelay;
     private TextView btnStillWatchingBeepVolDec, btnStillWatchingBeepVolInc, txtStillWatchingBeepVol;
+    private TextView btnStillWatchingBeepTone;
     private TextView btnTestStillWatchingBeep;
     private TextView btnStillWatchingActionType;
     private TextView btnStillWatchingPosition;
@@ -443,6 +445,7 @@ public class QuickMenuOverlay {
             btnStillWatchingBeepVolDec   = rootView.findViewById(R.id.btn_still_watching_beep_vol_dec);
             txtStillWatchingBeepVol      = rootView.findViewById(R.id.txt_still_watching_beep_vol);
             btnStillWatchingBeepVolInc   = rootView.findViewById(R.id.btn_still_watching_beep_vol_inc);
+            btnStillWatchingBeepTone     = rootView.findViewById(R.id.btn_still_watching_beep_tone);
             btnTestStillWatchingBeep     = rootView.findViewById(R.id.btn_test_still_watching_beep);
             btnStillWatchingActionType   = rootView.findViewById(R.id.btn_still_watching_action_type);
             btnStillWatchingPosition     = rootView.findViewById(R.id.btn_still_watching_position);
@@ -1641,6 +1644,19 @@ public class QuickMenuOverlay {
         setupAutoRepeatStepButton(btnStillWatchingBeepVolInc, 1, new StepAdjuster() {
             @Override public void adjust(int step) { adjustStillWatchingIntPref(ButtonMappingService.KEY_STILL_WATCHING_BEEP_VOLUME, 65, step, 1, 100); }
         });
+        if (btnStillWatchingBeepTone != null) {
+            btnStillWatchingBeepTone.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_TONE, 0);
+                    int next = (cur + 1) % STILL_WATCHING_TONES.length;
+                    getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_TONE, next).apply();
+                    sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+                    updateStillWatchingConfigPanel();
+                    playStillWatchingBeepSound();
+                    btnStillWatchingBeepTone.requestFocus();
+                }
+            });
+        }
         if (btnTestStillWatchingBeep != null) {
             btnTestStillWatchingBeep.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -3364,9 +3380,10 @@ public class QuickMenuOverlay {
             String modeStr;
             switch (mode) {
                 case 0: modeStr = "Desactivado"; break;
-                case 1: modeStr = "Solo una vez"; break;
-                case 2: modeStr = "Activado permanente"; break;
-                case 3: modeStr = "Personalizado"; break;
+                case 1: modeStr = "Al terminar video actual (1 vez)"; break;
+                case 2: modeStr = "Al terminar Lista (Ver más tarde)"; break;
+                case 3: modeStr = "Pausar tras X videos (Personalizado)"; break;
+                case 4: modeStr = "Permanente (Cada cambio de video)"; break;
                 default: modeStr = "Desactivado"; break;
             }
             btnAutoPauseMode.setText("   Modo de Auto Pausa:  " + modeStr);
@@ -3394,6 +3411,7 @@ public class QuickMenuOverlay {
         int beepInterval = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_INTERVAL, 10);
         int beepDelay = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_DELAY, 9);
         int beepVol = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_VOLUME, 65);
+        int toneIdx = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_TONE, 0);
         int actionIdx = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_ACTION, 0);
         int posIdx = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_POS, 0);
         int alpha = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_ALPHA, 85);
@@ -3401,6 +3419,7 @@ public class QuickMenuOverlay {
         int posX = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_X, 16);
         int posY = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_Y, 16);
 
+        if (toneIdx < 0 || toneIdx >= STILL_WATCHING_TONES.length) toneIdx = 0;
         if (actionIdx < 0 || actionIdx >= STILL_WATCHING_ACTIONS.length) actionIdx = 0;
         if (posIdx < 0 || posIdx >= STILL_WATCHING_POSITIONS.length) posIdx = 0;
 
@@ -3414,6 +3433,7 @@ public class QuickMenuOverlay {
         if (txtStillWatchingBeepInterval != null) txtStillWatchingBeepInterval.setText(beepInterval + "s");
         if (txtStillWatchingBeepDelay != null) txtStillWatchingBeepDelay.setText(beepDelay + "s");
         if (txtStillWatchingBeepVol != null) txtStillWatchingBeepVol.setText(beepVol + "%");
+        if (btnStillWatchingBeepTone != null) btnStillWatchingBeepTone.setText("   Tipo de Tono:  " + STILL_WATCHING_TONES[toneIdx]);
         if (btnStillWatchingActionType != null) btnStillWatchingActionType.setText("   Acción Inactividad:  " + STILL_WATCHING_ACTIONS[actionIdx]);
         if (btnStillWatchingPosition != null) btnStillWatchingPosition.setText("   Posición:  " + STILL_WATCHING_POSITIONS[posIdx]);
         if (txtStillWatchingAlpha != null) txtStillWatchingAlpha.setText(alpha + "%");
@@ -3830,35 +3850,88 @@ public class QuickMenuOverlay {
             public void run() {
                 try {
                     int volPct = 65;
+                    int toneType = 0;
                     ButtonMappingService svc = ButtonMappingService.instance;
                     if (svc != null) {
-                        volPct = svc.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE)
-                                .getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_VOLUME, 65);
+                        SharedPreferences sp = svc.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE);
+                        volPct = sp.getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_VOLUME, 65);
+                        toneType = sp.getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_TONE, 0);
                     }
                     if (volPct < 1) volPct = 1;
                     if (volPct > 100) volPct = 100;
 
                     int sampleRate = 44100;
-                    int durationMs = 400;
-                    int numSamples = (sampleRate * durationMs) / 1000;
-                    double freq = 800.0;
-                    short[] buffer = new short[numSamples];
-                    
-                    int fadeSamples = (sampleRate * 30) / 1000;
-                    double amplitude = 32767.0 * (volPct / 100.0);
+                    short[] buffer;
+                    int numSamples;
+                    int durationMs;
 
-                    for (int i = 0; i < numSamples; i++) {
-                        double angle = 2.0 * Math.PI * i * freq / sampleRate;
-                        double sample = Math.sin(angle);
-                        
-                        double gain = 1.0;
-                        if (i < fadeSamples) {
-                            gain = (double) i / fadeSamples;
-                        } else if (i > numSamples - fadeSamples) {
-                            gain = (double) (numSamples - i) / fadeSamples;
+                    if (toneType == 1) { // Ding-Dong (Doble Chime)
+                        int dur1 = 180;
+                        int gap = 35;
+                        int dur2 = 250;
+                        durationMs = dur1 + gap + dur2;
+                        numSamples = (sampleRate * durationMs) / 1000;
+                        buffer = new short[numSamples];
+
+                        int samples1 = (sampleRate * dur1) / 1000;
+                        int gapSamples = (sampleRate * gap) / 1000;
+                        int samples2 = (sampleRate * dur2) / 1000;
+                        int fade1 = (sampleRate * 20) / 1000;
+                        int fade2 = (sampleRate * 25) / 1000;
+
+                        double amp = 32767.0 * (volPct / 100.0);
+                        double freq1 = 659.25; // E5
+                        double freq2 = 880.00; // A5
+
+                        // Tone 1
+                        for (int i = 0; i < samples1; i++) {
+                            double angle = 2.0 * Math.PI * i * freq1 / sampleRate;
+                            double s = Math.sin(angle);
+                            double gain = 1.0;
+                            if (i < fade1) gain = (double) i / fade1;
+                            else if (i > samples1 - fade1) gain = (double) (samples1 - i) / fade1;
+                            buffer[i] = (short) (s * amp * gain);
                         }
-                        
-                        buffer[i] = (short) (sample * amplitude * gain);
+                        // Gap (silence)
+                        for (int i = samples1; i < samples1 + gapSamples; i++) {
+                            buffer[i] = 0;
+                        }
+                        // Tone 2
+                        int offset = samples1 + gapSamples;
+                        for (int i = 0; i < samples2 && (offset + i) < numSamples; i++) {
+                            double angle = 2.0 * Math.PI * i * freq2 / sampleRate;
+                            double s = Math.sin(angle);
+                            double gain = 1.0;
+                            if (i < fade2) gain = (double) i / fade2;
+                            else if (i > samples2 - fade2) gain = (double) (samples2 - i) / fade2;
+                            buffer[offset + i] = (short) (s * amp * gain);
+                        }
+                    } else {
+                        double freq;
+                        if (toneType == 2) { // Grave (550Hz)
+                            freq = 550.0;
+                            durationMs = 420;
+                        } else if (toneType == 3) { // Agudo (1050Hz)
+                            freq = 1050.0;
+                            durationMs = 350;
+                        } else { // Clásico (800Hz)
+                            freq = 800.0;
+                            durationMs = 400;
+                        }
+
+                        numSamples = (sampleRate * durationMs) / 1000;
+                        buffer = new short[numSamples];
+                        int fadeSamples = (sampleRate * 30) / 1000;
+                        double amplitude = 32767.0 * (volPct / 100.0);
+
+                        for (int i = 0; i < numSamples; i++) {
+                            double angle = 2.0 * Math.PI * i * freq / sampleRate;
+                            double sample = Math.sin(angle);
+                            double gain = 1.0;
+                            if (i < fadeSamples) gain = (double) i / fadeSamples;
+                            else if (i > numSamples - fadeSamples) gain = (double) (numSamples - i) / fadeSamples;
+                            buffer[i] = (short) (sample * amplitude * gain);
+                        }
                     }
 
                     int minBufferSize = AudioTrack.getMinBufferSize(

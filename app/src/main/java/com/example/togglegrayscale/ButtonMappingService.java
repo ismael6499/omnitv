@@ -107,6 +107,7 @@ public class ButtonMappingService extends AccessibilityService {
     static final String KEY_STILL_WATCHING_BEEP_DELAY = "still_watching_beep_delay";
     static final String KEY_STILL_WATCHING_BEEP_INTERVAL = "still_watching_beep_interval";
     static final String KEY_STILL_WATCHING_BEEP_VOLUME = "still_watching_beep_volume";
+    static final String KEY_STILL_WATCHING_BEEP_TONE = "still_watching_beep_tone";
 
     static final String KEY_NIGHT_SCHEDULE = "night_schedule";
     static final String KEY_NIGHT_START = "night_start";
@@ -363,6 +364,9 @@ public class ButtonMappingService extends AccessibilityService {
 
     private long lastAutoPauseTime = 0;
     private long lastCountdownDetectTime = 0;
+    private boolean isLastPlaylistItem = false;
+    private String lastSeenMediaTitle = null;
+    private long lastMediaTitleSetTime = 0;
     private static final java.util.regex.Pattern TIME_PATTERN = 
         java.util.regex.Pattern.compile("(\\d?\\d:\\d\\d(:\\d\\d)?)\\s*(/|of|de)\\s*(\\d?\\d:\\d\\d(:\\d\\d)?)", java.util.regex.Pattern.CASE_INSENSITIVE);
 
@@ -390,15 +394,13 @@ public class ButtonMappingService extends AccessibilityService {
         Log.d(TAG, "checkAutoPause tick: mode=" + mode);
 
         long now = SystemClock.elapsedRealtime();
-        if (now - lastAutoPauseTime < 20000) { // 20s cooldown
+        if (now - lastAutoPauseTime < 15000) { // 15s cooldown
             return;
         }
 
         java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = getWindows();
-        Log.d(TAG, "checkAutoPause: windows count=" + (windows != null ? windows.size() : "null"));
         if (windows == null || windows.isEmpty()) {
             AccessibilityNodeInfo root = getRootInActiveWindow();
-            Log.d(TAG, "checkAutoPause: fallback root=" + (root != null ? root.getPackageName() : "null"));
             if (root != null) {
                 processRootNode(root, mode, now);
                 root.recycle();
@@ -408,7 +410,6 @@ public class ButtonMappingService extends AccessibilityService {
 
         for (android.view.accessibility.AccessibilityWindowInfo window : windows) {
             AccessibilityNodeInfo root = window.getRoot();
-            Log.d(TAG, "checkAutoPause: window root=" + (root != null ? root.getPackageName() : "null"));
             if (root != null) {
                 boolean processed = processRootNode(root, mode, now);
                 root.recycle();
@@ -446,36 +447,57 @@ public class ButtonMappingService extends AccessibilityService {
         ScreenInfo info = new ScreenInfo();
         scanScreen(root, info);
 
-        Log.d(TAG, "processRootNode: pkg=" + pkg + ", texts count=" + info.texts.size() + ", isBarNearEnd=" + info.isProgressBarNearEnd);
-
         if (info.texts.isEmpty() && !info.isProgressBarNearEnd) {
             return false;
         }
 
-        // Print texts for debugging
-        Log.d(TAG, "checkAutoPause matched window: pkg=" + pkg + ", mode=" + mode + ", texts=" + info.texts);
+        // Check playlist progress (e.g. "5/5", "10 / 10", "12 de 12", "Watch Later • 5/5")
+        for (String text : info.texts) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*(/|de|of)\\s*(\\d+)").matcher(text);
+            if (m.find()) {
+                try {
+                    int curIdx = Integer.parseInt(m.group(1));
+                    int total = Integer.parseInt(m.group(3));
+                    if (total > 0 && curIdx >= total) {
+                        isLastPlaylistItem = true;
+                        Log.d(TAG, "Auto pause: Playlist is at last item (" + curIdx + "/" + total + ")");
+                    } else if (total > 0 && curIdx < total) {
+                        isLastPlaylistItem = false;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
 
         // 1. Check countdown
         if (checkAutoplayCountdown(info.texts)) {
             lastCountdownDetectTime = now;
-            Log.d(TAG, "Auto pause: countdown detected!");
-            triggerAutoPause();
-            return true;
+            Log.d(TAG, "Auto pause: countdown detected! mode=" + mode + ", isLastItem=" + isLastPlaylistItem);
+            if (mode == 1 || mode == 3 || mode == 4 || (mode == 2 && isLastPlaylistItem)) {
+                triggerAutoPause();
+                isLastPlaylistItem = false;
+                return true;
+            }
         }
 
         // 2. Check ProgressBar near end
         if (info.isProgressBarNearEnd) {
             Log.d(TAG, "Auto pause: ProgressBar near end detected!");
-            triggerAutoPause();
-            return true;
+            if (mode == 1 || mode == 3 || mode == 4 || (mode == 2 && isLastPlaylistItem)) {
+                triggerAutoPause();
+                isLastPlaylistItem = false;
+                return true;
+            }
         }
 
         // 3. Check time text near end
         for (String text : info.texts) {
             if (checkTimeText(text)) {
                 Log.d(TAG, "Auto pause: Time text near end detected: " + text);
-                triggerAutoPause();
-                return true;
+                if (mode == 1 || mode == 3 || mode == 4 || (mode == 2 && isLastPlaylistItem)) {
+                    triggerAutoPause();
+                    isLastPlaylistItem = false;
+                    return true;
+                }
             }
         }
 
@@ -484,8 +506,48 @@ public class ButtonMappingService extends AccessibilityService {
             for (String text : info.texts) {
                 if (checkTimeTextAtStart(text)) {
                     Log.d(TAG, "Auto pause: Safety pause triggered for start of video: " + text);
-                    triggerAutoPause();
-                    return true;
+                    if (mode == 1 || mode == 3 || mode == 4 || (mode == 2 && isLastPlaylistItem)) {
+                        triggerAutoPause();
+                        isLastPlaylistItem = false;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // 5. Track video title change across playlist / recommendations
+        String candidateTitle = null;
+        for (String text : info.texts) {
+            if (text != null && text.length() >= 6 && !text.contains(":") && !text.matches(".*\\d+/\\d+.*") && !checkKeywords(text)) {
+                candidateTitle = text;
+                break;
+            }
+        }
+        if (candidateTitle != null) {
+            if (lastSeenMediaTitle == null) {
+                lastSeenMediaTitle = candidateTitle;
+                lastMediaTitleSetTime = now;
+            } else if (!lastSeenMediaTitle.equalsIgnoreCase(candidateTitle)) {
+                if (now - lastMediaTitleSetTime > 12000) {
+                    Log.d(TAG, "Auto pause: Title change detected: '" + lastSeenMediaTitle + "' -> '" + candidateTitle + "'");
+                    lastSeenMediaTitle = candidateTitle;
+                    lastMediaTitleSetTime = now;
+                    if (mode == 1 || mode == 4 || (mode == 2 && isLastPlaylistItem)) {
+                        triggerAutoPause();
+                        isLastPlaylistItem = false;
+                        return true;
+                    } else if (mode == 3) {
+                        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                        int count = op.getInt("auto_pause_custom_count", 1);
+                        if (count <= 1) {
+                            triggerAutoPause();
+                            return true;
+                        } else {
+                            op.edit().putInt("auto_pause_custom_count", count - 1).apply();
+                        }
+                    }
+                } else {
+                    lastSeenMediaTitle = candidateTitle;
                 }
             }
         }
@@ -684,12 +746,27 @@ public class ButtonMappingService extends AccessibilityService {
         lastAutoPauseTime = SystemClock.elapsedRealtime();
         Log.d(TAG, "Executing Auto Pause!");
 
-        // Send KEYCODE_MEDIA_PAUSE
+        // Send KEYCODE_MEDIA_PAUSE with retry
         try {
             if (audioManager != null) {
-                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE));
-                audioManager.dispatchMediaKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE));
+                long eventTime = SystemClock.uptimeMillis();
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE, 0));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE, 0));
                 Log.d(TAG, "Sent KEYCODE_MEDIA_PAUSE for auto pause");
+
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            if (audioManager != null && audioManager.isMusicActive()) {
+                                long t = SystemClock.uptimeMillis();
+                                audioManager.dispatchMediaKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, 0));
+                                audioManager.dispatchMediaKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, 0));
+                                Log.d(TAG, "Sent fallback KEYCODE_MEDIA_PLAY_PAUSE for auto pause");
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }, 250);
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to send media pause key", e);
@@ -705,9 +782,9 @@ public class ButtonMappingService extends AccessibilityService {
 
         // Adjust mode/counters
         int mode = op.getInt("auto_pause_mode", 0);
-        if (mode == 1) {
+        if (mode == 1 || mode == 2) {
             op.edit().putInt("auto_pause_mode", 0).apply();
-            Log.d(TAG, "Auto pause mode set to Disabled (was Once)");
+            Log.d(TAG, "Auto pause mode set to Disabled after execution (was mode " + mode + ")");
         } else if (mode == 3) {
             int count = op.getInt("auto_pause_custom_count", 1);
             if (count > 1) {
@@ -2385,31 +2462,82 @@ public class ButtonMappingService extends AccessibilityService {
                 try {
                     SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                     int volPct = prefs.getInt(KEY_STILL_WATCHING_BEEP_VOLUME, 65);
+                    int toneType = prefs.getInt(KEY_STILL_WATCHING_BEEP_TONE, 0);
                     if (volPct < 1) volPct = 1;
                     if (volPct > 100) volPct = 100;
 
                     int sampleRate = 44100;
-                    int durationMs = 400;
-                    int numSamples = (sampleRate * durationMs) / 1000;
-                    double freq = 800.0;
-                    short[] buffer = new short[numSamples];
-                    
-                    // Suave fade-in y fade-out de 30ms para evitar cualquier chasquido o click en los parlantes
-                    int fadeSamples = (sampleRate * 30) / 1000;
-                    double amplitude = 32767.0 * (volPct / 100.0);
+                    short[] buffer;
+                    int numSamples;
+                    int durationMs;
 
-                    for (int i = 0; i < numSamples; i++) {
-                        double angle = 2.0 * Math.PI * i * freq / sampleRate;
-                        double sample = Math.sin(angle);
-                        
-                        double gain = 1.0;
-                        if (i < fadeSamples) {
-                            gain = (double) i / fadeSamples;
-                        } else if (i > numSamples - fadeSamples) {
-                            gain = (double) (numSamples - i) / fadeSamples;
+                    if (toneType == 1) { // Ding-Dong (Doble Chime)
+                        int dur1 = 180;
+                        int gap = 35;
+                        int dur2 = 250;
+                        durationMs = dur1 + gap + dur2;
+                        numSamples = (sampleRate * durationMs) / 1000;
+                        buffer = new short[numSamples];
+
+                        int samples1 = (sampleRate * dur1) / 1000;
+                        int gapSamples = (sampleRate * gap) / 1000;
+                        int samples2 = (sampleRate * dur2) / 1000;
+                        int fade1 = (sampleRate * 20) / 1000;
+                        int fade2 = (sampleRate * 25) / 1000;
+
+                        double amp = 32767.0 * (volPct / 100.0);
+                        double freq1 = 659.25; // E5
+                        double freq2 = 880.00; // A5
+
+                        // Tone 1
+                        for (int i = 0; i < samples1; i++) {
+                            double angle = 2.0 * Math.PI * i * freq1 / sampleRate;
+                            double s = Math.sin(angle);
+                            double gain = 1.0;
+                            if (i < fade1) gain = (double) i / fade1;
+                            else if (i > samples1 - fade1) gain = (double) (samples1 - i) / fade1;
+                            buffer[i] = (short) (s * amp * gain);
                         }
-                        
-                        buffer[i] = (short) (sample * amplitude * gain);
+                        // Gap (silence)
+                        for (int i = samples1; i < samples1 + gapSamples; i++) {
+                            buffer[i] = 0;
+                        }
+                        // Tone 2
+                        int offset = samples1 + gapSamples;
+                        for (int i = 0; i < samples2 && (offset + i) < numSamples; i++) {
+                            double angle = 2.0 * Math.PI * i * freq2 / sampleRate;
+                            double s = Math.sin(angle);
+                            double gain = 1.0;
+                            if (i < fade2) gain = (double) i / fade2;
+                            else if (i > samples2 - fade2) gain = (double) (samples2 - i) / fade2;
+                            buffer[offset + i] = (short) (s * amp * gain);
+                        }
+                    } else {
+                        double freq;
+                        if (toneType == 2) { // Grave (550Hz)
+                            freq = 550.0;
+                            durationMs = 420;
+                        } else if (toneType == 3) { // Agudo (1050Hz)
+                            freq = 1050.0;
+                            durationMs = 350;
+                        } else { // Clásico (800Hz)
+                            freq = 800.0;
+                            durationMs = 400;
+                        }
+
+                        numSamples = (sampleRate * durationMs) / 1000;
+                        buffer = new short[numSamples];
+                        int fadeSamples = (sampleRate * 30) / 1000;
+                        double amplitude = 32767.0 * (volPct / 100.0);
+
+                        for (int i = 0; i < numSamples; i++) {
+                            double angle = 2.0 * Math.PI * i * freq / sampleRate;
+                            double sample = Math.sin(angle);
+                            double gain = 1.0;
+                            if (i < fadeSamples) gain = (double) i / fadeSamples;
+                            else if (i > numSamples - fadeSamples) gain = (double) (numSamples - i) / fadeSamples;
+                            buffer[i] = (short) (sample * amplitude * gain);
+                        }
                     }
 
                     int minBufferSize = AudioTrack.getMinBufferSize(
