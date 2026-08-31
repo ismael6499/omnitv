@@ -106,6 +106,7 @@ public class ButtonMappingService extends AccessibilityService {
     static final String KEY_STILL_WATCHING_BEEP = "still_watching_beep";
     static final String KEY_STILL_WATCHING_BEEP_DELAY = "still_watching_beep_delay";
     static final String KEY_STILL_WATCHING_BEEP_INTERVAL = "still_watching_beep_interval";
+    static final String KEY_STILL_WATCHING_BEEP_VOLUME = "still_watching_beep_volume";
 
     static final String KEY_NIGHT_SCHEDULE = "night_schedule";
     static final String KEY_NIGHT_START = "night_start";
@@ -2382,6 +2383,11 @@ public class ButtonMappingService extends AccessibilityService {
             @Override
             public void run() {
                 try {
+                    SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    int volPct = prefs.getInt(KEY_STILL_WATCHING_BEEP_VOLUME, 65);
+                    if (volPct < 1) volPct = 1;
+                    if (volPct > 100) volPct = 100;
+
                     int sampleRate = 44100;
                     int durationMs = 400;
                     int numSamples = (sampleRate * durationMs) / 1000;
@@ -2390,7 +2396,7 @@ public class ButtonMappingService extends AccessibilityService {
                     
                     // Suave fade-in y fade-out de 30ms para evitar cualquier chasquido o click en los parlantes
                     int fadeSamples = (sampleRate * 30) / 1000;
-                    double amplitude = 32767.0 * 0.65; // 65% de amplitud (audible, claro y cálido)
+                    double amplitude = 32767.0 * (volPct / 100.0);
 
                     for (int i = 0; i < numSamples; i++) {
                         double angle = 2.0 * Math.PI * i * freq / sampleRate;
