@@ -104,6 +104,7 @@ public class ButtonMappingService extends AccessibilityService {
     static final String KEY_STILL_WATCHING_X = "still_watching_x";
     static final String KEY_STILL_WATCHING_Y = "still_watching_y";
     static final String KEY_STILL_WATCHING_BEEP = "still_watching_beep";
+    static final String KEY_STILL_WATCHING_BEEP_DELAY = "still_watching_beep_delay";
     static final String KEY_STILL_WATCHING_BEEP_INTERVAL = "still_watching_beep_interval";
 
     static final String KEY_NIGHT_SCHEDULE = "night_schedule";
@@ -2359,10 +2360,15 @@ public class ButtonMappingService extends AccessibilityService {
 
                     boolean beepEnabled = prefs.getBoolean(KEY_STILL_WATCHING_BEEP, true);
                     if (beepEnabled) {
-                        playStillWatchingBeep();
-                        int beepInterval = prefs.getInt(KEY_STILL_WATCHING_BEEP_INTERVAL, 10);
-                        if (beepInterval < 1) beepInterval = 1;
-                        handler.postDelayed(stillWatchingBeepRunnable, beepInterval * 1000L);
+                        int beepDelay = prefs.getInt(KEY_STILL_WATCHING_BEEP_DELAY, 9);
+                        if (beepDelay <= 0) {
+                            playStillWatchingBeep();
+                            int beepInterval = prefs.getInt(KEY_STILL_WATCHING_BEEP_INTERVAL, 10);
+                            if (beepInterval < 1) beepInterval = 1;
+                            handler.postDelayed(stillWatchingBeepRunnable, beepInterval * 1000L);
+                        } else {
+                            handler.postDelayed(stillWatchingBeepRunnable, beepDelay * 1000L);
+                        }
                     }
 
                     Log.d(TAG, "Still watching prompt shown");
