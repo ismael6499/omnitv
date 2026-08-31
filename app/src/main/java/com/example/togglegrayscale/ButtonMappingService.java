@@ -654,46 +654,14 @@ public class ButtonMappingService extends AccessibilityService {
         boolean autoDismiss = op.getBoolean(KEY_AUTO_DISMISS_UP_NEXT, true);
         if (!autoDismiss) return;
 
-        if (currentVideoDuration > 30000 && position >= (currentVideoDuration - 18000)) {
+        // In the last 15 seconds of the video, automatically dismiss the Up Next card/bubble
+        if (currentVideoDuration > 30000 && position >= (currentVideoDuration - 15000) && position < (currentVideoDuration - 2000)) {
             long now = SystemClock.elapsedRealtime();
-            if (now - lastDismissUpNextTime > 15000) {
-                checkAndDismissUpNextCard();
-            }
-        }
-    }
-
-    private void checkAndDismissUpNextCard() {
-        try {
-            AccessibilityNodeInfo root = getRootInActiveWindow();
-            if (root == null) return;
-            ScreenInfo info = new ScreenInfo();
-            scanScreen(root, info);
-            
-            boolean cardFound = false;
-            for (String text : info.texts) {
-                if (text == null) continue;
-                String lower = text.toLowerCase(Locale.ROOT);
-                if (lower.contains("se reproducirá")
-                        || lower.contains("a continuación")
-                        || lower.contains("up next")
-                        || lower.contains("cancelar")
-                        || lower.contains("cancel")
-                        || lower.contains("siguiente video")
-                        || lower.contains("reproducir ahora")
-                        || lower.contains("play now")
-                        || lower.equals("x")) {
-                    cardFound = true;
-                    break;
-                }
-            }
-
-            if (cardFound) {
-                Log.d(TAG, "Up Next preview card confirmed on screen! Dismissing with BACK key.");
+            if (now - lastDismissUpNextTime > 25000) {
+                lastDismissUpNextTime = now;
+                Log.d(TAG, "Triggering automatic Up Next card dismissal at pos=" + position + "/" + currentVideoDuration);
                 performGlobalAction(GLOBAL_ACTION_BACK);
-                lastDismissUpNextTime = SystemClock.elapsedRealtime();
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Error checking Up Next card", e);
         }
     }
 
