@@ -659,8 +659,8 @@ public class ButtonMappingService extends AccessibilityService {
         lastPlaybackPosition = position;
         lastPlaybackPositionSetTime = SystemClock.elapsedRealtime();
 
-        // If the user rewinds/seeks back before the final 25s, unlock dismissal immediately
-        if (currentVideoDuration > 30000 && position < (currentVideoDuration - 25000)) {
+        // If the user rewinds/seeks back before the final 22s, unlock dismissal immediately
+        if (currentVideoDuration > 30000 && position < (currentVideoDuration - 22000)) {
             lastDismissUpNextTime = 0;
         }
 
@@ -682,8 +682,8 @@ public class ButtonMappingService extends AccessibilityService {
             curPos += (SystemClock.elapsedRealtime() - lastPlaybackPositionSetTime);
         }
 
-        // Trigger dismissal during final 20 seconds
-        if (curPos >= (currentVideoDuration - 20000) && curPos < (currentVideoDuration - 1000)) {
+        // Trigger dismissal during final 17.5 seconds (ensures card is already mounted on screen)
+        if (curPos >= (currentVideoDuration - 17500) && curPos < (currentVideoDuration - 1000)) {
             long now = SystemClock.elapsedRealtime();
             if (now - lastDismissUpNextTime > 25000) {
                 lastDismissUpNextTime = now;
