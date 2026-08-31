@@ -602,6 +602,7 @@ public class ButtonMappingService extends AccessibilityService {
     public void onStreamingVideoChanged(String pkg, String title, String artist, long duration) {
         if (duration > 0) {
             currentVideoDuration = duration;
+            getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putLong("last_known_video_duration", duration).apply();
         }
         if (title == null || title.isEmpty()) return;
         Log.d(TAG, "onStreamingVideoChanged: pkg=" + pkg + ", title='" + title + "', artist='" + artist + "', dur=" + duration);
@@ -665,6 +666,9 @@ public class ButtonMappingService extends AccessibilityService {
         boolean autoDismiss = op.getBoolean(KEY_AUTO_DISMISS_UP_NEXT, true);
         if (!autoDismiss) return;
 
+        if (currentVideoDuration <= 0) {
+            currentVideoDuration = op.getLong("last_known_video_duration", 0);
+        }
         if (currentVideoDuration <= 30000) return;
 
         long curPos = lastPlaybackPosition;
@@ -685,9 +689,8 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void dismissUpNextCard() {
         try {
-            performGlobalAction(GLOBAL_ACTION_BACK);
-            Runtime.getRuntime().exec(new String[]{"sh", "-c", "input keyevent 4"});
-            Log.d(TAG, "Sent hardware BACK key for Up Next card dismissal");
+            boolean sent = performGlobalAction(GLOBAL_ACTION_BACK);
+            Log.d(TAG, "Sent GLOBAL_ACTION_BACK for Up Next card dismissal: success=" + sent);
         } catch (Exception e) {
             Log.e(TAG, "Failed to send hardware back key", e);
         }
