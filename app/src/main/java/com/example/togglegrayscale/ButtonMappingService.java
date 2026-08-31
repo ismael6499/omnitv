@@ -453,18 +453,32 @@ public class ButtonMappingService extends AccessibilityService {
             return false;
         }
 
-        // Check playlist progress (e.g. "5/5", "10 / 10", "12 de 12", "Watch Later • 5/5")
+        // Check playlist progress and auto-detect total count (e.g. "1/2", "5/5", "10 / 10", "12 de 12", "Watch Later • 5/5")
         for (String text : info.texts) {
             java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*(/|de|of)\\s*(\\d+)").matcher(text);
             if (m.find()) {
                 try {
                     int curIdx = Integer.parseInt(m.group(1));
                     int total = Integer.parseInt(m.group(3));
+                    if (total > 0) {
+                        getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putInt("auto_pause_playlist_count", total).apply();
+                        Log.d(TAG, "Auto pause: Auto-detected playlist total: " + total + " (cur=" + curIdx + ")");
+                    }
                     if (total > 0 && curIdx >= total) {
                         isLastPlaylistItem = true;
                         Log.d(TAG, "Auto pause: Playlist is at last item (" + curIdx + "/" + total + ")");
                     } else if (total > 0 && curIdx < total) {
                         isLastPlaylistItem = false;
+                    }
+                } catch (Exception ignored) {}
+            }
+            java.util.regex.Matcher mVids = java.util.regex.Pattern.compile("(\\d+)\\s+(videos?|elementos?)").matcher(text);
+            if (mVids.find()) {
+                try {
+                    int total = Integer.parseInt(mVids.group(1));
+                    if (total > 0 && total <= 500) {
+                        getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putInt("auto_pause_playlist_count", total).apply();
+                        Log.d(TAG, "Auto pause: Auto-detected playlist header count: " + total + " videos");
                     }
                 } catch (Exception ignored) {}
             }
@@ -1169,6 +1183,35 @@ public class ButtonMappingService extends AccessibilityService {
                         + ", desc=" + event.getContentDescription() 
                         + ", items=" + event.getCurrentItemIndex() + "/" + event.getItemCount());
                 
+                // Auto-detect playlist count from event text/desc
+                if (event.getText() != null) {
+                    for (CharSequence cs : event.getText()) {
+                        if (cs != null) {
+                            String str = cs.toString();
+                            java.util.regex.Matcher mVids = java.util.regex.Pattern.compile("(\\d+)\\s+(videos?|elementos?)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(str);
+                            if (mVids.find()) {
+                                try {
+                                    int total = Integer.parseInt(mVids.group(1));
+                                    if (total > 0 && total <= 500) {
+                                        getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putInt("auto_pause_playlist_count", total).apply();
+                                        Log.d(TAG, "Auto-detected playlist count from event text: " + total);
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                            java.util.regex.Matcher mIdx = java.util.regex.Pattern.compile("(\\d+)\\s*(/|de|of)\\s*(\\d+)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(str);
+                            if (mIdx.find()) {
+                                try {
+                                    int total = Integer.parseInt(mIdx.group(3));
+                                    if (total > 0 && total <= 500) {
+                                        getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putInt("auto_pause_playlist_count", total).apply();
+                                        Log.d(TAG, "Auto-detected playlist count from index text: " + total);
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                    }
+                }
+
                 // Trigger auto pause check immediately on relevant streaming changes
                 if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED 
                         || eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
