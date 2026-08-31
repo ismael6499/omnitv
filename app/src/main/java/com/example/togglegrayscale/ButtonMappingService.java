@@ -379,7 +379,7 @@ public class ButtonMappingService extends AccessibilityService {
             } catch (Exception e) {
                 Log.e(TAG, "Error in autoPauseCheckRunnable", e);
             }
-            handler.postDelayed(this, 2000);
+            handler.postDelayed(this, 1000);
         }
     };
 
@@ -676,8 +676,8 @@ public class ButtonMappingService extends AccessibilityService {
             curPos += (SystemClock.elapsedRealtime() - lastPlaybackPositionSetTime);
         }
 
-        // Trigger dismissal during final 18 seconds
-        if (curPos >= (currentVideoDuration - 18000) && curPos < (currentVideoDuration - 1000)) {
+        // Trigger dismissal during final 20 seconds
+        if (curPos >= (currentVideoDuration - 20000) && curPos < (currentVideoDuration - 1000)) {
             long now = SystemClock.elapsedRealtime();
             if (now - lastDismissUpNextTime > 25000) {
                 lastDismissUpNextTime = now;
