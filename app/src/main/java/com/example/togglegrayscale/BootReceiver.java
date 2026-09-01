@@ -7,7 +7,11 @@ import android.content.Intent;
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (Intent.ACTION_BOOT_COMPLETED.equals(action)
+                || "android.intent.action.MY_PACKAGE_REPLACED".equals(action)) {
+            ScheduledSleepReceiver.scheduleNextAlarm(context);
             Intent serviceIntent = new Intent(context, NotificationService.class);
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 context.startForegroundService(serviceIntent);

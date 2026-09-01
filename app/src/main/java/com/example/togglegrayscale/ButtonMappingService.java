@@ -991,6 +991,9 @@ public class ButtonMappingService extends AccessibilityService {
                 if (prefs.getBoolean(KEY_DIMMER, false)) showDimmerOverlay();
                 if (prefs.getBoolean(KEY_STILL_WATCHING, false)) startStillWatchingTimer();
                 if (prefs.getBoolean(KEY_OLED_SAVER, false)) startOledSaverTimer();
+                if (prefs.getBoolean("scheduled_sleep_enabled", false)) {
+                    ScheduledSleepReceiver.scheduleNextAlarm(ButtonMappingService.this);
+                }
             }
         }, 500);
 
