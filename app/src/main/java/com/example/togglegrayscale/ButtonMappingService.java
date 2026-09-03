@@ -208,7 +208,6 @@ public class ButtonMappingService extends AccessibilityService {
         @Override
         public void run() {
             checkAndApplyNightSchedule();
-            checkDaytimeDimmerReset();
             handler.postDelayed(this, 60000);
         }
     };
