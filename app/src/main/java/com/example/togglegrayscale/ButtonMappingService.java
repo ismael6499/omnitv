@@ -208,6 +208,7 @@ public class ButtonMappingService extends AccessibilityService {
         @Override
         public void run() {
             checkAndApplyNightSchedule();
+            checkDaytimeDimmerReset();
             handler.postDelayed(this, 60000);
         }
     };
@@ -986,6 +987,7 @@ public class ButtonMappingService extends AccessibilityService {
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
+                checkDaytimeDimmerReset();
                 if (prefs.getBoolean(KEY_BLUE_LIGHT, false)) showBlueLightOverlay();
                 if (prefs.getBoolean(KEY_CLOCK, true)) showClockOverlay();
                 if (prefs.getBoolean(KEY_DIMMER, false)) showDimmerOverlay();
@@ -1028,6 +1030,7 @@ public class ButtonMappingService extends AccessibilityService {
             }
             if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
                 Log.d(TAG, "Screen ON detected! Performing auto-reset of temporary modes.");
+                checkDaytimeDimmerReset();
                 SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                 if (prefs.getBoolean(KEY_CINE_MODE, false)) {
                     prefs.edit().putBoolean(KEY_CINE_MODE, false).apply();
@@ -2895,6 +2898,54 @@ public class ButtonMappingService extends AccessibilityService {
             if (!isDimmerActive && targetDimmer > 0) {
                 setDimmerBrightness(targetDimmer);
             }
+        }
+    }
+
+    // ── Daytime Dimmer Auto-Reset (08:00 - 18:00) ────────────────────────────
+
+    private void checkDaytimeDimmerReset() {
+        try {
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            int hour = cal.get(java.util.Calendar.HOUR_OF_DAY);
+            // Must be between 08:00 and 18:59 (08h - 18h)
+            if (hour < 8 || hour >= 19) return;
+
+            String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+            String lastResetDate = prefs.getString("dimmer_day_auto_reset_date", "");
+
+            // Run once per day
+            if (todayStr.equals(lastResetDate)) return;
+
+            String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
+            String[] parts = levelsStr.split(",");
+            if (parts.length == 0) return;
+
+            int firstLevel = 100;
+            try {
+                firstLevel = Integer.parseInt(parts[0].trim());
+            } catch (Exception ignored) {
+                firstLevel = 100;
+            }
+
+            int curPct = prefs.getInt("dimmer_brightness_pct", 50);
+
+            if (curPct != firstLevel) {
+                Log.d(TAG, "Daytime dimmer auto-reset triggered (" + todayStr + ") at " + hour + "h: Resetting dimmer from " + curPct + "% to step 1 (" + firstLevel + "%).");
+                prefs.edit()
+                        .putString("dimmer_day_auto_reset_date", todayStr)
+                        .putInt("dimmer_brightness_pct", firstLevel)
+                        .apply();
+
+                if (isDimmerActive && dimmerOverlayView != null) {
+                    int alphaVal = (int) ((100 - firstLevel) * 2.55);
+                    dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+                }
+            } else {
+                prefs.edit().putString("dimmer_day_auto_reset_date", todayStr).apply();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in checkDaytimeDimmerReset", e);
         }
     }
 
