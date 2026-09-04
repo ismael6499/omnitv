@@ -1060,6 +1060,7 @@ public class ButtonMappingService extends AccessibilityService {
     public void handleAction(String action, android.os.Bundle extras) {
         Log.d(TAG, "handleAction: " + action);
         switch (action) {
+            case "ACTION_CHECK_DAYTIME_RESET": checkDaytimeDimmerReset(); break;
             case "ACTION_SHOW_BLACK_SCREEN": showBlackScreen(); break;
             case "ACTION_TOGGLE_GRAYSCALE": ToggleUtils.toggleGrayscale(getApplicationContext()); break;
             case "ACTION_TOGGLE_BLUE_LIGHT": toggleBlueLight(); break;
@@ -2900,48 +2901,73 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
-    // ── Daytime Dimmer Auto-Reset (08:00 - 18:00) ────────────────────────────
+    // ── Daytime Auto-Reset (Dimmer Step 1 & Grayscale to Color) ──────────────
 
     private void checkDaytimeDimmerReset() {
         try {
+            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
             java.util.Calendar cal = java.util.Calendar.getInstance();
             int hour = cal.get(java.util.Calendar.HOUR_OF_DAY);
-            // Must be between 08:00 and 18:59 (08h - 18h)
-            if (hour < 8 || hour >= 19) return;
 
-            String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
-            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-            String lastResetDate = prefs.getString("dimmer_day_auto_reset_date", "");
+            int startH = prefs.getInt("dimmer_day_reset_start_hour", 8);
+            int endH = prefs.getInt("dimmer_day_reset_end_hour", 19);
 
-            // Run once per day
-            if (todayStr.equals(lastResetDate)) return;
-
-            String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
-            String[] parts = levelsStr.split(",");
-            if (parts.length == 0) return;
-
-            int firstLevel = 100;
-            try {
-                firstLevel = Integer.parseInt(parts[0].trim());
-            } catch (Exception ignored) {
-                firstLevel = 100;
+            boolean inRange;
+            if (startH <= endH) {
+                inRange = (hour >= startH && hour < endH);
+            } else {
+                inRange = (hour >= startH || hour < endH);
             }
 
-            int curPct = prefs.getInt("dimmer_brightness_pct", 50);
+            if (!inRange) return;
 
-            if (curPct != firstLevel) {
-                Log.d(TAG, "Daytime dimmer auto-reset triggered (" + todayStr + ") at " + hour + "h: Resetting dimmer from " + curPct + "% to step 1 (" + firstLevel + "%).");
-                prefs.edit()
-                        .putString("dimmer_day_auto_reset_date", todayStr)
-                        .putInt("dimmer_brightness_pct", firstLevel)
-                        .apply();
+            String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
 
-                if (isDimmerActive && dimmerOverlayView != null) {
-                    int alphaVal = (int) ((100 - firstLevel) * 2.55);
-                    dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+            // 1. Dimmer auto-reset to step 1
+            boolean dimmerResetEnabled = prefs.getBoolean("dimmer_day_auto_reset_enabled", true);
+            if (dimmerResetEnabled) {
+                String lastResetDate = prefs.getString("dimmer_day_auto_reset_date", "");
+                if (!todayStr.equals(lastResetDate)) {
+                    String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
+                    String[] parts = levelsStr.split(",");
+                    if (parts.length > 0) {
+                        int firstLevel = 100;
+                        try {
+                            firstLevel = Integer.parseInt(parts[0].trim());
+                        } catch (Exception ignored) {
+                            firstLevel = 100;
+                        }
+
+                        int curPct = prefs.getInt("dimmer_brightness_pct", 50);
+                        if (curPct != firstLevel) {
+                            Log.d(TAG, "Daytime dimmer auto-reset triggered (" + todayStr + ") at " + hour + "h: Resetting dimmer from " + curPct + "% to step 1 (" + firstLevel + "%).");
+                            prefs.edit()
+                                    .putString("dimmer_day_auto_reset_date", todayStr)
+                                    .putInt("dimmer_brightness_pct", firstLevel)
+                                    .apply();
+
+                            if (isDimmerActive && dimmerOverlayView != null) {
+                                int alphaVal = (int) ((100 - firstLevel) * 2.55);
+                                dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+                            }
+                        } else {
+                            prefs.edit().putString("dimmer_day_auto_reset_date", todayStr).apply();
+                        }
+                    }
                 }
-            } else {
-                prefs.edit().putString("dimmer_day_auto_reset_date", todayStr).apply();
+            }
+
+            // 2. Grayscale auto-reset to color
+            boolean grayscaleResetEnabled = prefs.getBoolean("grayscale_day_auto_reset_enabled", true);
+            if (grayscaleResetEnabled) {
+                String lastGrayscaleResetDate = prefs.getString("grayscale_day_auto_reset_date", "");
+                if (!todayStr.equals(lastGrayscaleResetDate)) {
+                    prefs.edit().putString("grayscale_day_auto_reset_date", todayStr).apply();
+                    if (ToggleUtils.isGrayscaleEnabled(getApplicationContext())) {
+                        Log.d(TAG, "Daytime grayscale auto-reset triggered (" + todayStr + ") at " + hour + "h: Disabling grayscale (restoring color).");
+                        ToggleUtils.setGrayscale(getApplicationContext(), false);
+                    }
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in checkDaytimeDimmerReset", e);

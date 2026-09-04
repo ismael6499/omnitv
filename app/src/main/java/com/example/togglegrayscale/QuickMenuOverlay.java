@@ -135,6 +135,10 @@ public class QuickMenuOverlay {
     private TextView txtBrightnessPct;
     private LinearLayout containerBrightnessLevels;
     private TextView btnAddBrightnessLevel;
+    private TextView btnDimmerDayAutoReset;
+    private TextView btnGrayscaleDayAutoReset;
+    private TextView btnDayResetStartDec, btnDayResetStartInc, txtDayResetStart;
+    private TextView btnDayResetEndDec, btnDayResetEndInc, txtDayResetEnd;
     private TextView btnApplyBrightness;
     private LinearLayout panelButtonConfig;
     private LinearLayout panelAutoPause;
@@ -392,6 +396,14 @@ public class QuickMenuOverlay {
             txtBrightnessPct     = rootView.findViewById(R.id.txt_brightness_pct);
             containerBrightnessLevels = rootView.findViewById(R.id.container_brightness_levels);
             btnAddBrightnessLevel    = rootView.findViewById(R.id.btn_add_brightness_level);
+            btnDimmerDayAutoReset    = rootView.findViewById(R.id.btn_dimmer_day_auto_reset);
+            btnGrayscaleDayAutoReset = rootView.findViewById(R.id.btn_grayscale_day_auto_reset);
+            btnDayResetStartDec      = rootView.findViewById(R.id.btn_day_reset_start_dec);
+            txtDayResetStart         = rootView.findViewById(R.id.txt_day_reset_start);
+            btnDayResetStartInc      = rootView.findViewById(R.id.btn_day_reset_start_inc);
+            btnDayResetEndDec        = rootView.findViewById(R.id.btn_day_reset_end_dec);
+            txtDayResetEnd           = rootView.findViewById(R.id.txt_day_reset_end);
+            btnDayResetEndInc        = rootView.findViewById(R.id.btn_day_reset_end_inc);
             btnApplyBrightness       = rootView.findViewById(R.id.btn_apply_brightness);
 
             panelButtonConfig    = rootView.findViewById(R.id.panel_button_config);
@@ -1439,6 +1451,42 @@ public class QuickMenuOverlay {
                 }
             });
         }
+
+        // Auto-Reset Diario al Encender (Dimmer Paso 1 & Grayscale a Color)
+        if (btnDimmerDayAutoReset != null) {
+            btnDimmerDayAutoReset.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean("dimmer_day_auto_reset_enabled", true);
+                    getOverlayPrefs().edit().putBoolean("dimmer_day_auto_reset_enabled", !cur).apply();
+                    updateBrightnessConfigPanel();
+                    btnDimmerDayAutoReset.requestFocus();
+                }
+            });
+        }
+        if (btnGrayscaleDayAutoReset != null) {
+            btnGrayscaleDayAutoReset.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    boolean cur = getOverlayPrefs().getBoolean("grayscale_day_auto_reset_enabled", true);
+                    getOverlayPrefs().edit().putBoolean("grayscale_day_auto_reset_enabled", !cur).apply();
+                    updateBrightnessConfigPanel();
+                    btnGrayscaleDayAutoReset.requestFocus();
+                }
+            });
+        }
+        setupAutoRepeatStepButton(btnDayResetStartDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustIntPref("dimmer_day_reset_start_hour", 8, step, 0, 23, null); updateBrightnessConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnDayResetStartInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustIntPref("dimmer_day_reset_start_hour", 8, step, 0, 23, null); updateBrightnessConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnDayResetEndDec, -1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustIntPref("dimmer_day_reset_end_hour", 19, step, 0, 23, null); updateBrightnessConfigPanel(); }
+        });
+        setupAutoRepeatStepButton(btnDayResetEndInc, 1, new StepAdjuster() {
+            @Override public void adjust(int step) { adjustIntPref("dimmer_day_reset_end_hour", 19, step, 0, 23, null); updateBrightnessConfigPanel(); }
+        });
 
         // Cycle Brightness & OSD HUD listeners
         if (btnCycleBrightnessNow != null) {
@@ -3089,6 +3137,28 @@ public class QuickMenuOverlay {
         }
         if (btnApplyBrightness != null) {
             btnApplyBrightness.setText(active ? "[ Desactivar Dimmer ]" : "[ Activar Dimmer ]");
+        }
+
+        boolean dimmerAutoReset = prefs.getBoolean("dimmer_day_auto_reset_enabled", true);
+        if (btnDimmerDayAutoReset != null) {
+            btnDimmerDayAutoReset.setText("Auto-Reset Brillo (Paso 1):   " + (dimmerAutoReset ? "[Activado]" : "[Desactivado]"));
+            btnDimmerDayAutoReset.setTextColor(dimmerAutoReset ? 0xFF81C784 : 0xFFE57373);
+        }
+
+        boolean grayscaleAutoReset = prefs.getBoolean("grayscale_day_auto_reset_enabled", true);
+        if (btnGrayscaleDayAutoReset != null) {
+            btnGrayscaleDayAutoReset.setText("Auto-Reset B/N a Color:   " + (grayscaleAutoReset ? "[Activado]" : "[Desactivado]"));
+            btnGrayscaleDayAutoReset.setTextColor(grayscaleAutoReset ? 0xFF81C784 : 0xFFE57373);
+        }
+
+        int startH = prefs.getInt("dimmer_day_reset_start_hour", 8);
+        if (txtDayResetStart != null) {
+            txtDayResetStart.setText(String.format(java.util.Locale.US, "%02d:00", startH));
+        }
+
+        int endH = prefs.getInt("dimmer_day_reset_end_hour", 19);
+        if (txtDayResetEnd != null) {
+            txtDayResetEnd.setText(String.format(java.util.Locale.US, "%02d:00", endH));
         }
 
         View viewToFocus = null;
