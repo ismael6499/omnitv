@@ -310,23 +310,34 @@ public class ButtonMappingService extends AccessibilityService {
         final int defaultClick2;
         final int defaultClick3;
         final int defaultClick4;
+        final int defaultClick5;
         final int defaultLong;
         final int defaultDurationMs;
 
         boolean isPressed = false;
         boolean isLongPressTriggered = false;
+        boolean isInOverClickState = false;
         int clickCount = 0;
 
         final Runnable longPressRunnable = new Runnable() {
             @Override
             public void run() {
-                if (isPressed) {
+                if (isPressed && !isInOverClickState) {
                     isLongPressTriggered = true;
                     SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                     int actionId = prefs.getInt("btn_" + name + "_long_action", defaultLong);
                     Log.d(TAG, name + " long press detected! Running action: " + actionId);
                     executeAction(actionId);
                 }
+            }
+        };
+
+        final Runnable overClickResetRunnable = new Runnable() {
+            @Override
+            public void run() {
+                isInOverClickState = false;
+                clickCount = 0;
+                Log.d(TAG, name + " over-click protection window closed. State reset to idle.");
             }
         };
 
@@ -343,25 +354,59 @@ public class ButtonMappingService extends AccessibilityService {
                     actionId = prefs.getInt("btn_" + name + "_click_2_action", defaultClick2);
                 } else if (count == 3) {
                     actionId = prefs.getInt("btn_" + name + "_click_3_action", defaultClick3);
-                } else if (count >= 4) {
+                } else if (count == 4) {
                     actionId = prefs.getInt("btn_" + name + "_click_4_action", defaultClick4);
+                } else if (count >= 5) {
+                    int act5 = prefs.getInt("btn_" + name + "_click_5_action", defaultClick5);
+                    if (act5 > 0) {
+                        actionId = act5;
+                    } else {
+                        actionId = prefs.getInt("btn_" + name + "_click_4_action", defaultClick4);
+                    }
                 }
-                Log.d(TAG, name + " " + count + "-click executed. Running action: " + actionId);
+                Log.d(TAG, name + " " + count + "-click executed (action: " + actionId + ")");
                 executeAction(actionId);
             }
         };
 
+        private int getMaxClicks() {
+            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+            if (prefs.getInt("btn_" + name + "_click_5_action", defaultClick5) > 0) {
+                return 5;
+            }
+            if (prefs.getInt("btn_" + name + "_click_4_action", defaultClick4) > 0 || defaultClick4 > 0) {
+                return 4;
+            }
+            if (prefs.getInt("btn_" + name + "_click_3_action", defaultClick3) > 0 || defaultClick3 > 0) {
+                return 3;
+            }
+            if (prefs.getInt("btn_" + name + "_click_2_action", defaultClick2) > 0 || defaultClick2 > 0) {
+                return 2;
+            }
+            return 1;
+        }
+
         ButtonState(String name, int defaultClick1, int defaultClick2, int defaultClick3, int defaultClick4, int defaultLong, int defaultDurationMs) {
+            this(name, defaultClick1, defaultClick2, defaultClick3, defaultClick4, 0, defaultLong, defaultDurationMs);
+        }
+
+        ButtonState(String name, int defaultClick1, int defaultClick2, int defaultClick3, int defaultClick4, int defaultClick5, int defaultLong, int defaultDurationMs) {
             this.name = name;
             this.defaultClick1 = defaultClick1;
             this.defaultClick2 = defaultClick2;
             this.defaultClick3 = defaultClick3;
             this.defaultClick4 = defaultClick4;
+            this.defaultClick5 = defaultClick5;
             this.defaultLong = defaultLong;
             this.defaultDurationMs = defaultDurationMs;
         }
 
         void onDown() {
+            if (isInOverClickState) {
+                handler.removeCallbacks(overClickResetRunnable);
+                handler.postDelayed(overClickResetRunnable, 400);
+                return;
+            }
             if (!isPressed) {
                 isPressed = true;
                 isLongPressTriggered = false;
@@ -374,11 +419,23 @@ public class ButtonMappingService extends AccessibilityService {
 
         void onUp() {
             handler.removeCallbacks(longPressRunnable);
+            if (isInOverClickState) {
+                handler.removeCallbacks(overClickResetRunnable);
+                handler.postDelayed(overClickResetRunnable, 400);
+                Log.d(TAG, name + " extra click absorbed within over-click window. Ignored to prevent accidental triggers.");
+                isPressed = false;
+                isLongPressTriggered = false;
+                return;
+            }
             if (!isLongPressTriggered && isPressed) {
                 clickCount++;
                 handler.removeCallbacks(clickTimeoutRunnable);
-                if (clickCount == 4) {
+                int maxClicks = getMaxClicks();
+                if (clickCount >= maxClicks && maxClicks >= 2) {
                     clickTimeoutRunnable.run();
+                    isInOverClickState = true;
+                    handler.removeCallbacks(overClickResetRunnable);
+                    handler.postDelayed(overClickResetRunnable, 400);
                 } else {
                     handler.postDelayed(clickTimeoutRunnable, 300);
                 }
@@ -390,7 +447,9 @@ public class ButtonMappingService extends AccessibilityService {
         void cancel() {
             handler.removeCallbacks(longPressRunnable);
             handler.removeCallbacks(clickTimeoutRunnable);
+            handler.removeCallbacks(overClickResetRunnable);
             clickCount = 0;
+            isInOverClickState = false;
             isPressed = false;
             isLongPressTriggered = false;
         }
