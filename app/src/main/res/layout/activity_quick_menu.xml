@@ -1013,6 +1013,149 @@
                 </LinearLayout>
             </com.example.togglegrayscale.MaxHeightScrollView>
         </LinearLayout>
+
+        <!-- SUBPANEL: Doblaje al Vuelo (VOT) -->
+        <LinearLayout
+            android:id="@+id/panel_vot_config"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#252830"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🎙️  Configuración de Doblaje al Vuelo (VOT):"
+                android:textColor="#AAAAAA"
+                android:textSize="13sp"
+                android:layout_marginBottom="6dp"
+                android:paddingStart="4dp" />
+
+            <com.example.togglegrayscale.MaxHeightScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fadeScrollbars="false"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Interruptor Maestro -->
+                    <TextView
+                        android:id="@+id/btn_vot_master_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Doblaje:  [OFF]"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Idioma de Origen -->
+                    <TextView
+                        android:id="@+id/btn_vot_source_lang"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Idioma Video:  Auto"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Subtítulos Flotantes -->
+                    <TextView
+                        android:id="@+id/btn_vot_subtitles_mode"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Subtítulos:  En Pantalla"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Velocidad de Voz -->
+                    <TextView
+                        android:id="@+id/btn_vot_speech_rate"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Velocidad Voz:  1.1x"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Motor de Traducción -->
+                    <TextView
+                        android:id="@+id/btn_vot_provider"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Motor:  Google Gratuito"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Botón de Prueba con Audio Ducking -->
+                    <TextView
+                        android:id="@+id/btn_vot_test_voice"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="🔊  Probar Voz con Atenuación (Ducking)"
+                        android:textColor="#81D4FA"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Botón Listo -->
+                    <TextView
+                        android:id="@+id/btn_vot_apply"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="✓  Listo"
+                        android:textColor="#4CAF50"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+                </LinearLayout>
+            </com.example.togglegrayscale.MaxHeightScrollView>
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Internal eye-care filter overlays (ensures zero-flash dimming when menu opens) -->

@@ -34,7 +34,7 @@ public class QuickMenuOverlay {
         "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
         "pause_screen_off", "scheduled_sleep", "cycle_brightness", "mindful_delay", "still_watching",
-        "night_schedule", "oled_saver", "trigger_translate", "translate", "button_combos",
+        "night_schedule", "oled_saver", "vot", "trigger_translate", "translate", "button_combos",
         "config_mute", "config_youtube_190", "config_youtube_189",
         "developer_options"
     };
@@ -70,8 +70,15 @@ public class QuickMenuOverlay {
         "Opciones de Desarrollador",
         "Ciclar Brillo Inverso",
         "Slider de Brillo Rápido",
-        "SmartTube"
+        "SmartTube",
+        "Doblaje de Voz (VOT)"
     };
+
+    private static final String[] VOT_SOURCE_LANGS = {"auto", "en", "ko", "ja"};
+    private static final String[] VOT_SOURCE_LANG_NAMES = {"Auto (Detectar)", "Inglés (English)", "Coreano (한국어)", "Japonés (日本語)"};
+    private static final float[] VOT_SPEECH_RATES = {1.0f, 1.15f, 1.3f, 1.45f};
+    private static final String[] VOT_SPEECH_RATE_NAMES = {"Normal (1.0x)", "Rápido (1.15x)", "Muy Rápido (1.3x)", "Ultra (1.45x)"};
+    private static final String[] VOT_PROVIDER_NAMES = {"Google (Gratuito)", "OpenRouter IA"};
 
     private static final String[] TRANSLATE_TARGET_LANGS = {"Español", "English"};
     private static final String[] TRANSLATE_SOURCE_LANGS = {
@@ -232,6 +239,16 @@ public class QuickMenuOverlay {
     private TextView btnComboYoutube190Mute;
     private TextView btnComboInputOk;
     private TextView btnApplyCombos;
+ 
+    // VOT Config Fields
+    private LinearLayout panelVotConfig;
+    private TextView btnVotMasterToggle;
+    private TextView btnVotSourceLang;
+    private TextView btnVotSubtitlesMode;
+    private TextView btnVotSpeechRate;
+    private TextView btnVotProvider;
+    private TextView btnVotTestVoice;
+    private TextView btnVotApply;
 
     // Clock Config Panel Fields
     private LinearLayout panelClockConfig;
@@ -665,6 +682,16 @@ public class QuickMenuOverlay {
         btnComboInputOk              = rootView.findViewById(R.id.btn_combo_input_ok);
         btnApplyCombos               = rootView.findViewById(R.id.btn_apply_combos);
 
+        // VOT panel
+        panelVotConfig               = rootView.findViewById(R.id.panel_vot_config);
+        btnVotMasterToggle           = rootView.findViewById(R.id.btn_vot_master_toggle);
+        btnVotSourceLang             = rootView.findViewById(R.id.btn_vot_source_lang);
+        btnVotSubtitlesMode          = rootView.findViewById(R.id.btn_vot_subtitles_mode);
+        btnVotSpeechRate             = rootView.findViewById(R.id.btn_vot_speech_rate);
+        btnVotProvider               = rootView.findViewById(R.id.btn_vot_provider);
+        btnVotTestVoice              = rootView.findViewById(R.id.btn_vot_test_voice);
+        btnVotApply                  = rootView.findViewById(R.id.btn_vot_apply);
+
         setupSubPanelListeners();
     }
 
@@ -857,6 +884,7 @@ public class QuickMenuOverlay {
             case "mindful_delay_config": return panelMindfulDelay;
             case "translate_config": return panelTranslateConfig;
             case "button_combos_config": return panelButtonCombos;
+            case "vot_config": return panelVotConfig;
             default: return panelButtonConfig;
         }
     }
@@ -1294,6 +1322,28 @@ public class QuickMenuOverlay {
             toggleOverlay(ButtonMappingService.KEY_NIGHT_SCHEDULE, "ACTION_TOGGLE_NIGHT_SCHEDULE");
             updateNightScheduleConfigPanel();
             buildMenu();
+            return true;
+        }
+
+        // 13. VOT Controls
+        if (current == btnVotMasterToggle) {
+            toggleVotMaster();
+            return true;
+        }
+        if (current == btnVotSourceLang) {
+            cycleVotSourceLang(delta);
+            return true;
+        }
+        if (current == btnVotSubtitlesMode) {
+            cycleVotSubtitlesMode(delta);
+            return true;
+        }
+        if (current == btnVotSpeechRate) {
+            cycleVotSpeechRate(delta);
+            return true;
+        }
+        if (current == btnVotProvider) {
+            cycleVotProvider(delta);
             return true;
         }
 
@@ -2632,6 +2682,180 @@ public class QuickMenuOverlay {
                 }
             });
         }
+
+        // VOT Listeners
+        if (btnVotMasterToggle != null) {
+            btnVotMasterToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    toggleVotMaster();
+                }
+            });
+        }
+        if (btnVotSourceLang != null) {
+            btnVotSourceLang.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleVotSourceLang(1);
+                }
+            });
+        }
+        if (btnVotSubtitlesMode != null) {
+            btnVotSubtitlesMode.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleVotSubtitlesMode(1);
+                }
+            });
+        }
+        if (btnVotSpeechRate != null) {
+            btnVotSpeechRate.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleVotSpeechRate(1);
+                }
+            });
+        }
+        if (btnVotProvider != null) {
+            btnVotProvider.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleVotProvider(1);
+                }
+            });
+        }
+        if (btnVotTestVoice != null) {
+            btnVotTestVoice.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    com.example.togglegrayscale.vot.VotManager.getInstance(context).testVoiceAndDucking();
+                }
+            });
+        }
+        if (btnVotApply != null) {
+            btnVotApply.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    closeSubPanels();
+                    buildMenu();
+                }
+            });
+        }
+    }
+
+    private void toggleVotMaster() {
+        SharedPreferences op = getOverlayPrefs();
+        boolean cur = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_ENABLED, false);
+        boolean next = !cur;
+        com.example.togglegrayscale.vot.VotManager.getInstance(context).setEnabled(next);
+        updateVotConfigPanel();
+        buildMenu();
+    }
+
+    private void cycleVotSourceLang(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        String cur = op.getString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SOURCE_LANG, "auto");
+        int idx = 0;
+        for (int i = 0; i < VOT_SOURCE_LANGS.length; i++) {
+            if (VOT_SOURCE_LANGS[i].equalsIgnoreCase(cur)) {
+                idx = i;
+                break;
+            }
+        }
+        int next = (idx + delta + VOT_SOURCE_LANGS.length) % VOT_SOURCE_LANGS.length;
+        op.edit().putString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SOURCE_LANG, VOT_SOURCE_LANGS[next]).apply();
+        com.example.togglegrayscale.vot.VotManager.getInstance(context).loadPreferences();
+        updateVotConfigPanel();
+    }
+
+    private void cycleVotSubtitlesMode(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        boolean showSubs = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true);
+        boolean bilingual = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, false);
+
+        int state = 0;
+        if (showSubs && bilingual) state = 2;
+        else if (showSubs) state = 1;
+
+        int next = (state + delta + 3) % 3;
+        if (next == 0) {
+            op.edit().putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, false)
+                     .putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, false).apply();
+        } else if (next == 1) {
+            op.edit().putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true)
+                     .putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, false).apply();
+        } else {
+            op.edit().putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true)
+                     .putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, true).apply();
+        }
+        com.example.togglegrayscale.vot.VotManager.getInstance(context).loadPreferences();
+        updateVotConfigPanel();
+    }
+
+    private void cycleVotSpeechRate(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        float cur = op.getFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
+        int idx = 1;
+        for (int i = 0; i < VOT_SPEECH_RATES.length; i++) {
+            if (Math.abs(VOT_SPEECH_RATES[i] - cur) < 0.05f) {
+                idx = i;
+                break;
+            }
+        }
+        int next = (idx + delta + VOT_SPEECH_RATES.length) % VOT_SPEECH_RATES.length;
+        op.edit().putFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SPEECH_RATE, VOT_SPEECH_RATES[next]).apply();
+        com.example.togglegrayscale.vot.VotManager.getInstance(context).loadPreferences();
+        updateVotConfigPanel();
+    }
+
+    private void cycleVotProvider(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        int cur = op.getInt(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, 0);
+        int next = (cur + delta + VOT_PROVIDER_NAMES.length) % VOT_PROVIDER_NAMES.length;
+        op.edit().putInt(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, next).apply();
+        updateVotConfigPanel();
+    }
+
+    private void updateVotConfigPanel() {
+        SharedPreferences op = getOverlayPrefs();
+        boolean enabled = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_ENABLED, false);
+
+        if (btnVotMasterToggle != null) {
+            btnVotMasterToggle.setText(enabled ? "   Doblaje:  [ON]" : "   Doblaje:  [OFF]");
+            btnVotMasterToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFFF6B6B);
+        }
+
+        String curLang = op.getString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SOURCE_LANG, "auto");
+        String langName = "Auto (Detectar)";
+        for (int i = 0; i < VOT_SOURCE_LANGS.length; i++) {
+            if (VOT_SOURCE_LANGS[i].equalsIgnoreCase(curLang)) {
+                langName = VOT_SOURCE_LANG_NAMES[i];
+                break;
+            }
+        }
+        if (btnVotSourceLang != null) {
+            btnVotSourceLang.setText("   Idioma Video:  " + langName + "  (◄ / ►)");
+        }
+
+        boolean showSubs = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true);
+        boolean bilingual = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, false);
+        String subLabel = "Ocultos";
+        if (showSubs && bilingual) subLabel = "Bilingüe (Original + Doblaje)";
+        else if (showSubs) subLabel = "Solo Doblaje en Español";
+        if (btnVotSubtitlesMode != null) {
+            btnVotSubtitlesMode.setText("   Subtítulos:  " + subLabel + "  (◄ / ►)");
+        }
+
+        float curRate = op.getFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
+        String rateLabel = "Rápido (1.15x)";
+        for (int i = 0; i < VOT_SPEECH_RATES.length; i++) {
+            if (Math.abs(VOT_SPEECH_RATES[i] - curRate) < 0.05f) {
+                rateLabel = VOT_SPEECH_RATE_NAMES[i];
+                break;
+            }
+        }
+        if (btnVotSpeechRate != null) {
+            btnVotSpeechRate.setText("   Velocidad Voz:  " + rateLabel + "  (◄ / ►)");
+        }
+
+        int provider = op.getInt(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, 0);
+        String provLabel = (provider >= 0 && provider < VOT_PROVIDER_NAMES.length) ? VOT_PROVIDER_NAMES[provider] : "Google (Gratuito)";
+        if (btnVotProvider != null) {
+            btnVotProvider.setText("   Motor Traducción:  " + provLabel + "  (◄ / ►)");
+        }
     }
 
     private void updateCustomTimerUI() {
@@ -2747,6 +2971,7 @@ public class QuickMenuOverlay {
         if (panelMindfulDelay != null) panelMindfulDelay.setVisibility(View.GONE);
         if (panelTranslateConfig != null) panelTranslateConfig.setVisibility(View.GONE);
         if (panelButtonCombos != null) panelButtonCombos.setVisibility(View.GONE);
+        if (panelVotConfig != null) panelVotConfig.setVisibility(View.GONE);
         if (panelQuickBrightnessSlider != null) panelQuickBrightnessSlider.setVisibility(View.GONE);
         openSubPanel = null;
         configuringButton = null;
@@ -3071,6 +3296,20 @@ public class QuickMenuOverlay {
                     if (btnCombosMasterToggle != null) btnCombosMasterToggle.requestFocus();
                 }
                 break;
+            case "vot":
+                if ("vot_config".equals(openSubPanel)) {
+                    closeSubPanels();
+                    buildMenu();
+                } else {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelVotConfig != null) panelVotConfig.setVisibility(View.VISIBLE);
+                    openSubPanel = "vot_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateVotConfigPanel();
+                    if (btnVotMasterToggle != null) btnVotMasterToggle.requestFocus();
+                }
+                break;
             default:
                 Log.w(TAG, "Unknown item: " + id);
         }
@@ -3131,6 +3370,10 @@ public class QuickMenuOverlay {
             }
             case "night_schedule": return fmtToggle("🌙  Horario Nocturno", op.getBoolean(ButtonMappingService.KEY_NIGHT_SCHEDULE, false));
             case "oled_saver": return fmtToggle("🛡️  Protector OLED (Burn-In)", op.getBoolean(ButtonMappingService.KEY_OLED_SAVER, false));
+            case "vot": {
+                boolean on = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_ENABLED, false);
+                return fmtToggle("🎙️  Doblaje al Vuelo (VOT)", on);
+            }
             case "trigger_translate": return "🌐  Traducir Pantalla Ahora";
             case "translate": return "⚙️  Configurar Traductor (CTS)";
             case "button_combos": return "⚡  Combinaciones de Teclas";
@@ -3167,7 +3410,7 @@ public class QuickMenuOverlay {
         switch (id) {
             case "manage_apps": case "timer": case "blue_light":
             case "clock": case "dimmer": case "grayscale": case "cine_mode":
-            case "cycle_brightness": case "auto_pause": case "mindful_delay":
+            case "cycle_brightness": case "auto_pause": case "mindful_delay": case "vot":
                 return 1;
             case "screen_off": case "pause_screen_off": case "scheduled_sleep":
                 return 2;

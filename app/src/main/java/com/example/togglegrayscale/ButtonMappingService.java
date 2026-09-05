@@ -714,14 +714,24 @@ public class ButtonMappingService extends AccessibilityService {
     private long lastDismissUpNextTime = 0;
 
     public void onStreamingVideoChanged(String pkg, String title, String artist, long duration) {
+        onStreamingVideoChanged(pkg, title, artist, duration, null);
+    }
+
+    public void onStreamingVideoChanged(String pkg, String title, String artist, long duration, String mediaId) {
         lastDismissUpNextTime = 0; // Reset dismissal on video change
         if (duration > 0) {
             currentVideoDuration = duration;
             getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putLong("last_known_video_duration", duration).apply();
         }
         if (title == null || title.isEmpty()) return;
-        Log.d(TAG, "onStreamingVideoChanged: pkg=" + pkg + ", title='" + title + "', artist='" + artist + "', dur=" + duration);
+        Log.d(TAG, "onStreamingVideoChanged: pkg=" + pkg + ", title='" + title + "', artist='" + artist + "', dur=" + duration + ", mediaId=" + mediaId);
         
+        try {
+            com.example.togglegrayscale.vot.VotManager.getInstance(this).onVideoChanged(pkg, title, artist, duration);
+        } catch (Exception e) {
+            Log.e(TAG, "Error notifying VotManager of video change", e);
+        }
+
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int mode = op.getInt("auto_pause_mode", 0);
         if (mode == 0) return;
@@ -772,6 +782,12 @@ public class ButtonMappingService extends AccessibilityService {
         if (pkg == null || (!pkg.contains("youtube") && !pkg.contains("smarttube"))) return;
         lastPlaybackPosition = position;
         lastPlaybackPositionSetTime = SystemClock.elapsedRealtime();
+
+        try {
+            com.example.togglegrayscale.vot.VotManager.getInstance(this).onPlaybackStateChanged(pkg, state, position);
+        } catch (Exception e) {
+            Log.e(TAG, "Error notifying VotManager of playback state change", e);
+        }
 
         // If the user rewinds/seeks back before the final 22s, unlock dismissal immediately
         if (currentVideoDuration > 30000 && position < (currentVideoDuration - 22000)) {
@@ -1353,7 +1369,18 @@ public class ButtonMappingService extends AccessibilityService {
             case 30: // SmartTube
                 launchSmartTube();
                 break;
+            case 31: // Doblaje de Voz (VOT)
+                toggleVotDubbing();
+                break;
         }
+    }
+
+    private void toggleVotDubbing() {
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        boolean cur = op.getBoolean("vot_enabled", false);
+        boolean next = !cur;
+        com.example.togglegrayscale.vot.VotManager.getInstance(this).setEnabled(next);
+        Toast.makeText(this, next ? "🎙️ Doblaje VOT Activado" : "🎙️ Doblaje VOT Desactivado", Toast.LENGTH_SHORT).show();
     }
 
     @Override

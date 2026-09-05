@@ -70,9 +70,13 @@ public class MediaNotificationListener extends NotificationListenerService {
                 String title = curMeta.getString(MediaMetadata.METADATA_KEY_TITLE);
                 String artist = curMeta.getString(MediaMetadata.METADATA_KEY_ARTIST);
                 long duration = curMeta.getLong(MediaMetadata.METADATA_KEY_DURATION);
+                String mediaId = curMeta.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
+                if ((mediaId == null || mediaId.isEmpty()) && curMeta.getDescription() != null) {
+                    mediaId = curMeta.getDescription().getMediaId();
+                }
                 ButtonMappingService svc = ButtonMappingService.instance;
                 if (svc != null) {
-                    svc.onStreamingVideoChanged(pkg, title, artist, duration);
+                    svc.onStreamingVideoChanged(pkg, title, artist, duration, mediaId);
                 }
             }
             
@@ -83,11 +87,15 @@ public class MediaNotificationListener extends NotificationListenerService {
                         String title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE);
                         String artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST);
                         long duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION);
-                        Log.d(TAG, "MediaController metadataChanged [" + pkg + "]: title='" + title + "', artist='" + artist + "', dur=" + duration);
+                        String mediaId = metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
+                        if ((mediaId == null || mediaId.isEmpty()) && metadata.getDescription() != null) {
+                            mediaId = metadata.getDescription().getMediaId();
+                        }
+                        Log.d(TAG, "MediaController metadataChanged [" + pkg + "]: title='" + title + "', artist='" + artist + "', dur=" + duration + ", mediaId=" + mediaId);
                         
                         ButtonMappingService svc = ButtonMappingService.instance;
                         if (svc != null) {
-                            svc.onStreamingVideoChanged(pkg, title, artist, duration);
+                            svc.onStreamingVideoChanged(pkg, title, artist, duration, mediaId);
                         }
                     }
                 }
