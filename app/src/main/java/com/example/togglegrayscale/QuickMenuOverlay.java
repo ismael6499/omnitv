@@ -119,6 +119,8 @@ public class QuickMenuOverlay {
         "100%",
         "Nivel 1/5 (100%)"
     };
+    private static final int[] CINE_TIMER_OPTIONS = {0, 30, 60, 90, 120, 150, 180};
+    private static final int[] SCHEDULED_PROMPT_OPTIONS = {0, 30, 60, 120};
 
     private static QuickMenuOverlay instance;
 
@@ -886,20 +888,9 @@ public class QuickMenuOverlay {
             return true;
         }
 
-        // 1b. Button action config adjustments with D-Pad Left / Right / Center
-        if (openSubPanel != null && openSubPanel.startsWith("config_") && current != null) {
-            if (current == btnConfigClick1 || current == btnConfigClick2 || current == btnConfigClick3 || current == btnConfigClick4 || current == btnConfigLong) {
-                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                    adjustButtonConfigAction(current, -1);
-                    return true;
-                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                    adjustButtonConfigAction(current, 1);
-                    return true;
-                } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
-                    adjustButtonConfigAction(current, 1);
-                    return true;
-                }
-            }
+        // 1b. Option cycling navigation with D-Pad Left / Right / Center
+        if (handleOptionCyclingNavigation(current, keyCode)) {
+            return true;
         }
 
         // 2. Gather focusable views in active container
@@ -1023,6 +1014,223 @@ public class QuickMenuOverlay {
             }
         }
         return best;
+    }
+
+    private boolean handleOptionCyclingNavigation(View current, int keyCode) {
+        if (current == null) return false;
+        int delta;
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+            delta = -1;
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+            delta = 1;
+        } else {
+            return false;
+        }
+
+        // 1. Remote button action configs
+        if (current == btnConfigClick1 || current == btnConfigClick2 || current == btnConfigClick3 || current == btnConfigClick4 || current == btnConfigLong) {
+            adjustButtonConfigAction(current, delta);
+            return true;
+        }
+
+        // 2. Button combo actions & master toggle
+        if (current == btnComboMuteOk || current == btnComboMuteRight || current == btnComboMuteLeft || current == btnComboYoutube190Mute || current == btnComboInputOk) {
+            adjustComboAction(current, delta);
+            return true;
+        }
+        if (current == btnCombosMasterToggle) {
+            boolean cur = getOverlayPrefs().getBoolean("btn_combos_enabled", true);
+            getOverlayPrefs().edit().putBoolean("btn_combos_enabled", !cur).apply();
+            updateButtonCombosPanel();
+            return true;
+        }
+
+        // 3. Modo Cine
+        if (current == btnCineTimerConfig) {
+            cycleCineTimer(delta);
+            return true;
+        }
+        if (current == btnCineBlueLightConfig) {
+            SharedPreferences cp = context.getSharedPreferences("cine_prefs", Context.MODE_PRIVATE);
+            cp.edit().putBoolean("cine_blue_light", !cp.getBoolean("cine_blue_light", true)).apply();
+            updateCineConfigPanel();
+            return true;
+        }
+        if (current == btnCineDimmerConfig) {
+            SharedPreferences cp = context.getSharedPreferences("cine_prefs", Context.MODE_PRIVATE);
+            cp.edit().putBoolean("cine_dimmer", !cp.getBoolean("cine_dimmer", false)).apply();
+            updateCineConfigPanel();
+            return true;
+        }
+
+        // 4. Auto Pause
+        if (current == btnAutoPauseMode) {
+            cycleAutoPauseMode(delta);
+            return true;
+        }
+        if (current == btnAutoPauseBlackScreen) {
+            SharedPreferences op = getOverlayPrefs();
+            boolean cur = op.getBoolean("auto_pause_black_screen", false);
+            op.edit().putBoolean("auto_pause_black_screen", !cur).apply();
+            updateAutoPauseConfigPanel();
+            return true;
+        }
+        if (current == btnAutoDismissUpNext) {
+            SharedPreferences op = getOverlayPrefs();
+            boolean cur = op.getBoolean(ButtonMappingService.KEY_AUTO_DISMISS_UP_NEXT, true);
+            op.edit().putBoolean(ButtonMappingService.KEY_AUTO_DISMISS_UP_NEXT, !cur).apply();
+            updateAutoPauseConfigPanel();
+            return true;
+        }
+
+        // 5. Clock Config
+        if (current == btnClockTextColor) {
+            cycleClockIntPref("clock_text_color_idx", CLOCK_COLOR_NAMES.length, delta);
+            return true;
+        }
+        if (current == btnClockBgColor) {
+            cycleClockIntPref("clock_bg_color_idx", CLOCK_BG_NAMES.length, delta);
+            return true;
+        }
+        if (current == btnClockPosition) {
+            cycleClockIntPref("clock_position_idx", CLOCK_POSITION_NAMES.length, delta);
+            return true;
+        }
+
+        // 6. Cycle Brightness HUD
+        if (current == btnBrightnessHudFormat) {
+            cycleBrightnessHudIntPref("brightness_hud_format_idx", BRIGHTNESS_HUD_FORMAT_NAMES.length, delta);
+            return true;
+        }
+        if (current == btnBrightnessHudTextColor) {
+            cycleBrightnessHudIntPref("brightness_hud_text_color_idx", CLOCK_COLOR_NAMES.length, delta);
+            return true;
+        }
+        if (current == btnBrightnessHudBgColor) {
+            cycleBrightnessHudIntPref("brightness_hud_bg_color_idx", CLOCK_BG_NAMES.length, delta);
+            return true;
+        }
+        if (current == btnBrightnessHudPosition) {
+            cycleBrightnessHudIntPref("brightness_hud_position_idx", CLOCK_POSITION_NAMES.length, delta);
+            return true;
+        }
+
+        // 7. Still Watching
+        if (current == btnStillWatchingBeepTone) {
+            cycleStillWatchingBeepTone(delta);
+            return true;
+        }
+        if (current == btnStillWatchingActionType) {
+            cycleStillWatchingAction(delta);
+            return true;
+        }
+        if (current == btnStillWatchingPosition) {
+            cycleStillWatchingPosition(delta);
+            return true;
+        }
+        if (current == btnStillWatchingToggle) {
+            toggleOverlay(ButtonMappingService.KEY_STILL_WATCHING, "ACTION_TOGGLE_STILL_WATCHING");
+            updateStillWatchingConfigPanel();
+            buildMenu();
+            return true;
+        }
+        if (current == btnStillWatchingBeepToggle) {
+            SharedPreferences sp = getOverlayPrefs();
+            boolean cur = sp.getBoolean(ButtonMappingService.KEY_STILL_WATCHING_BEEP, true);
+            sp.edit().putBoolean(ButtonMappingService.KEY_STILL_WATCHING_BEEP, !cur).apply();
+            sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+            updateStillWatchingConfigPanel();
+            return true;
+        }
+
+        // 8. OLED Saver Mode
+        if (current == btnOledMode) {
+            cycleOledMode(delta);
+            return true;
+        }
+        if (current == btnOledSaverToggle) {
+            toggleOverlay(ButtonMappingService.KEY_OLED_SAVER, "ACTION_TOGGLE_OLED_SAVER");
+            updateOledSaverConfigPanel();
+            buildMenu();
+            return true;
+        }
+
+        // 9. Mindful Delay
+        if (current == btnMindfulDelayCancelAction) {
+            cycleMindfulCancelAction(delta);
+            return true;
+        }
+        if (current == btnMindfulDelaySession) {
+            cycleMindfulSession(delta);
+            return true;
+        }
+        if (current == btnMindfulDelayPos) {
+            cycleMindfulPos(delta);
+            return true;
+        }
+        if (current == btnMindfulDelayMsg) {
+            cycleMindfulMsg(delta);
+            return true;
+        }
+        if (current == btnMindfulDelayToggle) {
+            toggleOverlay(ButtonMappingService.KEY_MINDFUL_DELAY, "ACTION_TOGGLE_MINDFUL_DELAY");
+            updateMindfulDelayConfigPanel();
+            buildMenu();
+            return true;
+        }
+
+        // 10. Translate Config
+        if (current == btnTranslateTargetLang) {
+            cycleTranslateTargetLang(delta);
+            return true;
+        }
+        if (current == btnTranslateSourceLang) {
+            cycleTranslateSourceLang(delta);
+            return true;
+        }
+        if (current == btnTranslateAutoPause) {
+            SharedPreferences op = getOverlayPrefs();
+            boolean cur = op.getBoolean("translate_auto_pause", true);
+            op.edit().putBoolean("translate_auto_pause", !cur).apply();
+            updateTranslateConfigPanel();
+            return true;
+        }
+        if (current == btnTranslateAutoResume) {
+            SharedPreferences op = getOverlayPrefs();
+            boolean cur = op.getBoolean("translate_auto_resume", true);
+            op.edit().putBoolean("translate_auto_resume", !cur).apply();
+            updateTranslateConfigPanel();
+            return true;
+        }
+        if (current == btnTranslateTopBar) {
+            SharedPreferences op = getOverlayPrefs();
+            boolean cur = op.getBoolean("translate_show_top_bar", false);
+            op.edit().putBoolean("translate_show_top_bar", !cur).apply();
+            updateTranslateConfigPanel();
+            return true;
+        }
+
+        // 11. Scheduled Sleep
+        if (current == btnScheduledPromptToggle) {
+            cycleScheduledPromptSec(delta);
+            return true;
+        }
+        if (current == btnScheduledSleepToggle) {
+            toggleOverlay("scheduled_sleep_enabled", "ACTION_UPDATE_SCHEDULED_SLEEP");
+            updateScheduledSleepConfigPanel();
+            buildMenu();
+            return true;
+        }
+
+        // 12. Night Schedule
+        if (current == btnNightScheduleToggle) {
+            toggleOverlay(ButtonMappingService.KEY_NIGHT_SCHEDULE, "ACTION_TOGGLE_NIGHT_SCHEDULE");
+            updateNightScheduleConfigPanel();
+            buildMenu();
+            return true;
+        }
+
+        return false;
     }
 
     private void requestViewFocus(View v) {
@@ -1295,11 +1503,7 @@ public class QuickMenuOverlay {
         if (btnCineTimerConfig != null) {
             btnCineTimerConfig.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    SharedPreferences cp = context.getSharedPreferences("cine_prefs", Context.MODE_PRIVATE);
-                    int cur  = cp.getInt("cine_timer", 0);
-                    int next = cur == 0 ? 30 : cur == 30 ? 60 : cur == 60 ? 90 : cur == 90 ? 120 : cur == 120 ? 150 : cur == 150 ? 180 : 0;
-                    cp.edit().putInt("cine_timer", next).apply();
-                    updateCineConfigPanel();
+                    cycleCineTimer(1);
                 }
             });
         }
@@ -1608,13 +1812,7 @@ public class QuickMenuOverlay {
             btnAutoPauseMode.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    SharedPreferences op = getOverlayPrefs();
-                    int cur = op.getInt("auto_pause_mode", 0);
-                    int next = (cur + 1) % 4;
-                    op.edit().putInt("auto_pause_mode", next).apply();
-                    updateAutoPauseConfigPanel();
-                    btnAutoPauseMode.requestFocus();
-                    buildMenu();
+                    cycleAutoPauseMode(1);
                 }
             });
         }
@@ -1727,15 +1925,7 @@ public class QuickMenuOverlay {
         });
         if (btnStillWatchingBeepTone != null) {
             btnStillWatchingBeepTone.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_TONE, 0);
-                    int next = (cur + 1) % STILL_WATCHING_TONES.length;
-                    getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_TONE, next).apply();
-                    sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
-                    updateStillWatchingConfigPanel();
-                    playStillWatchingBeepSound();
-                    btnStillWatchingBeepTone.requestFocus();
-                }
+                @Override public void onClick(View v) { cycleStillWatchingBeepTone(1); }
             });
         }
         if (btnTestStillWatchingBeep != null) {
@@ -1749,12 +1939,12 @@ public class QuickMenuOverlay {
 
         if (btnStillWatchingActionType != null) {
             btnStillWatchingActionType.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { cycleStillWatchingAction(); }
+                @Override public void onClick(View v) { cycleStillWatchingAction(1); }
             });
         }
         if (btnStillWatchingPosition != null) {
             btnStillWatchingPosition.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { cycleStillWatchingPosition(); }
+                @Override public void onClick(View v) { cycleStillWatchingPosition(1); }
             });
         }
         setupAutoRepeatStepButton(btnStillWatchingAlphaDec, -1, new StepAdjuster() {
@@ -1857,11 +2047,7 @@ public class QuickMenuOverlay {
         if (btnOledMode != null) {
             btnOledMode.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_OLED_MODE, 0);
-                    int next = (cur + 1) % 2;
-                    getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_OLED_MODE, next).apply();
-                    updateOledSaverConfigPanel();
-                    sendServiceAction("ACTION_UPDATE_OLED_SAVER");
+                    cycleOledMode(1);
                 }
             });
         }
@@ -1930,16 +2116,7 @@ public class QuickMenuOverlay {
         if (btnScheduledPromptToggle != null) {
             btnScheduledPromptToggle.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    SharedPreferences op = getOverlayPrefs();
-                    int cur = op.getInt("scheduled_sleep_prompt_sec", 60);
-                    int next;
-                    if (cur == 60) next = 120;
-                    else if (cur == 120) next = 30;
-                    else if (cur == 30) next = 0;
-                    else next = 60;
-                    op.edit().putInt("scheduled_sleep_prompt_sec", next).apply();
-                    updateScheduledSleepConfigPanel();
-                    buildMenu();
+                    cycleScheduledPromptSec(1);
                 }
             });
         }
@@ -2007,20 +2184,14 @@ public class QuickMenuOverlay {
         if (btnMindfulDelayCancelAction != null) {
             btnMindfulDelayCancelAction.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt("mindful_delay_cancel_action", 0);
-                    int next = (cur + 1) % MINDFUL_CANCEL_ACTIONS.length;
-                    getOverlayPrefs().edit().putInt("mindful_delay_cancel_action", next).apply();
-                    updateMindfulDelayConfigPanel();
+                    cycleMindfulCancelAction(1);
                 }
             });
         }
         if (btnMindfulDelaySession != null) {
             btnMindfulDelaySession.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt("mindful_delay_session_mode", 0);
-                    int next = (cur + 1) % MINDFUL_SESSION_NAMES.length;
-                    getOverlayPrefs().edit().putInt("mindful_delay_session_mode", next).apply();
-                    updateMindfulDelayConfigPanel();
+                    cycleMindfulSession(1);
                 }
             });
         }
@@ -2053,20 +2224,14 @@ public class QuickMenuOverlay {
         if (btnMindfulDelayPos != null) {
             btnMindfulDelayPos.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt("mindful_delay_pos_idx", 0);
-                    int next = (cur + 1) % MINDFUL_POSITIONS.length;
-                    getOverlayPrefs().edit().putInt("mindful_delay_pos_idx", next).apply();
-                    updateMindfulDelayConfigPanel();
+                    cycleMindfulPos(1);
                 }
             });
         }
         if (btnMindfulDelayMsg != null) {
             btnMindfulDelayMsg.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt("mindful_delay_msg_idx", 0);
-                    int next = (cur + 1) % MINDFUL_MSG_OPTIONS.length;
-                    getOverlayPrefs().edit().putInt("mindful_delay_msg_idx", next).apply();
-                    updateMindfulDelayConfigPanel();
+                    cycleMindfulMsg(1);
                 }
             });
         }
@@ -2170,20 +2335,14 @@ public class QuickMenuOverlay {
         if (btnTranslateTargetLang != null) {
             btnTranslateTargetLang.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt("translate_target_lang_idx", 0);
-                    int next = (cur + 1) % TRANSLATE_TARGET_LANGS.length;
-                    getOverlayPrefs().edit().putInt("translate_target_lang_idx", next).apply();
-                    updateTranslateConfigPanel();
+                    cycleTranslateTargetLang(1);
                 }
             });
         }
         if (btnTranslateSourceLang != null) {
             btnTranslateSourceLang.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    int cur = getOverlayPrefs().getInt("translate_source_lang_idx", 0);
-                    int next = (cur + 1) % TRANSLATE_SOURCE_LANGS.length;
-                    getOverlayPrefs().edit().putInt("translate_source_lang_idx", next).apply();
-                    updateTranslateConfigPanel();
+                    cycleTranslateSourceLang(1);
                 }
             });
         }
@@ -2268,40 +2427,35 @@ public class QuickMenuOverlay {
         if (btnComboMuteOk != null) {
             btnComboMuteOk.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    cycleActionConfig("combo_mute_ok_action", getOverlayPrefs().getInt("combo_mute_ok_action", 23));
-                    updateButtonCombosPanel();
+                    adjustComboAction(btnComboMuteOk, 1);
                 }
             });
         }
         if (btnComboMuteRight != null) {
             btnComboMuteRight.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    cycleActionConfig("combo_mute_right_action", getOverlayPrefs().getInt("combo_mute_right_action", 24));
-                    updateButtonCombosPanel();
+                    adjustComboAction(btnComboMuteRight, 1);
                 }
             });
         }
         if (btnComboMuteLeft != null) {
             btnComboMuteLeft.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    cycleActionConfig("combo_mute_left_action", getOverlayPrefs().getInt("combo_mute_left_action", 25));
-                    updateButtonCombosPanel();
+                    adjustComboAction(btnComboMuteLeft, 1);
                 }
             });
         }
         if (btnComboYoutube190Mute != null) {
             btnComboYoutube190Mute.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    cycleActionConfig("combo_youtube190_mute_action", getOverlayPrefs().getInt("combo_youtube190_mute_action", 0));
-                    updateButtonCombosPanel();
+                    adjustComboAction(btnComboYoutube190Mute, 1);
                 }
             });
         }
         if (btnComboInputOk != null) {
             btnComboInputOk.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    cycleActionConfig("combo_input_ok_action", getOverlayPrefs().getInt("combo_input_ok_action", 0));
-                    updateButtonCombosPanel();
+                    adjustComboAction(btnComboInputOk, 1);
                 }
             });
         }
@@ -2999,6 +3153,155 @@ public class QuickMenuOverlay {
         }
     }
 
+    private void adjustComboAction(View view, int delta) {
+        String key;
+        int def;
+        if (view == btnComboMuteOk) {
+            key = "combo_mute_ok_action";
+            def = 23;
+        } else if (view == btnComboMuteRight) {
+            key = "combo_mute_right_action";
+            def = 24;
+        } else if (view == btnComboMuteLeft) {
+            key = "combo_mute_left_action";
+            def = 25;
+        } else if (view == btnComboYoutube190Mute) {
+            key = "combo_youtube190_mute_action";
+            def = 0;
+        } else if (view == btnComboInputOk) {
+            key = "combo_input_ok_action";
+            def = 0;
+        } else {
+            return;
+        }
+        int cur = getOverlayPrefs().getInt(key, def);
+        cycleActionConfig(key, cur, delta);
+        if (view != null) {
+            view.requestFocus();
+        }
+    }
+
+    private void cycleCineTimer(int delta) {
+        SharedPreferences cp = context.getSharedPreferences("cine_prefs", Context.MODE_PRIVATE);
+        int cur = cp.getInt("cine_timer", 0);
+        int idx = 0;
+        for (int i = 0; i < CINE_TIMER_OPTIONS.length; i++) {
+            if (CINE_TIMER_OPTIONS[i] == cur) {
+                idx = i;
+                break;
+            }
+        }
+        int nextIdx = (idx + delta) % CINE_TIMER_OPTIONS.length;
+        if (nextIdx < 0) nextIdx += CINE_TIMER_OPTIONS.length;
+        cp.edit().putInt("cine_timer", CINE_TIMER_OPTIONS[nextIdx]).apply();
+        updateCineConfigPanel();
+        if (btnCineTimerConfig != null) btnCineTimerConfig.requestFocus();
+    }
+
+    private void cycleAutoPauseMode(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        int cur = op.getInt("auto_pause_mode", 0);
+        int next = (cur + delta) % 4;
+        if (next < 0) next += 4;
+        op.edit().putInt("auto_pause_mode", next).apply();
+        updateAutoPauseConfigPanel();
+        if (btnAutoPauseMode != null) btnAutoPauseMode.requestFocus();
+        buildMenu();
+    }
+
+    private void cycleOledMode(int delta) {
+        int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_OLED_MODE, 0);
+        int next = (cur + delta) % 2;
+        if (next < 0) next += 2;
+        getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_OLED_MODE, next).apply();
+        updateOledSaverConfigPanel();
+        sendServiceAction("ACTION_UPDATE_OLED_SAVER");
+        if (btnOledMode != null) btnOledMode.requestFocus();
+    }
+
+    private void cycleStillWatchingBeepTone(int delta) {
+        int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_TONE, 0);
+        int next = (cur + delta) % STILL_WATCHING_TONES.length;
+        if (next < 0) next += STILL_WATCHING_TONES.length;
+        getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_BEEP_TONE, next).apply();
+        sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+        updateStillWatchingConfigPanel();
+        playStillWatchingBeepSound();
+        if (btnStillWatchingBeepTone != null) btnStillWatchingBeepTone.requestFocus();
+    }
+
+    private void cycleMindfulCancelAction(int delta) {
+        int cur = getOverlayPrefs().getInt("mindful_delay_cancel_action", 0);
+        int next = (cur + delta) % MINDFUL_CANCEL_ACTIONS.length;
+        if (next < 0) next += MINDFUL_CANCEL_ACTIONS.length;
+        getOverlayPrefs().edit().putInt("mindful_delay_cancel_action", next).apply();
+        updateMindfulDelayConfigPanel();
+        if (btnMindfulDelayCancelAction != null) btnMindfulDelayCancelAction.requestFocus();
+    }
+
+    private void cycleMindfulSession(int delta) {
+        int cur = getOverlayPrefs().getInt("mindful_delay_session_mode", 0);
+        int next = (cur + delta) % MINDFUL_SESSION_NAMES.length;
+        if (next < 0) next += MINDFUL_SESSION_NAMES.length;
+        getOverlayPrefs().edit().putInt("mindful_delay_session_mode", next).apply();
+        updateMindfulDelayConfigPanel();
+        if (btnMindfulDelaySession != null) btnMindfulDelaySession.requestFocus();
+    }
+
+    private void cycleMindfulPos(int delta) {
+        int cur = getOverlayPrefs().getInt("mindful_delay_pos_idx", 0);
+        int next = (cur + delta) % MINDFUL_POSITIONS.length;
+        if (next < 0) next += MINDFUL_POSITIONS.length;
+        getOverlayPrefs().edit().putInt("mindful_delay_pos_idx", next).apply();
+        updateMindfulDelayConfigPanel();
+        if (btnMindfulDelayPos != null) btnMindfulDelayPos.requestFocus();
+    }
+
+    private void cycleMindfulMsg(int delta) {
+        int cur = getOverlayPrefs().getInt("mindful_delay_msg_idx", 0);
+        int next = (cur + delta) % MINDFUL_MSG_OPTIONS.length;
+        if (next < 0) next += MINDFUL_MSG_OPTIONS.length;
+        getOverlayPrefs().edit().putInt("mindful_delay_msg_idx", next).apply();
+        updateMindfulDelayConfigPanel();
+        if (btnMindfulDelayMsg != null) btnMindfulDelayMsg.requestFocus();
+    }
+
+    private void cycleTranslateTargetLang(int delta) {
+        int cur = getOverlayPrefs().getInt("translate_target_lang_idx", 0);
+        int next = (cur + delta) % TRANSLATE_TARGET_LANGS.length;
+        if (next < 0) next += TRANSLATE_TARGET_LANGS.length;
+        getOverlayPrefs().edit().putInt("translate_target_lang_idx", next).apply();
+        updateTranslateConfigPanel();
+        if (btnTranslateTargetLang != null) btnTranslateTargetLang.requestFocus();
+    }
+
+    private void cycleTranslateSourceLang(int delta) {
+        int cur = getOverlayPrefs().getInt("translate_source_lang_idx", 0);
+        int next = (cur + delta) % TRANSLATE_SOURCE_LANGS.length;
+        if (next < 0) next += TRANSLATE_SOURCE_LANGS.length;
+        getOverlayPrefs().edit().putInt("translate_source_lang_idx", next).apply();
+        updateTranslateConfigPanel();
+        if (btnTranslateSourceLang != null) btnTranslateSourceLang.requestFocus();
+    }
+
+    private void cycleScheduledPromptSec(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        int cur = op.getInt("scheduled_sleep_prompt_sec", 60);
+        int idx = 2;
+        for (int i = 0; i < SCHEDULED_PROMPT_OPTIONS.length; i++) {
+            if (SCHEDULED_PROMPT_OPTIONS[i] == cur) {
+                idx = i;
+                break;
+            }
+        }
+        int nextIdx = (idx + delta) % SCHEDULED_PROMPT_OPTIONS.length;
+        if (nextIdx < 0) nextIdx += SCHEDULED_PROMPT_OPTIONS.length;
+        op.edit().putInt("scheduled_sleep_prompt_sec", SCHEDULED_PROMPT_OPTIONS[nextIdx]).apply();
+        updateScheduledSleepConfigPanel();
+        if (btnScheduledPromptToggle != null) btnScheduledPromptToggle.requestFocus();
+        buildMenu();
+    }
+
     private void cycleActionConfig(String configKey, int currentAction) {
         cycleActionConfig(configKey, currentAction, 1);
     }
@@ -3007,7 +3310,11 @@ public class QuickMenuOverlay {
         int nextAction = (currentAction + delta) % ACTION_NAMES.length;
         if (nextAction < 0) nextAction += ACTION_NAMES.length;
         getOverlayPrefs().edit().putInt(configKey, nextAction).apply();
-        updateButtonConfigPanel();
+        if (configKey.startsWith("combo_")) {
+            updateButtonCombosPanel();
+        } else {
+            updateButtonConfigPanel();
+        }
     }
 
     private void adjustDuration(int delta) {
@@ -3062,8 +3369,13 @@ public class QuickMenuOverlay {
     }
 
     private void cycleClockIntPref(String key, int totalOptions) {
+        cycleClockIntPref(key, totalOptions, 1);
+    }
+
+    private void cycleClockIntPref(String key, int totalOptions, int delta) {
         int cur = getOverlayPrefs().getInt(key, 0);
-        int next = (cur + 1) % totalOptions;
+        int next = (cur + delta) % totalOptions;
+        if (next < 0) next += totalOptions;
         getOverlayPrefs().edit().putInt(key, next).apply();
         updateClockConfigPanel();
         sendServiceAction("ACTION_UPDATE_CLOCK");
@@ -3166,8 +3478,13 @@ public class QuickMenuOverlay {
     }
 
     private void cycleBrightnessHudIntPref(String key, int totalOptions) {
+        cycleBrightnessHudIntPref(key, totalOptions, 1);
+    }
+
+    private void cycleBrightnessHudIntPref(String key, int totalOptions, int delta) {
         int cur = getOverlayPrefs().getInt(key, 0);
-        int next = (cur + 1) % totalOptions;
+        int next = (cur + delta) % totalOptions;
+        if (next < 0) next += totalOptions;
         getOverlayPrefs().edit().putInt(key, next).apply();
         updateBrightnessHudConfigPanel();
         sendServiceAction("ACTION_SHOW_BRIGHTNESS_HUD");
@@ -3763,20 +4080,24 @@ public class QuickMenuOverlay {
         });
     }
 
-    private void cycleStillWatchingAction() {
+    private void cycleStillWatchingAction(int delta) {
         int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_ACTION, 0);
-        int next = (cur + 1) % STILL_WATCHING_ACTIONS.length;
+        int next = (cur + delta) % STILL_WATCHING_ACTIONS.length;
+        if (next < 0) next += STILL_WATCHING_ACTIONS.length;
         getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_ACTION, next).apply();
         updateStillWatchingConfigPanel();
         sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+        if (btnStillWatchingActionType != null) btnStillWatchingActionType.requestFocus();
     }
 
-    private void cycleStillWatchingPosition() {
+    private void cycleStillWatchingPosition(int delta) {
         int cur = getOverlayPrefs().getInt(ButtonMappingService.KEY_STILL_WATCHING_POS, 0);
-        int next = (cur + 1) % STILL_WATCHING_POSITIONS.length;
+        int next = (cur + delta) % STILL_WATCHING_POSITIONS.length;
+        if (next < 0) next += STILL_WATCHING_POSITIONS.length;
         getOverlayPrefs().edit().putInt(ButtonMappingService.KEY_STILL_WATCHING_POS, next).apply();
         updateStillWatchingConfigPanel();
         sendServiceAction("ACTION_UPDATE_STILL_WATCHING");
+        if (btnStillWatchingPosition != null) btnStillWatchingPosition.requestFocus();
     }
 
     private void setupAppToggleListener(final TextView btn, final String prefKey, final boolean def) {
