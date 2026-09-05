@@ -69,7 +69,8 @@ public class QuickMenuOverlay {
         "Retroceder 1 Frame (YouTube)",
         "Opciones de Desarrollador",
         "Ciclar Brillo Inverso",
-        "Slider de Brillo Rápido"
+        "Slider de Brillo Rápido",
+        "SmartTube"
     };
 
     private static final String[] TRANSLATE_TARGET_LANGS = {"Español", "English"};

@@ -161,7 +161,7 @@ public class ButtonMappingService extends AccessibilityService {
         {"star", "Star+", "mindful_app_star", "com.disney.starplus"},
         {"twitch", "Twitch", "mindful_app_twitch", "tv.twitch.android.app", "tv.twitch.android.viewer"},
         {"tiktok", "TikTok", "mindful_app_tiktok", "com.tiktok.tv"},
-        {"smarttube", "SmartTube", "mindful_app_smarttube", "com.teamsmart.videomanager.tv", "com.liskovsoft.videomanager"},
+        {"smarttube", "SmartTube", "mindful_app_smarttube", "org.smarttube.stable", "com.teamsmart.videoplayer.tv", "com.liskovsoft.smarttubetv.beta", "com.teamsmart.videomanager.tv", "com.liskovsoft.videomanager"},
         {"stremio", "Stremio", "mindful_app_stremio", "com.stremio.one"},
         {"plex", "Plex", "mindful_app_plex", "com.plexapp.android"}
     };
@@ -1350,6 +1350,9 @@ public class ButtonMappingService extends AccessibilityService {
             case 29: // Slider de Brillo Rápido
                 showQuickBrightnessSlider();
                 break;
+            case 30: // SmartTube
+                launchSmartTube();
+                break;
         }
     }
 
@@ -1960,6 +1963,31 @@ public class ButtonMappingService extends AccessibilityService {
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to launch YouTube", e);
+        }
+    }
+
+    private void launchSmartTube() {
+        try {
+            String[] smartTubePkgs = {
+                "org.smarttube.stable",
+                "com.teamsmart.videoplayer.tv",
+                "com.liskovsoft.smarttubetv.beta",
+                "com.liskovsoft.videoplayer"
+            };
+            Intent launchIntent = null;
+            for (String pkg : smartTubePkgs) {
+                launchIntent = getPackageManager().getLaunchIntentForPackage(pkg);
+                if (launchIntent != null) break;
+            }
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(launchIntent);
+                Log.d(TAG, "Successfully started SmartTube");
+            } else {
+                Log.w(TAG, "SmartTube launch intent not found");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to launch SmartTube", e);
         }
     }
 
