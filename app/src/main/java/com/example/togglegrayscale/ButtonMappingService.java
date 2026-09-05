@@ -11,6 +11,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
@@ -4234,13 +4235,64 @@ public class ButtonMappingService extends AccessibilityService {
                 valText = Math.round(currentSliderBrightness) + "%";
             }
 
+            // Proportional luminance scaling with minimum visibility floor (0.22f):
+            float baseFactor = currentSliderBrightness / 100.0f;
+            float factor = Math.max(0.22f, baseFactor * 0.85f + 0.15f);
+
+            int textVal = Math.round(255 * factor);
+            int textColor = Color.rgb(textVal, textVal, textVal);
+
+            // Base fill color #8AB4F8 (Google Blue) with warm blue-reduction if eye care is active
+            int baseR = 138, baseG = 180, baseB = 248;
+            if (isBlueLightActive) {
+                int bluePct = prefs.getInt("blue_light_pct", 50);
+                baseB = (int) (baseB * (1.0f - (bluePct / 100.0f) * 0.7f));
+            }
+            int fillR = Math.round(baseR * factor);
+            int fillG = Math.round(baseG * factor);
+            int fillB = Math.round(baseB * factor);
+            int fillColor = Color.rgb(fillR, fillG, fillB);
+
+            // Track background color (#40FFFFFF dimmed)
+            int trackBgRgb = Math.round(255 * factor);
+            int trackBgColor = Color.argb(64, trackBgRgb, trackBgRgb, trackBgRgb);
+            float density = getResources().getDisplayMetrics().density;
+            int strokeColor = Color.argb(64, trackBgRgb, trackBgRgb, trackBgRgb);
+
             if (orientation == 1) {
                 // Vertical
+                View containerV = brightnessSliderView.findViewById(R.id.slider_container_vertical);
+                if (containerV != null) {
+                    try {
+                        GradientDrawable bgGd = (GradientDrawable) containerV.getBackground().mutate();
+                        bgGd.setStroke(Math.round(1 * density), strokeColor);
+                    } catch (Exception ignored) {}
+                }
+
                 TextView txtVal = brightnessSliderView.findViewById(R.id.slider_txt_v_val);
-                if (txtVal != null) txtVal.setText(valText);
+                if (txtVal != null) {
+                    txtVal.setText(valText);
+                    txtVal.setTextColor(textColor);
+                }
+
+                TextView iconV = brightnessSliderView.findViewById(R.id.slider_icon_v);
+                if (iconV != null) iconV.setAlpha(factor);
 
                 final FrameLayout trackContainer = brightnessSliderView.findViewById(R.id.slider_track_v_container);
                 final View trackFill = brightnessSliderView.findViewById(R.id.slider_track_v_fill);
+                if (trackContainer != null) {
+                    try {
+                        GradientDrawable gd = (GradientDrawable) trackContainer.getBackground().mutate();
+                        gd.setColor(trackBgColor);
+                    } catch (Exception ignored) {}
+                }
+                if (trackFill != null) {
+                    try {
+                        GradientDrawable gd = (GradientDrawable) trackFill.getBackground().mutate();
+                        gd.setColor(fillColor);
+                    } catch (Exception ignored) {}
+                }
+
                 if (trackContainer != null && trackFill != null) {
                     int height = trackContainer.getHeight();
                     if (height > 0) {
@@ -4264,11 +4316,38 @@ public class ButtonMappingService extends AccessibilityService {
                 }
             } else {
                 // Horizontal
+                View containerH = brightnessSliderView.findViewById(R.id.slider_container_horizontal);
+                if (containerH != null) {
+                    try {
+                        GradientDrawable bgGd = (GradientDrawable) containerH.getBackground().mutate();
+                        bgGd.setStroke(Math.round(1 * density), strokeColor);
+                    } catch (Exception ignored) {}
+                }
+
                 TextView txtVal = brightnessSliderView.findViewById(R.id.slider_txt_h_val);
-                if (txtVal != null) txtVal.setText(valText);
+                if (txtVal != null) {
+                    txtVal.setText(valText);
+                    txtVal.setTextColor(textColor);
+                }
+
+                TextView iconH = brightnessSliderView.findViewById(R.id.slider_icon_h);
+                if (iconH != null) iconH.setAlpha(factor);
 
                 final FrameLayout trackContainer = brightnessSliderView.findViewById(R.id.slider_track_h_container);
                 final View trackFill = brightnessSliderView.findViewById(R.id.slider_track_h_fill);
+                if (trackContainer != null) {
+                    try {
+                        GradientDrawable gd = (GradientDrawable) trackContainer.getBackground().mutate();
+                        gd.setColor(trackBgColor);
+                    } catch (Exception ignored) {}
+                }
+                if (trackFill != null) {
+                    try {
+                        GradientDrawable gd = (GradientDrawable) trackFill.getBackground().mutate();
+                        gd.setColor(fillColor);
+                    } catch (Exception ignored) {}
+                }
+
                 if (trackContainer != null && trackFill != null) {
                     int width = trackContainer.getWidth();
                     if (width > 0) {
