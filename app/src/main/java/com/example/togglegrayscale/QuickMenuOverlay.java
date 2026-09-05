@@ -68,7 +68,8 @@ public class QuickMenuOverlay {
         "Avanzar 1 Frame (YouTube)",
         "Retroceder 1 Frame (YouTube)",
         "Opciones de Desarrollador",
-        "Ciclar Brillo Inverso"
+        "Ciclar Brillo Inverso",
+        "Slider de Brillo Rápido"
     };
 
     private static final String[] TRANSLATE_TARGET_LANGS = {"Español", "English"};
@@ -274,6 +275,26 @@ public class QuickMenuOverlay {
     private TextView btnBrightnessHudDurDec, btnBrightnessHudDurInc, txtBrightnessHudDur;
     private TextView btnTestBrightnessHud;
 
+    // Quick Brightness Slider Fields
+    private LinearLayout panelQuickBrightnessSlider;
+    private TextView btnGotoSliderConfig, btnGotoSliderFromCycle;
+    private TextView btnSliderTestNow, btnSliderOrientation, btnSliderStep, btnSliderPerpAction, btnSliderPosition, btnSliderTimeout;
+
+    private static final String[] SLIDER_ORIENTATIONS = {"Horizontal", "Vertical"};
+    private static final String[] SLIDER_STEPS_LABELS = {"1% (Default)", "0.5%", "0.1%", "2%", "5%"};
+    private static final float[] SLIDER_STEPS_VALUES = {1.0f, 0.5f, 0.1f, 2.0f, 5.0f};
+    private static final String[] SLIDER_PERP_ACTIONS = {
+        "Ciclar Niveles Guardados (Default)",
+        "Saltos de 5%",
+        "Saltos de 10%",
+        "Saltos de 20%",
+        "Extremos (1% y 100%)"
+    };
+    private static final String[] SLIDER_POSITIONS_H = {"Abajo Centro (Default)", "Centro", "Arriba Centro"};
+    private static final String[] SLIDER_POSITIONS_V = {"Derecha (Default)", "Izquierda", "Centro"};
+    private static final String[] SLIDER_TIMEOUTS_LABELS = {"3 segundos (Default)", "2 segundos", "4 segundos", "5 segundos"};
+    private static final int[] SLIDER_TIMEOUTS_VALUES = {3000, 2000, 4000, 5000};
+
     // Mindful Delay (Espera Consciente) Fields
     private LinearLayout panelMindfulDelay;
     private TextView btnMindfulDelayToggle;
@@ -398,6 +419,7 @@ public class QuickMenuOverlay {
         txtBrightnessPct     = rootView.findViewById(R.id.txt_brightness_pct);
         containerBrightnessLevels = rootView.findViewById(R.id.container_brightness_levels);
         btnAddBrightnessLevel    = rootView.findViewById(R.id.btn_add_brightness_level);
+        btnGotoSliderConfig      = rootView.findViewById(R.id.btn_goto_slider_config);
         btnDimmerDayAutoReset    = rootView.findViewById(R.id.btn_dimmer_day_auto_reset);
         btnGrayscaleDayAutoReset = rootView.findViewById(R.id.btn_grayscale_day_auto_reset);
         btnDayResetStartDec      = rootView.findViewById(R.id.btn_day_reset_start_dec);
@@ -555,6 +577,16 @@ public class QuickMenuOverlay {
         txtBrightnessHudDur          = rootView.findViewById(R.id.txt_brightness_hud_dur);
         btnBrightnessHudDurInc       = rootView.findViewById(R.id.btn_brightness_hud_dur_inc);
         btnTestBrightnessHud         = rootView.findViewById(R.id.btn_test_brightness_hud);
+        btnGotoSliderFromCycle       = rootView.findViewById(R.id.btn_goto_slider_from_cycle);
+
+        // Quick Brightness Slider panel
+        panelQuickBrightnessSlider   = rootView.findViewById(R.id.panel_quick_brightness_slider);
+        btnSliderTestNow             = rootView.findViewById(R.id.btn_slider_test_now);
+        btnSliderOrientation         = rootView.findViewById(R.id.btn_slider_orientation);
+        btnSliderStep                = rootView.findViewById(R.id.btn_slider_step);
+        btnSliderPerpAction          = rootView.findViewById(R.id.btn_slider_perp_action);
+        btnSliderPosition            = rootView.findViewById(R.id.btn_slider_position);
+        btnSliderTimeout             = rootView.findViewById(R.id.btn_slider_timeout);
 
         panelMindfulDelay            = rootView.findViewById(R.id.panel_mindful_delay);
         btnMindfulDelayToggle        = rootView.findViewById(R.id.btn_mindful_delay_toggle);
@@ -805,6 +837,7 @@ public class QuickMenuOverlay {
             case "clock_config": return panelClockConfig;
             case "brightness_config": return panelBrightness;
             case "cycle_brightness_config": return panelCycleBrightness;
+            case "quick_slider_config": return panelQuickBrightnessSlider;
             case "cine": return panelCine;
             case "auto_pause": return panelAutoPause;
             case "still_watching": return panelStillWatching;
@@ -1112,6 +1145,30 @@ public class QuickMenuOverlay {
         }
         if (current == btnBrightnessHudPosition) {
             cycleBrightnessHudIntPref("brightness_hud_position_idx", CLOCK_POSITION_NAMES.length, delta);
+            return true;
+        }
+
+        // Quick Brightness Slider
+        if (current == btnSliderOrientation) {
+            cycleSliderIntPref("quick_slider_orientation", SLIDER_ORIENTATIONS.length, delta);
+            return true;
+        }
+        if (current == btnSliderStep) {
+            cycleSliderIntPref("quick_slider_step_idx", SLIDER_STEPS_LABELS.length, delta);
+            return true;
+        }
+        if (current == btnSliderPerpAction) {
+            cycleSliderIntPref("quick_slider_perp_action", SLIDER_PERP_ACTIONS.length, delta);
+            return true;
+        }
+        if (current == btnSliderPosition) {
+            int orientation = getOverlayPrefs().getInt("quick_slider_orientation", 0);
+            int count = (orientation == 1) ? SLIDER_POSITIONS_V.length : SLIDER_POSITIONS_H.length;
+            cycleSliderIntPref("quick_slider_pos_idx", count, delta);
+            return true;
+        }
+        if (current == btnSliderTimeout) {
+            cycleSliderIntPref("quick_slider_timeout_idx", SLIDER_TIMEOUTS_LABELS.length, delta);
             return true;
         }
 
@@ -1675,6 +1732,22 @@ public class QuickMenuOverlay {
             });
         }
 
+        // Shortcut from Dimmer panel to Slider config
+        if (btnGotoSliderConfig != null) {
+            btnGotoSliderConfig.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelQuickBrightnessSlider != null) panelQuickBrightnessSlider.setVisibility(View.VISIBLE);
+                    openSubPanel = "quick_slider_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateQuickSliderConfigPanel();
+                    if (btnSliderTestNow != null) btnSliderTestNow.requestFocus();
+                }
+            });
+        }
+
         // Auto-Reset Diario al Encender (Dimmer Paso 1 & Grayscale a Color)
         if (btnDimmerDayAutoReset != null) {
             btnDimmerDayAutoReset.setOnClickListener(new View.OnClickListener() {
@@ -1803,6 +1876,74 @@ public class QuickMenuOverlay {
                 public void onClick(View v) {
                     sendServiceAction("ACTION_SHOW_BRIGHTNESS_HUD");
                     btnTestBrightnessHud.requestFocus();
+                }
+            });
+        }
+
+        if (btnGotoSliderFromCycle != null) {
+            btnGotoSliderFromCycle.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelQuickBrightnessSlider != null) panelQuickBrightnessSlider.setVisibility(View.VISIBLE);
+                    openSubPanel = "quick_slider_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateQuickSliderConfigPanel();
+                    if (btnSliderTestNow != null) btnSliderTestNow.requestFocus();
+                }
+            });
+        }
+
+        // Quick Brightness Slider config listeners
+        if (btnSliderTestNow != null) {
+            btnSliderTestNow.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendServiceAction("ACTION_SHOW_BRIGHTNESS_SLIDER");
+                    btnSliderTestNow.requestFocus();
+                }
+            });
+        }
+        if (btnSliderOrientation != null) {
+            btnSliderOrientation.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycleSliderIntPref("quick_slider_orientation", SLIDER_ORIENTATIONS.length);
+                }
+            });
+        }
+        if (btnSliderStep != null) {
+            btnSliderStep.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycleSliderIntPref("quick_slider_step_idx", SLIDER_STEPS_LABELS.length);
+                }
+            });
+        }
+        if (btnSliderPerpAction != null) {
+            btnSliderPerpAction.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycleSliderIntPref("quick_slider_perp_action", SLIDER_PERP_ACTIONS.length);
+                }
+            });
+        }
+        if (btnSliderPosition != null) {
+            btnSliderPosition.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    int orientation = getOverlayPrefs().getInt("quick_slider_orientation", 0);
+                    int count = (orientation == 1) ? SLIDER_POSITIONS_V.length : SLIDER_POSITIONS_H.length;
+                    cycleSliderIntPref("quick_slider_pos_idx", count);
+                }
+            });
+        }
+        if (btnSliderTimeout != null) {
+            btnSliderTimeout.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycleSliderIntPref("quick_slider_timeout_idx", SLIDER_TIMEOUTS_LABELS.length);
                 }
             });
         }
@@ -2582,6 +2723,7 @@ public class QuickMenuOverlay {
         if (panelMindfulDelay != null) panelMindfulDelay.setVisibility(View.GONE);
         if (panelTranslateConfig != null) panelTranslateConfig.setVisibility(View.GONE);
         if (panelButtonCombos != null) panelButtonCombos.setVisibility(View.GONE);
+        if (panelQuickBrightnessSlider != null) panelQuickBrightnessSlider.setVisibility(View.GONE);
         openSubPanel = null;
         configuringButton = null;
         if (menuContainer != null) {
@@ -3488,6 +3630,48 @@ public class QuickMenuOverlay {
         getOverlayPrefs().edit().putInt(key, next).apply();
         updateBrightnessHudConfigPanel();
         sendServiceAction("ACTION_SHOW_BRIGHTNESS_HUD");
+    }
+
+    private void updateQuickSliderConfigPanel() {
+        SharedPreferences prefs = getOverlayPrefs();
+        int orientation = prefs.getInt("quick_slider_orientation", 0);
+        int stepIdx = prefs.getInt("quick_slider_step_idx", 0);
+        int perpIdx = prefs.getInt("quick_slider_perp_action", 0);
+        int posIdx = prefs.getInt("quick_slider_pos_idx", 0);
+        int timeoutIdx = prefs.getInt("quick_slider_timeout_idx", 0);
+
+        if (btnSliderTestNow != null) {
+            btnSliderTestNow.setText("👁️  Probar Slider en Pantalla");
+        }
+        if (btnSliderOrientation != null) {
+            btnSliderOrientation.setText("   Orientación:  " + SLIDER_ORIENTATIONS[orientation % SLIDER_ORIENTATIONS.length]);
+        }
+        if (btnSliderStep != null) {
+            btnSliderStep.setText("   Salto (Paso):  " + SLIDER_STEPS_LABELS[stepIdx % SLIDER_STEPS_LABELS.length]);
+        }
+        if (btnSliderPerpAction != null) {
+            btnSliderPerpAction.setText("   Flechas Perpendiculares:  " + SLIDER_PERP_ACTIONS[perpIdx % SLIDER_PERP_ACTIONS.length]);
+        }
+        if (btnSliderPosition != null) {
+            String[] posNames = (orientation == 1) ? SLIDER_POSITIONS_V : SLIDER_POSITIONS_H;
+            btnSliderPosition.setText("   Posición:  " + posNames[posIdx % posNames.length]);
+        }
+        if (btnSliderTimeout != null) {
+            btnSliderTimeout.setText("   Cierre por Inactividad:  " + SLIDER_TIMEOUTS_LABELS[timeoutIdx % SLIDER_TIMEOUTS_LABELS.length]);
+        }
+    }
+
+    private void cycleSliderIntPref(String key, int totalOptions) {
+        cycleSliderIntPref(key, totalOptions, 1);
+    }
+
+    private void cycleSliderIntPref(String key, int totalOptions, int delta) {
+        int cur = getOverlayPrefs().getInt(key, 0);
+        int next = (cur + delta) % totalOptions;
+        if (next < 0) next += totalOptions;
+        getOverlayPrefs().edit().putInt(key, next).apply();
+        updateQuickSliderConfigPanel();
+        sendServiceAction("ACTION_SHOW_BRIGHTNESS_SLIDER");
     }
 
     private void updateBrightnessConfigPanel() {

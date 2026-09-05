@@ -19,6 +19,7 @@ import android.media.ToneGenerator;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.provider.Settings;
@@ -27,7 +28,9 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Toast;
 import android.widget.TextView;
@@ -291,6 +294,20 @@ public class ButtonMappingService extends AccessibilityService {
     private View systemInfoOverlayView = null;
     private View frameStepHudView = null;
     private boolean isFrameStepHudActive = false;
+
+    // Quick Brightness Slider fields
+    private View brightnessSliderView = null;
+    private boolean isBrightnessSliderActive = false;
+    private float currentSliderBrightness = 50.0f;
+    private final Handler sliderInactivityHandler = new Handler(Looper.getMainLooper());
+    private Runnable sliderInactivityRunnable;
+    private final Handler sliderHoldHandler = new Handler(Looper.getMainLooper());
+    private int sliderHoldingKeyCode = -1;
+    private int sliderHoldTickCount = 0;
+    private Runnable sliderHoldRunnable;
+
+    private static final float[] SLIDER_STEPS_VALUES = {1.0f, 0.5f, 0.1f, 2.0f, 5.0f};
+    private static final int[] SLIDER_TIMEOUTS_MS = {3000, 2000, 4000, 5000};
 
     private int clockShowRetries = 0;
     private int blueLightShowRetries = 0;
@@ -1165,6 +1182,7 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_OPEN_DEVELOPER_OPTIONS": openDeveloperOptions(); break;
             case "ACTION_CYCLE_BRIGHTNESS": cycleBrightness(); break;
             case "ACTION_CYCLE_BRIGHTNESS_REVERSE": cycleBrightnessReverse(); break;
+            case "ACTION_SHOW_BRIGHTNESS_SLIDER": showQuickBrightnessSlider(); break;
             case "ACTION_SHOW_BRIGHTNESS_HUD": {
                 if (extras != null) {
                     int hudPct = extras.getInt("pct", -1);
@@ -1327,6 +1345,9 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case 28: // Ciclar Brillo Inverso
                 cycleBrightnessReverse();
+                break;
+            case 29: // Slider de Brillo Rápido
+                showQuickBrightnessSlider();
                 break;
         }
     }
@@ -1699,6 +1720,7 @@ public class ButtonMappingService extends AccessibilityService {
         hideDimmerOverlay();
         dismissSystemInfoOverlay();
         dismissMindfulDelayOverlay();
+        dismissQuickBrightnessSlider();
         stopStillWatchingTimer();
         stopOledSaverTimer();
         try {
@@ -3346,6 +3368,13 @@ public class ButtonMappingService extends AccessibilityService {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
 
+        // 0. Quick Brightness Slider Key Interception
+        if (isBrightnessSliderActive) {
+            if (handleBrightnessSliderKeyEvent(event)) {
+                return true;
+            }
+        }
+
         // 0. Frame Step HUD Key Interception:
         if (isFrameStepHudActive) {
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
@@ -3915,6 +3944,456 @@ public class ButtonMappingService extends AccessibilityService {
                 }
             });
         }
+    }
+
+    // ==========================================
+    // Quick Brightness Slider HUD Implementation
+    // ==========================================
+
+    public void showQuickBrightnessSlider() {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm == null) return;
+
+                    stopSliderHoldRepeat();
+                    stopSliderInactivityTimer();
+
+                    SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    currentSliderBrightness = prefs.getFloat("dimmer_brightness_pct_float", (float) prefs.getInt("dimmer_brightness_pct", 50));
+                    if (currentSliderBrightness < 1.0f) currentSliderBrightness = 1.0f;
+                    if (currentSliderBrightness > 100.0f) currentSliderBrightness = 100.0f;
+
+                    int orientation = prefs.getInt("quick_slider_orientation", 0);
+                    int posIdx = prefs.getInt("quick_slider_pos_idx", 0);
+
+                    if (brightnessSliderView != null) {
+                        try { wm.removeView(brightnessSliderView); } catch (Exception ignored) {}
+                        brightnessSliderView = null;
+                    }
+
+                    LayoutInflater inflater = LayoutInflater.from(ButtonMappingService.this);
+                    View root = inflater.inflate(R.layout.overlay_brightness_slider, null);
+
+                    View containerH = root.findViewById(R.id.slider_container_horizontal);
+                    View containerV = root.findViewById(R.id.slider_container_vertical);
+
+                    float density = getResources().getDisplayMetrics().density;
+
+                    WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                            WindowManager.LayoutParams.WRAP_CONTENT,
+                            WindowManager.LayoutParams.WRAP_CONTENT,
+                            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                    | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                            PixelFormat.TRANSLUCENT
+                    );
+
+                    if (orientation == 1) {
+                        // Vertical
+                        if (containerH != null) containerH.setVisibility(View.GONE);
+                        if (containerV != null) containerV.setVisibility(View.VISIBLE);
+
+                        int p = posIdx % 3;
+                        if (p == 0) {
+                            params.gravity = Gravity.CENTER_VERTICAL | Gravity.END;
+                            params.x = Math.round(40 * density);
+                        } else if (p == 1) {
+                            params.gravity = Gravity.CENTER_VERTICAL | Gravity.START;
+                            params.x = Math.round(40 * density);
+                        } else {
+                            params.gravity = Gravity.CENTER;
+                            params.x = 0;
+                        }
+                        params.y = 0;
+                    } else {
+                        // Horizontal
+                        if (containerH != null) containerH.setVisibility(View.VISIBLE);
+                        if (containerV != null) containerV.setVisibility(View.GONE);
+
+                        int p = posIdx % 3;
+                        if (p == 0) {
+                            params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+                            params.y = Math.round(40 * density);
+                        } else if (p == 1) {
+                            params.gravity = Gravity.CENTER;
+                            params.y = 0;
+                        } else {
+                            params.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                            params.y = Math.round(40 * density);
+                        }
+                        params.x = 0;
+                    }
+
+                    wm.addView(root, params);
+                    brightnessSliderView = root;
+                    isBrightnessSliderActive = true;
+
+                    updateSliderUI();
+                    resetSliderInactivityTimer();
+                    Log.d(TAG, "Quick Brightness Slider displayed at " + currentSliderBrightness + "%");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error displaying Quick Brightness Slider", e);
+                    isBrightnessSliderActive = false;
+                }
+            }
+        });
+    }
+
+    public void dismissQuickBrightnessSlider() {
+        stopSliderHoldRepeat();
+        stopSliderInactivityTimer();
+        if (brightnessSliderView != null) {
+            final View v = brightnessSliderView;
+            brightnessSliderView = null;
+            isBrightnessSliderActive = false;
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                        if (wm != null) wm.removeView(v);
+                        Log.d(TAG, "Quick Brightness Slider dismissed.");
+                    } catch (Exception ignored) {}
+                }
+            });
+        } else {
+            isBrightnessSliderActive = false;
+        }
+    }
+
+    private void resetSliderInactivityTimer() {
+        stopSliderInactivityTimer();
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int timeoutIdx = prefs.getInt("quick_slider_timeout_idx", 0);
+        int timeoutMs = (timeoutIdx >= 0 && timeoutIdx < SLIDER_TIMEOUTS_MS.length) ? SLIDER_TIMEOUTS_MS[timeoutIdx] : 3000;
+
+        sliderInactivityRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isBrightnessSliderActive) {
+                    dismissQuickBrightnessSlider();
+                }
+            }
+        };
+        sliderInactivityHandler.postDelayed(sliderInactivityRunnable, timeoutMs);
+    }
+
+    private void stopSliderInactivityTimer() {
+        if (sliderInactivityRunnable != null) {
+            sliderInactivityHandler.removeCallbacks(sliderInactivityRunnable);
+            sliderInactivityRunnable = null;
+        }
+    }
+
+    private float getSliderStep() {
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int stepIdx = prefs.getInt("quick_slider_step_idx", 0);
+        if (stepIdx >= 0 && stepIdx < SLIDER_STEPS_VALUES.length) {
+            return SLIDER_STEPS_VALUES[stepIdx];
+        }
+        return 1.0f;
+    }
+
+    private void startSliderHoldRepeat(final int keyCode) {
+        stopSliderHoldRepeat();
+        sliderHoldingKeyCode = keyCode;
+        sliderHoldTickCount = 0;
+
+        sliderHoldRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isBrightnessSliderActive || sliderHoldingKeyCode != keyCode) return;
+                sliderHoldTickCount++;
+                resetSliderInactivityTimer();
+
+                float baseStep = getSliderStep();
+                float currentStep;
+                if (sliderHoldTickCount > 30) {
+                    currentStep = Math.max(5.0f, baseStep * 8);
+                } else if (sliderHoldTickCount > 15) {
+                    currentStep = Math.max(2.0f, baseStep * 4);
+                } else if (sliderHoldTickCount > 6) {
+                    currentStep = Math.max(1.0f, baseStep * 2);
+                } else {
+                    currentStep = baseStep;
+                }
+
+                boolean isIncrease = (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_UP);
+                stepSliderBrightness(isIncrease ? currentStep : -currentStep, sliderHoldTickCount);
+
+                int nextDelay;
+                if (sliderHoldTickCount > 25) {
+                    nextDelay = 20;
+                } else if (sliderHoldTickCount > 15) {
+                    nextDelay = 35;
+                } else if (sliderHoldTickCount > 5) {
+                    nextDelay = 50;
+                } else {
+                    nextDelay = 75;
+                }
+                sliderHoldHandler.postDelayed(this, nextDelay);
+            }
+        };
+        sliderHoldHandler.postDelayed(sliderHoldRunnable, 180);
+    }
+
+    private void stopSliderHoldRepeat() {
+        sliderHoldingKeyCode = -1;
+        sliderHoldTickCount = 0;
+        if (sliderHoldRunnable != null) {
+            sliderHoldHandler.removeCallbacks(sliderHoldRunnable);
+            sliderHoldRunnable = null;
+        }
+    }
+
+    private void stepSliderBrightness(float delta, int repeatCount) {
+        resetSliderInactivityTimer();
+        float newBrightness = currentSliderBrightness + delta;
+        if (newBrightness < 1.0f) newBrightness = 1.0f;
+        if (newBrightness > 100.0f) newBrightness = 100.0f;
+        applySliderBrightness(newBrightness);
+    }
+
+    private void applySliderBrightness(float val) {
+        currentSliderBrightness = Math.max(1.0f, Math.min(100.0f, val));
+        int intVal = Math.round(currentSliderBrightness);
+
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        prefs.edit()
+                .putInt("dimmer_brightness_pct", intVal)
+                .putFloat("dimmer_brightness_pct_float", currentSliderBrightness)
+                .apply();
+
+        if (isDimmerActive && dimmerOverlayView != null) {
+            int alphaVal = (int) ((100 - intVal) * 2.55);
+            dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+        } else {
+            showDimmerOverlay();
+        }
+
+        updateSliderUI();
+    }
+
+    private void executeSliderPerpAction(int dir) {
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int perpAction = prefs.getInt("quick_slider_perp_action", 0);
+        resetSliderInactivityTimer();
+
+        if (perpAction == 0) { // Ciclar Niveles Guardados
+            String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
+            String[] parts = levelsStr.split(",");
+            if (parts.length > 0) {
+                int[] levels = new int[parts.length];
+                for (int i = 0; i < parts.length; i++) {
+                    try { levels[i] = Integer.parseInt(parts[i].trim()); } catch (Exception e) { levels[i] = 50; }
+                }
+                int cur = Math.round(currentSliderBrightness);
+                int closestIdx = 0;
+                int minDiff = Math.abs(cur - levels[0]);
+                for (int i = 1; i < levels.length; i++) {
+                    int diff = Math.abs(cur - levels[i]);
+                    if (diff < minDiff) { minDiff = diff; closestIdx = i; }
+                }
+                int nextIdx;
+                if (dir > 0) {
+                    nextIdx = (closestIdx + 1) % levels.length;
+                } else {
+                    nextIdx = (closestIdx - 1 + levels.length) % levels.length;
+                }
+                applySliderBrightness((float) levels[nextIdx]);
+            }
+        } else if (perpAction == 1) { // Saltos de 5%
+            stepSliderBrightness(dir * 5.0f, 0);
+        } else if (perpAction == 2) { // Saltos de 10%
+            stepSliderBrightness(dir * 10.0f, 0);
+        } else if (perpAction == 3) { // Saltos de 20%
+            stepSliderBrightness(dir * 20.0f, 0);
+        } else if (perpAction == 4) { // Extremos (1% y 100%)
+            applySliderBrightness(dir > 0 ? 100.0f : 1.0f);
+        }
+    }
+
+    private void updateSliderUI() {
+        if (brightnessSliderView == null) return;
+        try {
+            SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+            int orientation = prefs.getInt("quick_slider_orientation", 0);
+            int stepIdx = prefs.getInt("quick_slider_step_idx", 0);
+            float stepVal = (stepIdx >= 0 && stepIdx < SLIDER_STEPS_VALUES.length) ? SLIDER_STEPS_VALUES[stepIdx] : 1.0f;
+
+            String valText;
+            if (stepVal < 1.0f) {
+                valText = String.format(java.util.Locale.US, "%.1f%%", currentSliderBrightness);
+            } else {
+                valText = Math.round(currentSliderBrightness) + "%";
+            }
+
+            if (orientation == 1) {
+                // Vertical
+                TextView txtVal = brightnessSliderView.findViewById(R.id.slider_txt_v_val);
+                if (txtVal != null) txtVal.setText(valText);
+
+                final FrameLayout trackContainer = brightnessSliderView.findViewById(R.id.slider_track_v_container);
+                final View trackFill = brightnessSliderView.findViewById(R.id.slider_track_v_fill);
+                if (trackContainer != null && trackFill != null) {
+                    int height = trackContainer.getHeight();
+                    if (height > 0) {
+                        int fillHeight = Math.round((currentSliderBrightness / 100.0f) * height);
+                        ViewGroup.LayoutParams lp = trackFill.getLayoutParams();
+                        lp.height = Math.max(0, Math.min(height, fillHeight));
+                        trackFill.setLayoutParams(lp);
+                    } else {
+                        trackContainer.post(new Runnable() {
+                            @Override public void run() {
+                                int h = trackContainer.getHeight();
+                                if (h > 0) {
+                                    int fh = Math.round((currentSliderBrightness / 100.0f) * h);
+                                    ViewGroup.LayoutParams lp = trackFill.getLayoutParams();
+                                    lp.height = Math.max(0, Math.min(h, fh));
+                                    trackFill.setLayoutParams(lp);
+                                }
+                            }
+                        });
+                    }
+                }
+            } else {
+                // Horizontal
+                TextView txtVal = brightnessSliderView.findViewById(R.id.slider_txt_h_val);
+                if (txtVal != null) txtVal.setText(valText);
+
+                final FrameLayout trackContainer = brightnessSliderView.findViewById(R.id.slider_track_h_container);
+                final View trackFill = brightnessSliderView.findViewById(R.id.slider_track_h_fill);
+                if (trackContainer != null && trackFill != null) {
+                    int width = trackContainer.getWidth();
+                    if (width > 0) {
+                        int fillWidth = Math.round((currentSliderBrightness / 100.0f) * width);
+                        ViewGroup.LayoutParams lp = trackFill.getLayoutParams();
+                        lp.width = Math.max(0, Math.min(width, fillWidth));
+                        trackFill.setLayoutParams(lp);
+                    } else {
+                        trackContainer.post(new Runnable() {
+                            @Override public void run() {
+                                int w = trackContainer.getWidth();
+                                if (w > 0) {
+                                    int fw = Math.round((currentSliderBrightness / 100.0f) * w);
+                                    ViewGroup.LayoutParams lp = trackFill.getLayoutParams();
+                                    lp.width = Math.max(0, Math.min(w, fw));
+                                    trackFill.setLayoutParams(lp);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating slider UI", e);
+        }
+    }
+
+    private boolean handleBrightnessSliderKeyEvent(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        int action = event.getAction();
+
+        // Dismiss keys: BACK, ESCAPE, ENTER, DPAD_CENTER, BUTTON_A
+        if (keyCode == KeyEvent.KEYCODE_BACK
+                || keyCode == KeyEvent.KEYCODE_ESCAPE
+                || keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                || keyCode == KeyEvent.KEYCODE_ENTER
+                || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                dismissQuickBrightnessSlider();
+            }
+            return true;
+        }
+
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int orientation = prefs.getInt("quick_slider_orientation", 0);
+
+        if (orientation == 0) {
+            // Horizontal: Primary axis = Left / Right, Perpendicular axis = Up / Down
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    if (event.getRepeatCount() == 0) {
+                        stepSliderBrightness(-getSliderStep(), 0);
+                        startSliderHoldRepeat(KeyEvent.KEYCODE_DPAD_LEFT);
+                    }
+                } else if (action == KeyEvent.ACTION_UP) {
+                    if (sliderHoldingKeyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                        stopSliderHoldRepeat();
+                    }
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    if (event.getRepeatCount() == 0) {
+                        stepSliderBrightness(getSliderStep(), 0);
+                        startSliderHoldRepeat(KeyEvent.KEYCODE_DPAD_RIGHT);
+                    }
+                } else if (action == KeyEvent.ACTION_UP) {
+                    if (sliderHoldingKeyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                        stopSliderHoldRepeat();
+                    }
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    executeSliderPerpAction(1);
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    executeSliderPerpAction(-1);
+                }
+                return true;
+            }
+        } else {
+            // Vertical: Primary axis = Up / Down, Perpendicular axis = Right / Left
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    if (event.getRepeatCount() == 0) {
+                        stepSliderBrightness(getSliderStep(), 0);
+                        startSliderHoldRepeat(KeyEvent.KEYCODE_DPAD_UP);
+                    }
+                } else if (action == KeyEvent.ACTION_UP) {
+                    if (sliderHoldingKeyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                        stopSliderHoldRepeat();
+                    }
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    if (event.getRepeatCount() == 0) {
+                        stepSliderBrightness(-getSliderStep(), 0);
+                        startSliderHoldRepeat(KeyEvent.KEYCODE_DPAD_DOWN);
+                    }
+                } else if (action == KeyEvent.ACTION_UP) {
+                    if (sliderHoldingKeyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                        stopSliderHoldRepeat();
+                    }
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    executeSliderPerpAction(1);
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    executeSliderPerpAction(-1);
+                }
+                return true;
+            }
+        }
+
+        // Any other key dismisses the slider and passes through
+        if (action == KeyEvent.ACTION_DOWN) {
+            dismissQuickBrightnessSlider();
+        }
+        return false;
     }
 
     public void triggerScreenTranslation() {

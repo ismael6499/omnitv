@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/slider_root_view"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <!-- Horizontal Slider Layout -->
+    <LinearLayout
+        android:id="@+id/slider_container_horizontal"
+        android:layout_width="360dp"
+        android:layout_height="54dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/slider_hud_background"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:visibility="visible">
+
+        <TextView
+            android:id="@+id/slider_icon_h"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="☀️"
+            android:textSize="20sp"
+            android:layout_marginEnd="12dp" />
+
+        <FrameLayout
+            android:id="@+id/slider_track_h_container"
+            android:layout_width="0dp"
+            android:layout_height="12dp"
+            android:layout_weight="1"
+            android:background="@drawable/slider_track_background">
+
+            <View
+                android:id="@+id/slider_track_h_fill"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/slider_track_fill" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/slider_txt_h_val"
+            android:layout_width="65dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="50%"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginStart="10dp" />
+    </LinearLayout>
+
+    <!-- Vertical Slider Layout -->
+    <LinearLayout
+        android:id="@+id/slider_container_vertical"
+        android:layout_width="68dp"
+        android:layout_height="320dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:background="@drawable/slider_hud_background"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/slider_icon_v"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="☀️"
+            android:textSize="22sp"
+            android:gravity="center"
+            android:layout_marginBottom="12dp" />
+
+        <FrameLayout
+            android:id="@+id/slider_track_v_container"
+            android:layout_width="14dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/slider_track_background">
+
+            <View
+                android:id="@+id/slider_track_v_fill"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_gravity="bottom"
+                android:background="@drawable/slider_track_fill" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/slider_txt_v_val"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="50%"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginTop="10dp" />
+    </LinearLayout>
+
+</FrameLayout>
