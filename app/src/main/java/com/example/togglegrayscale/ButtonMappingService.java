@@ -959,6 +959,7 @@ public class ButtonMappingService extends AccessibilityService {
         instance = this;
         Log.d(TAG, "Service connected and ready to intercept keys");
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        QuickMenuOverlay.getInstance().preWarm(this);
         
         try {
             android.accessibilityservice.AccessibilityServiceInfo info = getServiceInfo();
@@ -1104,6 +1105,7 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_OPEN_BLUETOOTH": openBluetoothSettings(); break;
             case "ACTION_OPEN_DEVELOPER_OPTIONS": openDeveloperOptions(); break;
             case "ACTION_CYCLE_BRIGHTNESS": cycleBrightness(); break;
+            case "ACTION_CYCLE_BRIGHTNESS_REVERSE": cycleBrightnessReverse(); break;
             case "ACTION_SHOW_BRIGHTNESS_HUD": {
                 if (extras != null) {
                     int hudPct = extras.getInt("pct", -1);
@@ -1263,6 +1265,9 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case 27: // Opciones de Desarrollador
                 launchDeveloperOptions();
+                break;
+            case 28: // Ciclar Brillo Inverso
+                cycleBrightnessReverse();
                 break;
         }
     }
@@ -1627,6 +1632,7 @@ public class ButtonMappingService extends AccessibilityService {
     @Override
     public void onDestroy() {
         instance = null;
+        QuickMenuOverlay.getInstance().dismiss();
         dismissBlackScreen();
         hideBlueLightOverlay();
         hideClockOverlay();
@@ -2336,6 +2342,52 @@ public class ButtonMappingService extends AccessibilityService {
                 
                 prefs.edit().putInt("dimmer_brightness_pct", next).apply();
                 Log.d(TAG, "Cycled brightness from " + cur + "% to " + next + "%");
+                if (isDimmerActive && dimmerOverlayView != null) {
+                    int alphaVal = (int) ((100 - next) * 2.55);
+                    dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+                } else {
+                    showDimmerOverlay();
+                }
+                showBrightnessHud(next, nextIdx + 1, levels.length);
+            }
+        });
+    }
+
+    private void cycleBrightnessReverse() {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                int cur = prefs.getInt("dimmer_brightness_pct", 50);
+                String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
+
+                String[] parts = levelsStr.split(",");
+                if (parts.length == 0) return;
+
+                int[] levels = new int[parts.length];
+                for (int i = 0; i < parts.length; i++) {
+                    try {
+                        levels[i] = Integer.parseInt(parts[i].trim());
+                    } catch (Exception e) {
+                        levels[i] = 50;
+                    }
+                }
+
+                int closestIdx = 0;
+                int minDiff = Math.abs(cur - levels[0]);
+                for (int i = 1; i < levels.length; i++) {
+                    int diff = Math.abs(cur - levels[i]);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestIdx = i;
+                    }
+                }
+
+                int nextIdx = (closestIdx - 1 + levels.length) % levels.length;
+                int next = levels[nextIdx];
+
+                prefs.edit().putInt("dimmer_brightness_pct", next).apply();
+                Log.d(TAG, "Cycled brightness reverse from " + cur + "% to " + next + "%");
                 if (isDimmerActive && dimmerOverlayView != null) {
                     int alphaVal = (int) ((100 - next) * 2.55);
                     dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));

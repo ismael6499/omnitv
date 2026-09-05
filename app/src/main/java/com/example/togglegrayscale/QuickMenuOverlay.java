@@ -67,7 +67,8 @@ public class QuickMenuOverlay {
         "Control Cuadro por Cuadro (HUD)",
         "Avanzar 1 Frame (YouTube)",
         "Retroceder 1 Frame (YouTube)",
-        "Opciones de Desarrollador"
+        "Opciones de Desarrollador",
+        "Ciclar Brillo Inverso"
     };
 
     private static final String[] TRANSLATE_TARGET_LANGS = {"Español", "English"};
@@ -332,6 +333,304 @@ public class QuickMenuOverlay {
         }
     }
 
+    public void preWarm(Context ctx) {
+        this.context = ctx;
+        try {
+            ensureViews();
+            Log.d(TAG, "QuickMenuOverlay views pre-warmed successfully.");
+        } catch (Exception e) {
+            Log.e(TAG, "Error pre-warming QuickMenuOverlay", e);
+        }
+    }
+
+    private void ensureViews() {
+        if (rootView != null) return;
+        rootView = LayoutInflater.from(context).inflate(R.layout.activity_quick_menu, null);
+
+        menuDimmerFilter    = rootView.findViewById(R.id.menu_dimmer_filter);
+        menuBlueLightFilter = rootView.findViewById(R.id.menu_blue_light_filter);
+
+        // Bind backdrop to dismiss on click outside panel
+        rootView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dismiss();
+            }
+        });
+
+        menuContainer          = rootView.findViewById(R.id.menu_container);
+        panelTimer             = rootView.findViewById(R.id.panel_timer);
+        panelCine              = rootView.findViewById(R.id.panel_cine);
+        panelBlueLight         = rootView.findViewById(R.id.panel_blue_light);
+
+        btnCancelTimer         = rootView.findViewById(R.id.btn_cancel_timer);
+        btnCineBlueLightConfig = rootView.findViewById(R.id.btn_cine_blue_light_config);
+        btnCineDimmerConfig    = rootView.findViewById(R.id.btn_cine_dimmer_config);
+        btnCineTimerConfig     = rootView.findViewById(R.id.btn_cine_timer_config);
+        btnApplyCine           = rootView.findViewById(R.id.btn_apply_cine);
+        btnApplyBlueLight      = rootView.findViewById(R.id.btn_apply_blue_light);
+
+        panelAutoPause         = rootView.findViewById(R.id.panel_auto_pause);
+        btnAutoPauseMode       = rootView.findViewById(R.id.btn_auto_pause_mode);
+        layoutAutoPauseCustom  = rootView.findViewById(R.id.layout_auto_pause_custom);
+        btnAutoPauseCountDec   = rootView.findViewById(R.id.btn_auto_pause_count_dec);
+        txtAutoPauseCount      = rootView.findViewById(R.id.txt_auto_pause_count);
+        btnAutoPauseCountInc   = rootView.findViewById(R.id.btn_auto_pause_count_inc);
+        btnAutoPauseBlackScreen = rootView.findViewById(R.id.btn_auto_pause_black_screen);
+        btnAutoDismissUpNext   = rootView.findViewById(R.id.btn_auto_dismiss_up_next);
+
+        txtCustomHours         = rootView.findViewById(R.id.txt_custom_hours);
+        txtCustomMins          = rootView.findViewById(R.id.txt_custom_mins);
+
+        sliderBlueLight        = rootView.findViewById(R.id.slider_blue_light);
+        if (sliderBlueLight != null) {
+            sliderBlueLight.setMax(800);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP_MR1) {
+                sliderBlueLight.setKeyProgressIncrement(1);
+            }
+        }
+        txtBlueLightPct        = rootView.findViewById(R.id.txt_blue_light_pct);
+
+        panelBrightness      = rootView.findViewById(R.id.panel_brightness);
+        sliderBrightness     = rootView.findViewById(R.id.slider_brightness);
+        txtBrightnessPct     = rootView.findViewById(R.id.txt_brightness_pct);
+        containerBrightnessLevels = rootView.findViewById(R.id.container_brightness_levels);
+        btnAddBrightnessLevel    = rootView.findViewById(R.id.btn_add_brightness_level);
+        btnDimmerDayAutoReset    = rootView.findViewById(R.id.btn_dimmer_day_auto_reset);
+        btnGrayscaleDayAutoReset = rootView.findViewById(R.id.btn_grayscale_day_auto_reset);
+        btnDayResetStartDec      = rootView.findViewById(R.id.btn_day_reset_start_dec);
+        txtDayResetStart         = rootView.findViewById(R.id.txt_day_reset_start);
+        btnDayResetStartInc      = rootView.findViewById(R.id.btn_day_reset_start_inc);
+        btnDayResetEndDec        = rootView.findViewById(R.id.btn_day_reset_end_dec);
+        txtDayResetEnd           = rootView.findViewById(R.id.txt_day_reset_end);
+        btnDayResetEndInc        = rootView.findViewById(R.id.btn_day_reset_end_inc);
+        btnApplyBrightness       = rootView.findViewById(R.id.btn_apply_brightness);
+
+        panelButtonConfig    = rootView.findViewById(R.id.panel_button_config);
+        txtConfigTitle       = rootView.findViewById(R.id.txt_config_title);
+        btnConfigClick1      = rootView.findViewById(R.id.btn_config_click_1);
+        btnConfigClick2      = rootView.findViewById(R.id.btn_config_click_2);
+        btnConfigClick3      = rootView.findViewById(R.id.btn_config_click_3);
+        btnConfigClick4      = rootView.findViewById(R.id.btn_config_click_4);
+        btnConfigLong        = rootView.findViewById(R.id.btn_config_long);
+        btnConfigDurationDec = rootView.findViewById(R.id.btn_config_duration_dec);
+        btnConfigDurationInc = rootView.findViewById(R.id.btn_config_duration_inc);
+        txtConfigDuration    = rootView.findViewById(R.id.txt_config_duration);
+
+        panelClockConfig     = rootView.findViewById(R.id.panel_clock_config);
+        btnClockTextColor    = rootView.findViewById(R.id.btn_clock_text_color);
+        btnClockBgColor      = rootView.findViewById(R.id.btn_clock_bg_color);
+        btnClockAlphaDec     = rootView.findViewById(R.id.btn_clock_alpha_dec);
+        btnClockAlphaInc     = rootView.findViewById(R.id.btn_clock_alpha_inc);
+        txtClockAlpha        = rootView.findViewById(R.id.txt_clock_alpha);
+        btnClockTextAlphaDec = rootView.findViewById(R.id.btn_clock_text_alpha_dec);
+        btnClockTextAlphaInc = rootView.findViewById(R.id.btn_clock_text_alpha_inc);
+        txtClockTextAlpha    = rootView.findViewById(R.id.txt_clock_text_alpha);
+        btnClockPosition     = rootView.findViewById(R.id.btn_clock_position);
+        btnClockSizeDec      = rootView.findViewById(R.id.btn_clock_size_dec);
+        btnClockSizeInc      = rootView.findViewById(R.id.btn_clock_size_inc);
+        txtClockSize         = rootView.findViewById(R.id.txt_clock_size);
+        btnClockPadDec       = rootView.findViewById(R.id.btn_clock_pad_dec);
+        btnClockPadInc       = rootView.findViewById(R.id.btn_clock_pad_inc);
+        txtClockPad          = rootView.findViewById(R.id.txt_clock_pad);
+        btnClockXDec         = rootView.findViewById(R.id.btn_clock_x_dec);
+        btnClockXInc         = rootView.findViewById(R.id.btn_clock_x_inc);
+        txtClockX            = rootView.findViewById(R.id.txt_clock_x);
+        btnClockYDec         = rootView.findViewById(R.id.btn_clock_y_dec);
+        btnClockYInc         = rootView.findViewById(R.id.btn_clock_y_inc);
+        txtClockY            = rootView.findViewById(R.id.txt_clock_y);
+        btnApplyClock        = rootView.findViewById(R.id.btn_apply_clock);
+
+        // Still Watching panel
+        panelStillWatching           = rootView.findViewById(R.id.panel_still_watching);
+        btnStillWatchingToggle       = rootView.findViewById(R.id.btn_still_watching_action_toggle);
+        btnStillWatchingIntervalDec  = rootView.findViewById(R.id.btn_still_watching_interval_dec);
+        btnStillWatchingIntervalInc  = rootView.findViewById(R.id.btn_still_watching_interval_inc);
+        txtStillWatchingInterval     = rootView.findViewById(R.id.txt_still_watching_interval);
+        btnStillWatchingTimeoutDec   = rootView.findViewById(R.id.btn_still_watching_timeout_dec);
+        btnStillWatchingTimeoutInc   = rootView.findViewById(R.id.btn_still_watching_timeout_inc);
+        txtStillWatchingTimeout      = rootView.findViewById(R.id.txt_still_watching_timeout);
+        btnStillWatchingBeepToggle   = rootView.findViewById(R.id.btn_still_watching_beep_toggle);
+        btnStillWatchingBeepIntervalDec = rootView.findViewById(R.id.btn_still_watching_beep_interval_dec);
+        btnStillWatchingBeepIntervalInc = rootView.findViewById(R.id.btn_still_watching_beep_interval_inc);
+        txtStillWatchingBeepInterval = rootView.findViewById(R.id.txt_still_watching_beep_interval);
+        btnStillWatchingBeepDelayDec = rootView.findViewById(R.id.btn_still_watching_beep_delay_dec);
+        btnStillWatchingBeepDelayInc = rootView.findViewById(R.id.btn_still_watching_beep_delay_inc);
+        txtStillWatchingBeepDelay    = rootView.findViewById(R.id.txt_still_watching_beep_delay);
+        btnStillWatchingBeepVolDec   = rootView.findViewById(R.id.btn_still_watching_beep_vol_dec);
+        btnStillWatchingBeepVolInc   = rootView.findViewById(R.id.btn_still_watching_beep_vol_inc);
+        txtStillWatchingBeepVol      = rootView.findViewById(R.id.txt_still_watching_beep_vol);
+        btnStillWatchingBeepTone     = rootView.findViewById(R.id.btn_still_watching_beep_tone);
+        btnTestStillWatchingBeep     = rootView.findViewById(R.id.btn_test_still_watching_beep);
+        btnStillWatchingActionType   = rootView.findViewById(R.id.btn_still_watching_action_type);
+        btnStillWatchingPosition     = rootView.findViewById(R.id.btn_still_watching_position);
+        btnStillWatchingAlphaDec     = rootView.findViewById(R.id.btn_still_watching_alpha_dec);
+        btnStillWatchingAlphaInc     = rootView.findViewById(R.id.btn_still_watching_alpha_inc);
+        txtStillWatchingAlpha        = rootView.findViewById(R.id.txt_still_watching_alpha);
+        btnStillWatchingSizeDec      = rootView.findViewById(R.id.btn_still_watching_size_dec);
+        btnStillWatchingSizeInc      = rootView.findViewById(R.id.btn_still_watching_size_inc);
+        txtStillWatchingSize         = rootView.findViewById(R.id.txt_still_watching_size);
+        btnStillWatchingXDec         = rootView.findViewById(R.id.btn_still_watching_x_dec);
+        btnStillWatchingXInc         = rootView.findViewById(R.id.btn_still_watching_x_inc);
+        txtStillWatchingX            = rootView.findViewById(R.id.txt_still_watching_x);
+        btnStillWatchingYDec         = rootView.findViewById(R.id.btn_still_watching_y_dec);
+        btnStillWatchingYInc         = rootView.findViewById(R.id.btn_still_watching_y_inc);
+        txtStillWatchingY            = rootView.findViewById(R.id.txt_still_watching_y);
+        btnApplyStillWatching        = rootView.findViewById(R.id.btn_apply_still_watching);
+
+        // Night schedule panel
+        panelNightSchedule           = rootView.findViewById(R.id.panel_night_schedule);
+        btnNightScheduleToggle       = rootView.findViewById(R.id.btn_night_schedule_toggle);
+        btnNightStartDec             = rootView.findViewById(R.id.btn_night_start_dec);
+        txtNightStart                = rootView.findViewById(R.id.txt_night_start);
+        btnNightStartInc             = rootView.findViewById(R.id.btn_night_start_inc);
+        btnNightEndDec               = rootView.findViewById(R.id.btn_night_end_dec);
+        txtNightEnd                  = rootView.findViewById(R.id.txt_night_end);
+        btnNightEndInc               = rootView.findViewById(R.id.btn_night_end_inc);
+        btnNightBlueLightDec         = rootView.findViewById(R.id.btn_night_blue_light_dec);
+        txtNightBlueLight            = rootView.findViewById(R.id.txt_night_blue_light);
+        btnNightBlueLightInc         = rootView.findViewById(R.id.btn_night_blue_light_inc);
+        btnNightDimmerDec            = rootView.findViewById(R.id.btn_night_dimmer_dec);
+        txtNightDimmer               = rootView.findViewById(R.id.txt_night_dimmer);
+        btnNightDimmerInc            = rootView.findViewById(R.id.btn_night_dimmer_inc);
+        btnApplyNightSchedule        = rootView.findViewById(R.id.btn_apply_night_schedule);
+
+        // OLED saver panel
+        panelOledSaver               = rootView.findViewById(R.id.panel_oled_saver);
+        btnOledSaverToggle           = rootView.findViewById(R.id.btn_oled_saver_toggle);
+        btnOledMinutesDec            = rootView.findViewById(R.id.btn_oled_minutes_dec);
+        txtOledMinutes               = rootView.findViewById(R.id.txt_oled_minutes);
+        btnOledMinutesInc            = rootView.findViewById(R.id.btn_oled_minutes_inc);
+        btnOledMode                  = rootView.findViewById(R.id.btn_oled_mode);
+        btnApplyOledSaver            = rootView.findViewById(R.id.btn_apply_oled_saver);
+
+        // Scheduled Sleep panel
+        panelScheduledSleep          = rootView.findViewById(R.id.panel_scheduled_sleep);
+        btnScheduledSleepToggle      = rootView.findViewById(R.id.btn_scheduled_sleep_toggle);
+        btnScheduledHourDec          = rootView.findViewById(R.id.btn_scheduled_hour_dec);
+        txtScheduledHour             = rootView.findViewById(R.id.txt_scheduled_hour);
+        btnScheduledHourInc          = rootView.findViewById(R.id.btn_scheduled_hour_inc);
+        btnScheduledMinDec           = rootView.findViewById(R.id.btn_scheduled_min_dec);
+        txtScheduledMin              = rootView.findViewById(R.id.txt_scheduled_min);
+        btnScheduledMinInc           = rootView.findViewById(R.id.btn_scheduled_min_inc);
+        btnDay1                      = rootView.findViewById(R.id.btn_day_1);
+        btnDay2                      = rootView.findViewById(R.id.btn_day_2);
+        btnDay3                      = rootView.findViewById(R.id.btn_day_3);
+        btnDay4                      = rootView.findViewById(R.id.btn_day_4);
+        btnDay5                      = rootView.findViewById(R.id.btn_day_5);
+        btnDay6                      = rootView.findViewById(R.id.btn_day_6);
+        btnDay7                      = rootView.findViewById(R.id.btn_day_7);
+        btnScheduledSkipNext         = rootView.findViewById(R.id.btn_scheduled_skip_next);
+        btnScheduledPromptToggle     = rootView.findViewById(R.id.btn_scheduled_prompt_toggle);
+        btnApplyScheduledSleep       = rootView.findViewById(R.id.btn_apply_scheduled_sleep);
+
+        panelCycleBrightness         = rootView.findViewById(R.id.panel_cycle_brightness);
+        btnGotoHudConfig             = rootView.findViewById(R.id.btn_goto_hud_config);
+        btnCycleBrightnessNow        = rootView.findViewById(R.id.btn_cycle_brightness_now);
+        btnBrightnessHudFormat       = rootView.findViewById(R.id.btn_brightness_hud_format);
+        btnBrightnessHudTextColor    = rootView.findViewById(R.id.btn_brightness_hud_text_color);
+        btnBrightnessHudBgColor      = rootView.findViewById(R.id.btn_brightness_hud_bg_color);
+        btnBrightnessHudPosition     = rootView.findViewById(R.id.btn_brightness_hud_position);
+        btnBrightnessHudAlphaDec     = rootView.findViewById(R.id.btn_brightness_hud_alpha_dec);
+        txtBrightnessHudAlpha        = rootView.findViewById(R.id.txt_brightness_hud_alpha);
+        btnBrightnessHudAlphaInc     = rootView.findViewById(R.id.btn_brightness_hud_alpha_inc);
+        btnBrightnessHudTextAlphaDec = rootView.findViewById(R.id.btn_brightness_hud_text_alpha_dec);
+        txtBrightnessHudTextAlpha    = rootView.findViewById(R.id.txt_brightness_hud_text_alpha);
+        btnBrightnessHudTextAlphaInc = rootView.findViewById(R.id.btn_brightness_hud_text_alpha_inc);
+        btnBrightnessHudSizeDec      = rootView.findViewById(R.id.btn_brightness_hud_size_dec);
+        txtBrightnessHudSize         = rootView.findViewById(R.id.txt_brightness_hud_size);
+        btnBrightnessHudSizeInc      = rootView.findViewById(R.id.btn_brightness_hud_size_inc);
+        btnBrightnessHudPadDec       = rootView.findViewById(R.id.btn_brightness_hud_pad_dec);
+        txtBrightnessHudPad          = rootView.findViewById(R.id.txt_brightness_hud_pad);
+        btnBrightnessHudPadInc       = rootView.findViewById(R.id.btn_brightness_hud_pad_inc);
+        btnBrightnessHudXDec         = rootView.findViewById(R.id.btn_brightness_hud_x_dec);
+        txtBrightnessHudX            = rootView.findViewById(R.id.txt_brightness_hud_x);
+        btnBrightnessHudXInc         = rootView.findViewById(R.id.btn_brightness_hud_x_inc);
+        btnBrightnessHudYDec         = rootView.findViewById(R.id.btn_brightness_hud_y_dec);
+        txtBrightnessHudY            = rootView.findViewById(R.id.txt_brightness_hud_y);
+        btnBrightnessHudYInc         = rootView.findViewById(R.id.btn_brightness_hud_y_inc);
+        btnBrightnessHudDurDec       = rootView.findViewById(R.id.btn_brightness_hud_dur_dec);
+        txtBrightnessHudDur          = rootView.findViewById(R.id.txt_brightness_hud_dur);
+        btnBrightnessHudDurInc       = rootView.findViewById(R.id.btn_brightness_hud_dur_inc);
+        btnTestBrightnessHud         = rootView.findViewById(R.id.btn_test_brightness_hud);
+
+        panelMindfulDelay            = rootView.findViewById(R.id.panel_mindful_delay);
+        btnMindfulDelayToggle        = rootView.findViewById(R.id.btn_mindful_delay_toggle);
+        btnMindfulDelayMinDec        = rootView.findViewById(R.id.btn_mindful_delay_min_dec);
+        txtMindfulDelayMin          = rootView.findViewById(R.id.txt_mindful_delay_min);
+        btnMindfulDelayMinInc        = rootView.findViewById(R.id.btn_mindful_delay_min_inc);
+        btnMindfulDelaySecDec        = rootView.findViewById(R.id.btn_mindful_delay_sec_dec);
+        txtMindfulDelaySec          = rootView.findViewById(R.id.txt_mindful_delay_sec);
+        btnMindfulDelaySecInc        = rootView.findViewById(R.id.btn_mindful_delay_sec_inc);
+        btnMindfulDelayCancelAction  = rootView.findViewById(R.id.btn_mindful_delay_cancel_action);
+        rowMindfulSessHours          = rootView.findViewById(R.id.row_mindful_sess_hours);
+        rowMindfulSessMins           = rootView.findViewById(R.id.row_mindful_sess_mins);
+        btnMindfulDelaySessHourDec   = rootView.findViewById(R.id.btn_mindful_delay_sess_hour_dec);
+        txtMindfulDelaySessHour      = rootView.findViewById(R.id.txt_mindful_delay_sess_hour);
+        btnMindfulDelaySessHourInc   = rootView.findViewById(R.id.btn_mindful_delay_sess_hour_inc);
+        btnMindfulDelaySessMinDec    = rootView.findViewById(R.id.btn_mindful_delay_sess_min_dec);
+        txtMindfulDelaySessMin       = rootView.findViewById(R.id.txt_mindful_delay_sess_min);
+        btnMindfulDelaySessMinInc    = rootView.findViewById(R.id.btn_mindful_delay_sess_min_inc);
+        btnMindfulDelayPos           = rootView.findViewById(R.id.btn_mindful_delay_pos);
+        btnMindfulDelayMsg           = rootView.findViewById(R.id.btn_mindful_delay_msg);
+        btnMindfulDelayBgAlphaDec    = rootView.findViewById(R.id.btn_mindful_delay_bg_alpha_dec);
+        txtMindfulDelayBgAlpha       = rootView.findViewById(R.id.txt_mindful_delay_bg_alpha);
+        btnMindfulDelayBgAlphaInc    = rootView.findViewById(R.id.btn_mindful_delay_bg_alpha_inc);
+        btnMindfulDelayTextSizeDec   = rootView.findViewById(R.id.btn_mindful_delay_text_size_dec);
+        txtMindfulDelayTextSize      = rootView.findViewById(R.id.txt_mindful_delay_text_size);
+        btnMindfulDelayTextSizeInc   = rootView.findViewById(R.id.btn_mindful_delay_text_size_inc);
+        btnMindfulDelayPadDec        = rootView.findViewById(R.id.btn_mindful_delay_pad_dec);
+        txtMindfulDelayPad           = rootView.findViewById(R.id.txt_mindful_delay_pad);
+        btnMindfulDelayPadInc        = rootView.findViewById(R.id.btn_mindful_delay_pad_inc);
+        btnMindfulDelayXDec          = rootView.findViewById(R.id.btn_mindful_delay_x_dec);
+        txtMindfulDelayX             = rootView.findViewById(R.id.txt_mindful_delay_x);
+        btnMindfulDelayXInc          = rootView.findViewById(R.id.btn_mindful_delay_x_inc);
+        btnMindfulDelayYDec          = rootView.findViewById(R.id.btn_mindful_delay_y_dec);
+        txtMindfulDelayY             = rootView.findViewById(R.id.txt_mindful_delay_y);
+        btnMindfulDelayYInc          = rootView.findViewById(R.id.btn_mindful_delay_y_inc);
+        btnMindfulAppYoutube         = rootView.findViewById(R.id.btn_mindful_app_youtube);
+        btnMindfulAppNetflix         = rootView.findViewById(R.id.btn_mindful_app_netflix);
+        btnMindfulAppDisney          = rootView.findViewById(R.id.btn_mindful_app_disney);
+        btnMindfulAppPrime           = rootView.findViewById(R.id.btn_mindful_app_prime);
+        btnMindfulAppMax             = rootView.findViewById(R.id.btn_mindful_app_max);
+        btnMindfulAppStar            = rootView.findViewById(R.id.btn_mindful_app_star);
+        btnMindfulAppTwitch          = rootView.findViewById(R.id.btn_mindful_app_twitch);
+        btnMindfulAppTiktok          = rootView.findViewById(R.id.btn_mindful_app_tiktok);
+        btnMindfulAppSmarttube       = rootView.findViewById(R.id.btn_mindful_app_smarttube);
+        btnMindfulAppStremio         = rootView.findViewById(R.id.btn_mindful_app_stremio);
+        btnMindfulAppPlex            = rootView.findViewById(R.id.btn_mindful_app_plex);
+        btnTestMindfulDelay          = rootView.findViewById(R.id.btn_test_mindful_delay);
+        btnApplyMindfulDelay         = rootView.findViewById(R.id.btn_apply_mindful_delay);
+
+        // Translate panel
+        panelTranslateConfig         = rootView.findViewById(R.id.panel_translate_config);
+        btnTranslateTargetLang       = rootView.findViewById(R.id.btn_translate_target_lang);
+        btnTranslateSourceLang       = rootView.findViewById(R.id.btn_translate_source_lang);
+        btnTranslateAutoPause        = rootView.findViewById(R.id.btn_translate_auto_pause);
+        btnTranslateAutoResume       = rootView.findViewById(R.id.btn_translate_auto_resume);
+        btnTranslateTopBar           = rootView.findViewById(R.id.btn_translate_top_bar);
+        btnTranslateBgAlphaDec       = rootView.findViewById(R.id.btn_translate_bg_alpha_dec);
+        txtTranslateBgAlpha          = rootView.findViewById(R.id.txt_translate_bg_alpha);
+        btnTranslateBgAlphaInc       = rootView.findViewById(R.id.btn_translate_bg_alpha_inc);
+        btnTranslateTextSizeDec      = rootView.findViewById(R.id.btn_translate_text_size_dec);
+        txtTranslateTextSize         = rootView.findViewById(R.id.txt_translate_text_size);
+        btnTranslateTextSizeInc      = rootView.findViewById(R.id.btn_translate_text_size_inc);
+        btnTestTranslate             = rootView.findViewById(R.id.btn_test_translate);
+        btnApplyTranslate            = rootView.findViewById(R.id.btn_apply_translate);
+
+        // Button combos panel
+        panelButtonCombos            = rootView.findViewById(R.id.panel_button_combos);
+        btnCombosMasterToggle        = rootView.findViewById(R.id.btn_combos_master_toggle);
+        btnComboMuteOk               = rootView.findViewById(R.id.btn_combo_mute_ok);
+        btnComboMuteRight            = rootView.findViewById(R.id.btn_combo_mute_right);
+        btnComboMuteLeft             = rootView.findViewById(R.id.btn_combo_mute_left);
+        btnComboYoutube190Mute       = rootView.findViewById(R.id.btn_combo_youtube190_mute);
+        btnComboInputOk              = rootView.findViewById(R.id.btn_combo_input_ok);
+        btnApplyCombos               = rootView.findViewById(R.id.btn_apply_combos);
+
+        setupSubPanelListeners();
+    }
+
     public void show(Context ctx) {
         if (isShowing()) {
             dismiss();
@@ -342,290 +641,9 @@ public class QuickMenuOverlay {
         if (windowManager == null) return;
 
         try {
-            rootView = LayoutInflater.from(context).inflate(R.layout.activity_quick_menu, null);
+            ensureViews();
 
-            SharedPreferences op = getOverlayPrefs();
-
-            menuDimmerFilter    = rootView.findViewById(R.id.menu_dimmer_filter);
-            menuBlueLightFilter = rootView.findViewById(R.id.menu_blue_light_filter);
             updateMenuInternalFilters();
-
-            // Bind backdrop to dismiss on click outside panel
-            rootView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    dismiss();
-                }
-            });
-
-            menuContainer          = rootView.findViewById(R.id.menu_container);
-            panelTimer             = rootView.findViewById(R.id.panel_timer);
-            panelCine              = rootView.findViewById(R.id.panel_cine);
-            panelBlueLight         = rootView.findViewById(R.id.panel_blue_light);
-
-            btnCancelTimer         = rootView.findViewById(R.id.btn_cancel_timer);
-            btnCineBlueLightConfig = rootView.findViewById(R.id.btn_cine_blue_light_config);
-            btnCineDimmerConfig    = rootView.findViewById(R.id.btn_cine_dimmer_config);
-            btnCineTimerConfig     = rootView.findViewById(R.id.btn_cine_timer_config);
-            btnApplyCine           = rootView.findViewById(R.id.btn_apply_cine);
-            btnApplyBlueLight      = rootView.findViewById(R.id.btn_apply_blue_light);
-
-            panelAutoPause         = rootView.findViewById(R.id.panel_auto_pause);
-            btnAutoPauseMode       = rootView.findViewById(R.id.btn_auto_pause_mode);
-            layoutAutoPauseCustom  = rootView.findViewById(R.id.layout_auto_pause_custom);
-            btnAutoPauseCountDec   = rootView.findViewById(R.id.btn_auto_pause_count_dec);
-            txtAutoPauseCount      = rootView.findViewById(R.id.txt_auto_pause_count);
-            btnAutoPauseCountInc   = rootView.findViewById(R.id.btn_auto_pause_count_inc);
-            btnAutoPauseBlackScreen = rootView.findViewById(R.id.btn_auto_pause_black_screen);
-            btnAutoDismissUpNext   = rootView.findViewById(R.id.btn_auto_dismiss_up_next);
-
-            txtCustomHours         = rootView.findViewById(R.id.txt_custom_hours);
-            txtCustomMins          = rootView.findViewById(R.id.txt_custom_mins);
-
-            sliderBlueLight        = rootView.findViewById(R.id.slider_blue_light);
-            if (sliderBlueLight != null) {
-                sliderBlueLight.setMax(800);
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP_MR1) {
-                    sliderBlueLight.setKeyProgressIncrement(1);
-                }
-            }
-            txtBlueLightPct        = rootView.findViewById(R.id.txt_blue_light_pct);
-
-            panelBrightness      = rootView.findViewById(R.id.panel_brightness);
-            sliderBrightness     = rootView.findViewById(R.id.slider_brightness);
-            txtBrightnessPct     = rootView.findViewById(R.id.txt_brightness_pct);
-            containerBrightnessLevels = rootView.findViewById(R.id.container_brightness_levels);
-            btnAddBrightnessLevel    = rootView.findViewById(R.id.btn_add_brightness_level);
-            btnDimmerDayAutoReset    = rootView.findViewById(R.id.btn_dimmer_day_auto_reset);
-            btnGrayscaleDayAutoReset = rootView.findViewById(R.id.btn_grayscale_day_auto_reset);
-            btnDayResetStartDec      = rootView.findViewById(R.id.btn_day_reset_start_dec);
-            txtDayResetStart         = rootView.findViewById(R.id.txt_day_reset_start);
-            btnDayResetStartInc      = rootView.findViewById(R.id.btn_day_reset_start_inc);
-            btnDayResetEndDec        = rootView.findViewById(R.id.btn_day_reset_end_dec);
-            txtDayResetEnd           = rootView.findViewById(R.id.txt_day_reset_end);
-            btnDayResetEndInc        = rootView.findViewById(R.id.btn_day_reset_end_inc);
-            btnApplyBrightness       = rootView.findViewById(R.id.btn_apply_brightness);
-
-            panelButtonConfig    = rootView.findViewById(R.id.panel_button_config);
-            txtConfigTitle       = rootView.findViewById(R.id.txt_config_title);
-            btnConfigClick1      = rootView.findViewById(R.id.btn_config_click_1);
-            btnConfigClick2      = rootView.findViewById(R.id.btn_config_click_2);
-            btnConfigClick3      = rootView.findViewById(R.id.btn_config_click_3);
-            btnConfigClick4      = rootView.findViewById(R.id.btn_config_click_4);
-            btnConfigLong        = rootView.findViewById(R.id.btn_config_long);
-            btnConfigDurationDec = rootView.findViewById(R.id.btn_config_duration_dec);
-            btnConfigDurationInc = rootView.findViewById(R.id.btn_config_duration_inc);
-            txtConfigDuration    = rootView.findViewById(R.id.txt_config_duration);
-
-            panelClockConfig     = rootView.findViewById(R.id.panel_clock_config);
-            btnClockTextColor    = rootView.findViewById(R.id.btn_clock_text_color);
-            btnClockBgColor      = rootView.findViewById(R.id.btn_clock_bg_color);
-            btnClockAlphaDec     = rootView.findViewById(R.id.btn_clock_alpha_dec);
-            btnClockAlphaInc     = rootView.findViewById(R.id.btn_clock_alpha_inc);
-            txtClockAlpha        = rootView.findViewById(R.id.txt_clock_alpha);
-            btnClockTextAlphaDec = rootView.findViewById(R.id.btn_clock_text_alpha_dec);
-            btnClockTextAlphaInc = rootView.findViewById(R.id.btn_clock_text_alpha_inc);
-            txtClockTextAlpha    = rootView.findViewById(R.id.txt_clock_text_alpha);
-            btnClockPosition     = rootView.findViewById(R.id.btn_clock_position);
-            btnClockSizeDec      = rootView.findViewById(R.id.btn_clock_size_dec);
-            btnClockSizeInc      = rootView.findViewById(R.id.btn_clock_size_inc);
-            txtClockSize         = rootView.findViewById(R.id.txt_clock_size);
-            btnClockPadDec       = rootView.findViewById(R.id.btn_clock_pad_dec);
-            btnClockPadInc       = rootView.findViewById(R.id.btn_clock_pad_inc);
-            txtClockPad          = rootView.findViewById(R.id.txt_clock_pad);
-            btnClockXDec         = rootView.findViewById(R.id.btn_clock_x_dec);
-            btnClockXInc         = rootView.findViewById(R.id.btn_clock_x_inc);
-            txtClockX            = rootView.findViewById(R.id.txt_clock_x);
-            btnClockYDec         = rootView.findViewById(R.id.btn_clock_y_dec);
-            btnClockYInc         = rootView.findViewById(R.id.btn_clock_y_inc);
-            txtClockY            = rootView.findViewById(R.id.txt_clock_y);
-            btnApplyClock        = rootView.findViewById(R.id.btn_apply_clock);
-
-            panelStillWatching          = rootView.findViewById(R.id.panel_still_watching);
-            btnStillWatchingToggle       = rootView.findViewById(R.id.btn_still_watching_action_toggle);
-            btnStillWatchingIntervalDec  = rootView.findViewById(R.id.btn_still_watching_interval_dec);
-            txtStillWatchingInterval     = rootView.findViewById(R.id.txt_still_watching_interval);
-            btnStillWatchingIntervalInc  = rootView.findViewById(R.id.btn_still_watching_interval_inc);
-            btnStillWatchingTimeoutDec   = rootView.findViewById(R.id.btn_still_watching_timeout_dec);
-            txtStillWatchingTimeout      = rootView.findViewById(R.id.txt_still_watching_timeout);
-            btnStillWatchingTimeoutInc   = rootView.findViewById(R.id.btn_still_watching_timeout_inc);
-            btnStillWatchingBeepToggle   = rootView.findViewById(R.id.btn_still_watching_beep_toggle);
-            btnStillWatchingBeepIntervalDec = rootView.findViewById(R.id.btn_still_watching_beep_interval_dec);
-            txtStillWatchingBeepInterval = rootView.findViewById(R.id.txt_still_watching_beep_interval);
-            btnStillWatchingBeepIntervalInc = rootView.findViewById(R.id.btn_still_watching_beep_interval_inc);
-            btnStillWatchingBeepDelayDec = rootView.findViewById(R.id.btn_still_watching_beep_delay_dec);
-            txtStillWatchingBeepDelay    = rootView.findViewById(R.id.txt_still_watching_beep_delay);
-            btnStillWatchingBeepDelayInc = rootView.findViewById(R.id.btn_still_watching_beep_delay_inc);
-            btnStillWatchingBeepVolDec   = rootView.findViewById(R.id.btn_still_watching_beep_vol_dec);
-            txtStillWatchingBeepVol      = rootView.findViewById(R.id.txt_still_watching_beep_vol);
-            btnStillWatchingBeepVolInc   = rootView.findViewById(R.id.btn_still_watching_beep_vol_inc);
-            btnStillWatchingBeepTone     = rootView.findViewById(R.id.btn_still_watching_beep_tone);
-            btnTestStillWatchingBeep     = rootView.findViewById(R.id.btn_test_still_watching_beep);
-            btnStillWatchingActionType   = rootView.findViewById(R.id.btn_still_watching_action_type);
-            btnStillWatchingPosition     = rootView.findViewById(R.id.btn_still_watching_position);
-            btnStillWatchingAlphaDec     = rootView.findViewById(R.id.btn_still_watching_alpha_dec);
-            txtStillWatchingAlpha        = rootView.findViewById(R.id.txt_still_watching_alpha);
-            btnStillWatchingAlphaInc     = rootView.findViewById(R.id.btn_still_watching_alpha_inc);
-            btnStillWatchingSizeDec      = rootView.findViewById(R.id.btn_still_watching_size_dec);
-            txtStillWatchingSize         = rootView.findViewById(R.id.txt_still_watching_size);
-            btnStillWatchingSizeInc      = rootView.findViewById(R.id.btn_still_watching_size_inc);
-            btnStillWatchingXDec         = rootView.findViewById(R.id.btn_still_watching_x_dec);
-            txtStillWatchingX            = rootView.findViewById(R.id.txt_still_watching_x);
-            btnStillWatchingXInc         = rootView.findViewById(R.id.btn_still_watching_x_inc);
-            btnStillWatchingYDec         = rootView.findViewById(R.id.btn_still_watching_y_dec);
-            txtStillWatchingY            = rootView.findViewById(R.id.txt_still_watching_y);
-            btnStillWatchingYInc         = rootView.findViewById(R.id.btn_still_watching_y_inc);
-            btnApplyStillWatching        = rootView.findViewById(R.id.btn_apply_still_watching);
-
-            panelNightSchedule           = rootView.findViewById(R.id.panel_night_schedule);
-            btnNightScheduleToggle       = rootView.findViewById(R.id.btn_night_schedule_toggle);
-            btnNightStartDec             = rootView.findViewById(R.id.btn_night_start_dec);
-            txtNightStart                = rootView.findViewById(R.id.txt_night_start);
-            btnNightStartInc             = rootView.findViewById(R.id.btn_night_start_inc);
-            btnNightEndDec               = rootView.findViewById(R.id.btn_night_end_dec);
-            txtNightEnd                  = rootView.findViewById(R.id.txt_night_end);
-            btnNightEndInc               = rootView.findViewById(R.id.btn_night_end_inc);
-            btnNightBlueLightDec         = rootView.findViewById(R.id.btn_night_blue_light_dec);
-            txtNightBlueLight            = rootView.findViewById(R.id.txt_night_blue_light);
-            btnNightBlueLightInc         = rootView.findViewById(R.id.btn_night_blue_light_inc);
-            btnNightDimmerDec            = rootView.findViewById(R.id.btn_night_dimmer_dec);
-            txtNightDimmer               = rootView.findViewById(R.id.txt_night_dimmer);
-            btnNightDimmerInc            = rootView.findViewById(R.id.btn_night_dimmer_inc);
-            btnApplyNightSchedule        = rootView.findViewById(R.id.btn_apply_night_schedule);
-
-            panelOledSaver               = rootView.findViewById(R.id.panel_oled_saver);
-            btnOledSaverToggle           = rootView.findViewById(R.id.btn_oled_saver_toggle);
-            btnOledMinutesDec            = rootView.findViewById(R.id.btn_oled_minutes_dec);
-            txtOledMinutes               = rootView.findViewById(R.id.txt_oled_minutes);
-            btnOledMinutesInc            = rootView.findViewById(R.id.btn_oled_minutes_inc);
-            btnOledMode                  = rootView.findViewById(R.id.btn_oled_mode);
-            btnApplyOledSaver            = rootView.findViewById(R.id.btn_apply_oled_saver);
-
-            panelScheduledSleep          = rootView.findViewById(R.id.panel_scheduled_sleep);
-            btnScheduledSleepToggle      = rootView.findViewById(R.id.btn_scheduled_sleep_toggle);
-            btnScheduledHourDec          = rootView.findViewById(R.id.btn_scheduled_hour_dec);
-            txtScheduledHour             = rootView.findViewById(R.id.txt_scheduled_hour);
-            btnScheduledHourInc          = rootView.findViewById(R.id.btn_scheduled_hour_inc);
-            btnScheduledMinDec           = rootView.findViewById(R.id.btn_scheduled_min_dec);
-            txtScheduledMin              = rootView.findViewById(R.id.txt_scheduled_min);
-            btnScheduledMinInc           = rootView.findViewById(R.id.btn_scheduled_min_inc);
-            btnDay1                      = rootView.findViewById(R.id.btn_day_1);
-            btnDay2                      = rootView.findViewById(R.id.btn_day_2);
-            btnDay3                      = rootView.findViewById(R.id.btn_day_3);
-            btnDay4                      = rootView.findViewById(R.id.btn_day_4);
-            btnDay5                      = rootView.findViewById(R.id.btn_day_5);
-            btnDay6                      = rootView.findViewById(R.id.btn_day_6);
-            btnDay7                      = rootView.findViewById(R.id.btn_day_7);
-            btnScheduledSkipNext         = rootView.findViewById(R.id.btn_scheduled_skip_next);
-            btnScheduledPromptToggle     = rootView.findViewById(R.id.btn_scheduled_prompt_toggle);
-            btnApplyScheduledSleep       = rootView.findViewById(R.id.btn_apply_scheduled_sleep);
-
-            panelCycleBrightness         = rootView.findViewById(R.id.panel_cycle_brightness);
-            btnGotoHudConfig             = rootView.findViewById(R.id.btn_goto_hud_config);
-            btnCycleBrightnessNow        = rootView.findViewById(R.id.btn_cycle_brightness_now);
-            btnBrightnessHudFormat       = rootView.findViewById(R.id.btn_brightness_hud_format);
-            btnBrightnessHudTextColor    = rootView.findViewById(R.id.btn_brightness_hud_text_color);
-            btnBrightnessHudBgColor      = rootView.findViewById(R.id.btn_brightness_hud_bg_color);
-            btnBrightnessHudPosition     = rootView.findViewById(R.id.btn_brightness_hud_position);
-            btnBrightnessHudAlphaDec     = rootView.findViewById(R.id.btn_brightness_hud_alpha_dec);
-            txtBrightnessHudAlpha        = rootView.findViewById(R.id.txt_brightness_hud_alpha);
-            btnBrightnessHudAlphaInc     = rootView.findViewById(R.id.btn_brightness_hud_alpha_inc);
-            btnBrightnessHudTextAlphaDec = rootView.findViewById(R.id.btn_brightness_hud_text_alpha_dec);
-            txtBrightnessHudTextAlpha    = rootView.findViewById(R.id.txt_brightness_hud_text_alpha);
-            btnBrightnessHudTextAlphaInc = rootView.findViewById(R.id.btn_brightness_hud_text_alpha_inc);
-            btnBrightnessHudSizeDec      = rootView.findViewById(R.id.btn_brightness_hud_size_dec);
-            txtBrightnessHudSize         = rootView.findViewById(R.id.txt_brightness_hud_size);
-            btnBrightnessHudSizeInc      = rootView.findViewById(R.id.btn_brightness_hud_size_inc);
-            btnBrightnessHudPadDec       = rootView.findViewById(R.id.btn_brightness_hud_pad_dec);
-            txtBrightnessHudPad          = rootView.findViewById(R.id.txt_brightness_hud_pad);
-            btnBrightnessHudPadInc       = rootView.findViewById(R.id.btn_brightness_hud_pad_inc);
-            btnBrightnessHudXDec         = rootView.findViewById(R.id.btn_brightness_hud_x_dec);
-            txtBrightnessHudX            = rootView.findViewById(R.id.txt_brightness_hud_x);
-            btnBrightnessHudXInc         = rootView.findViewById(R.id.btn_brightness_hud_x_inc);
-            btnBrightnessHudYDec         = rootView.findViewById(R.id.btn_brightness_hud_y_dec);
-            txtBrightnessHudY            = rootView.findViewById(R.id.txt_brightness_hud_y);
-            btnBrightnessHudYInc         = rootView.findViewById(R.id.btn_brightness_hud_y_inc);
-            btnBrightnessHudDurDec       = rootView.findViewById(R.id.btn_brightness_hud_dur_dec);
-            txtBrightnessHudDur          = rootView.findViewById(R.id.txt_brightness_hud_dur);
-            btnBrightnessHudDurInc       = rootView.findViewById(R.id.btn_brightness_hud_dur_inc);
-            btnTestBrightnessHud         = rootView.findViewById(R.id.btn_test_brightness_hud);
-
-            panelMindfulDelay            = rootView.findViewById(R.id.panel_mindful_delay);
-            btnMindfulDelayToggle        = rootView.findViewById(R.id.btn_mindful_delay_toggle);
-            btnMindfulDelayMinDec        = rootView.findViewById(R.id.btn_mindful_delay_min_dec);
-            txtMindfulDelayMin          = rootView.findViewById(R.id.txt_mindful_delay_min);
-            btnMindfulDelayMinInc        = rootView.findViewById(R.id.btn_mindful_delay_min_inc);
-            btnMindfulDelaySecDec        = rootView.findViewById(R.id.btn_mindful_delay_sec_dec);
-            txtMindfulDelaySec          = rootView.findViewById(R.id.txt_mindful_delay_sec);
-            btnMindfulDelaySecInc        = rootView.findViewById(R.id.btn_mindful_delay_sec_inc);
-            btnMindfulDelayCancelAction  = rootView.findViewById(R.id.btn_mindful_delay_cancel_action);
-            btnMindfulDelaySession       = rootView.findViewById(R.id.btn_mindful_delay_session);
-            rowMindfulSessHours          = rootView.findViewById(R.id.row_mindful_sess_hours);
-            rowMindfulSessMins           = rootView.findViewById(R.id.row_mindful_sess_mins);
-            btnMindfulDelaySessHourDec   = rootView.findViewById(R.id.btn_mindful_delay_sess_hour_dec);
-            txtMindfulDelaySessHour      = rootView.findViewById(R.id.txt_mindful_delay_sess_hour);
-            btnMindfulDelaySessHourInc   = rootView.findViewById(R.id.btn_mindful_delay_sess_hour_inc);
-            btnMindfulDelaySessMinDec    = rootView.findViewById(R.id.btn_mindful_delay_sess_min_dec);
-            txtMindfulDelaySessMin       = rootView.findViewById(R.id.txt_mindful_delay_sess_min);
-            btnMindfulDelaySessMinInc    = rootView.findViewById(R.id.btn_mindful_delay_sess_min_inc);
-            btnMindfulDelayPos           = rootView.findViewById(R.id.btn_mindful_delay_pos);
-            btnMindfulDelayMsg           = rootView.findViewById(R.id.btn_mindful_delay_msg);
-            btnMindfulDelayBgAlphaDec    = rootView.findViewById(R.id.btn_mindful_delay_bg_alpha_dec);
-            txtMindfulDelayBgAlpha       = rootView.findViewById(R.id.txt_mindful_delay_bg_alpha);
-            btnMindfulDelayBgAlphaInc    = rootView.findViewById(R.id.btn_mindful_delay_bg_alpha_inc);
-            btnMindfulDelayTextSizeDec   = rootView.findViewById(R.id.btn_mindful_delay_text_size_dec);
-            txtMindfulDelayTextSize      = rootView.findViewById(R.id.txt_mindful_delay_text_size);
-            btnMindfulDelayTextSizeInc   = rootView.findViewById(R.id.btn_mindful_delay_text_size_inc);
-            btnMindfulDelayPadDec        = rootView.findViewById(R.id.btn_mindful_delay_pad_dec);
-            txtMindfulDelayPad           = rootView.findViewById(R.id.txt_mindful_delay_pad);
-            btnMindfulDelayPadInc        = rootView.findViewById(R.id.btn_mindful_delay_pad_inc);
-            btnMindfulDelayXDec          = rootView.findViewById(R.id.btn_mindful_delay_x_dec);
-            txtMindfulDelayX             = rootView.findViewById(R.id.txt_mindful_delay_x);
-            btnMindfulDelayXInc          = rootView.findViewById(R.id.btn_mindful_delay_x_inc);
-            btnMindfulDelayYDec          = rootView.findViewById(R.id.btn_mindful_delay_y_dec);
-            txtMindfulDelayY             = rootView.findViewById(R.id.txt_mindful_delay_y);
-            btnMindfulDelayYInc          = rootView.findViewById(R.id.btn_mindful_delay_y_inc);
-            btnMindfulAppYoutube         = rootView.findViewById(R.id.btn_mindful_app_youtube);
-            btnMindfulAppNetflix         = rootView.findViewById(R.id.btn_mindful_app_netflix);
-            btnMindfulAppDisney          = rootView.findViewById(R.id.btn_mindful_app_disney);
-            btnMindfulAppPrime           = rootView.findViewById(R.id.btn_mindful_app_prime);
-            btnMindfulAppMax             = rootView.findViewById(R.id.btn_mindful_app_max);
-            btnMindfulAppStar            = rootView.findViewById(R.id.btn_mindful_app_star);
-            btnMindfulAppTwitch          = rootView.findViewById(R.id.btn_mindful_app_twitch);
-            btnMindfulAppTiktok          = rootView.findViewById(R.id.btn_mindful_app_tiktok);
-            btnMindfulAppSmarttube       = rootView.findViewById(R.id.btn_mindful_app_smarttube);
-            btnMindfulAppStremio         = rootView.findViewById(R.id.btn_mindful_app_stremio);
-            btnMindfulAppPlex            = rootView.findViewById(R.id.btn_mindful_app_plex);
-            btnTestMindfulDelay          = rootView.findViewById(R.id.btn_test_mindful_delay);
-            btnApplyMindfulDelay         = rootView.findViewById(R.id.btn_apply_mindful_delay);
-
-            // Translate panel
-            panelTranslateConfig         = rootView.findViewById(R.id.panel_translate_config);
-            btnTranslateTargetLang       = rootView.findViewById(R.id.btn_translate_target_lang);
-            btnTranslateSourceLang       = rootView.findViewById(R.id.btn_translate_source_lang);
-            btnTranslateAutoPause        = rootView.findViewById(R.id.btn_translate_auto_pause);
-            btnTranslateAutoResume       = rootView.findViewById(R.id.btn_translate_auto_resume);
-            btnTranslateTopBar           = rootView.findViewById(R.id.btn_translate_top_bar);
-            btnTranslateBgAlphaDec       = rootView.findViewById(R.id.btn_translate_bg_alpha_dec);
-            txtTranslateBgAlpha          = rootView.findViewById(R.id.txt_translate_bg_alpha);
-            btnTranslateBgAlphaInc       = rootView.findViewById(R.id.btn_translate_bg_alpha_inc);
-            btnTranslateTextSizeDec      = rootView.findViewById(R.id.btn_translate_text_size_dec);
-            txtTranslateTextSize         = rootView.findViewById(R.id.txt_translate_text_size);
-            btnTranslateTextSizeInc      = rootView.findViewById(R.id.btn_translate_text_size_inc);
-            btnTestTranslate             = rootView.findViewById(R.id.btn_test_translate);
-            btnApplyTranslate            = rootView.findViewById(R.id.btn_apply_translate);
-
-            // Button combos panel
-            panelButtonCombos            = rootView.findViewById(R.id.panel_button_combos);
-            btnCombosMasterToggle        = rootView.findViewById(R.id.btn_combos_master_toggle);
-            btnComboMuteOk               = rootView.findViewById(R.id.btn_combo_mute_ok);
-            btnComboMuteRight            = rootView.findViewById(R.id.btn_combo_mute_right);
-            btnComboMuteLeft             = rootView.findViewById(R.id.btn_combo_mute_left);
-            btnComboYoutube190Mute       = rootView.findViewById(R.id.btn_combo_youtube190_mute);
-            btnComboInputOk              = rootView.findViewById(R.id.btn_combo_input_ok);
-            btnApplyCombos               = rootView.findViewById(R.id.btn_apply_combos);
-
-            setupSubPanelListeners();
             buildMenu();
 
             WindowManager.LayoutParams p = new WindowManager.LayoutParams(
@@ -638,8 +656,15 @@ public class QuickMenuOverlay {
                 PixelFormat.TRANSLUCENT
             );
 
-            windowManager.addView(rootView, p);
-            Log.d(TAG, "QuickMenuOverlay attached to WindowManager successfully.");
+            if (rootView.getParent() != null) {
+                try {
+                    windowManager.removeViewImmediate(rootView);
+                } catch (Exception ignored) {}
+            }
+            if (!rootView.isAttachedToWindow()) {
+                windowManager.addView(rootView, p);
+                Log.d(TAG, "QuickMenuOverlay attached to WindowManager successfully.");
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error displaying QuickMenuOverlay", e);
             dismiss();
@@ -698,15 +723,13 @@ public class QuickMenuOverlay {
     public void dismiss() {
         stopHoldRepeat();
         if (rootView != null) {
-            final View v = rootView;
-            rootView = null;
-            openSubPanel = null;
+            closeSubPanels();
             configuringButton = null;
             isReorderMode = false;
             reorderSelectedIndex = -1;
             try {
-                if (windowManager != null) {
-                    windowManager.removeView(v);
+                if (windowManager != null && rootView.isAttachedToWindow()) {
+                    windowManager.removeView(rootView);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error removing QuickMenuOverlay view", e);
@@ -861,6 +884,22 @@ public class QuickMenuOverlay {
                 sb.setProgress(Math.min(sb.getMax(), sb.getProgress() + step));
             }
             return true;
+        }
+
+        // 1b. Button action config adjustments with D-Pad Left / Right / Center
+        if (openSubPanel != null && openSubPanel.startsWith("config_") && current != null) {
+            if (current == btnConfigClick1 || current == btnConfigClick2 || current == btnConfigClick3 || current == btnConfigClick4 || current == btnConfigLong) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    adjustButtonConfigAction(current, -1);
+                    return true;
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    adjustButtonConfigAction(current, 1);
+                    return true;
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                    adjustButtonConfigAction(current, 1);
+                    return true;
+                }
+            }
         }
 
         // 2. Gather focusable views in active container
@@ -1282,11 +1321,7 @@ public class QuickMenuOverlay {
             btnConfigClick1.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (configuringButton == null) return;
-                    String key = "btn_" + configuringButton + "_click_1_action";
-                    int def = "mute".equals(configuringButton) ? 1 : 5;
-                    int cur = getOverlayPrefs().getInt(key, def);
-                    cycleActionConfig(key, cur);
+                    adjustButtonConfigAction(btnConfigClick1, 1);
                 }
             });
         }
@@ -1294,11 +1329,7 @@ public class QuickMenuOverlay {
             btnConfigClick2.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (configuringButton == null) return;
-                    String key = "btn_" + configuringButton + "_click_2_action";
-                    int def = "mute".equals(configuringButton) ? 7 : ("youtube_190".equals(configuringButton) ? 4 : 0);
-                    int cur = getOverlayPrefs().getInt(key, def);
-                    cycleActionConfig(key, cur);
+                    adjustButtonConfigAction(btnConfigClick2, 1);
                 }
             });
         }
@@ -1306,11 +1337,7 @@ public class QuickMenuOverlay {
             btnConfigClick3.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (configuringButton == null) return;
-                    String key = "btn_" + configuringButton + "_click_3_action";
-                    int def = "mute".equals(configuringButton) ? 8 : 0;
-                    int cur = getOverlayPrefs().getInt(key, def);
-                    cycleActionConfig(key, cur);
+                    adjustButtonConfigAction(btnConfigClick3, 1);
                 }
             });
         }
@@ -1318,11 +1345,7 @@ public class QuickMenuOverlay {
             btnConfigClick4.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (configuringButton == null) return;
-                    String key = "btn_" + configuringButton + "_click_4_action";
-                    int def = "mute".equals(configuringButton) ? 23 : 0;
-                    int cur = getOverlayPrefs().getInt(key, def);
-                    cycleActionConfig(key, cur);
+                    adjustButtonConfigAction(btnConfigClick4, 1);
                 }
             });
         }
@@ -1330,11 +1353,7 @@ public class QuickMenuOverlay {
             btnConfigLong.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (configuringButton == null) return;
-                    String key = "btn_" + configuringButton + "_long_action";
-                    int def = "mute".equals(configuringButton) ? 2 : ("youtube_190".equals(configuringButton) ? 3 : 4);
-                    int cur = getOverlayPrefs().getInt(key, def);
-                    cycleActionConfig(key, cur);
+                    adjustButtonConfigAction(btnConfigLong, 1);
                 }
             });
         }
@@ -2951,8 +2970,42 @@ public class QuickMenuOverlay {
         return "Desconocido";
     }
 
+    private void adjustButtonConfigAction(View view, int delta) {
+        if (configuringButton == null) return;
+        String key;
+        int def;
+        if (view == btnConfigClick1) {
+            key = "btn_" + configuringButton + "_click_1_action";
+            def = "mute".equals(configuringButton) ? 1 : 5;
+        } else if (view == btnConfigClick2) {
+            key = "btn_" + configuringButton + "_click_2_action";
+            def = "mute".equals(configuringButton) ? 7 : ("youtube_190".equals(configuringButton) ? 4 : 0);
+        } else if (view == btnConfigClick3) {
+            key = "btn_" + configuringButton + "_click_3_action";
+            def = "mute".equals(configuringButton) ? 8 : 0;
+        } else if (view == btnConfigClick4) {
+            key = "btn_" + configuringButton + "_click_4_action";
+            def = "mute".equals(configuringButton) ? 23 : 0;
+        } else if (view == btnConfigLong) {
+            key = "btn_" + configuringButton + "_long_action";
+            def = "mute".equals(configuringButton) ? 2 : ("youtube_190".equals(configuringButton) ? 3 : 4);
+        } else {
+            return;
+        }
+        int cur = getOverlayPrefs().getInt(key, def);
+        cycleActionConfig(key, cur, delta);
+        if (view != null) {
+            view.requestFocus();
+        }
+    }
+
     private void cycleActionConfig(String configKey, int currentAction) {
-        int nextAction = (currentAction + 1) % ACTION_NAMES.length;
+        cycleActionConfig(configKey, currentAction, 1);
+    }
+
+    private void cycleActionConfig(String configKey, int currentAction, int delta) {
+        int nextAction = (currentAction + delta) % ACTION_NAMES.length;
+        if (nextAction < 0) nextAction += ACTION_NAMES.length;
         getOverlayPrefs().edit().putInt(configKey, nextAction).apply();
         updateButtonConfigPanel();
     }
