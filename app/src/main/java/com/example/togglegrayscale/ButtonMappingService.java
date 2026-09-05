@@ -1976,16 +1976,37 @@ public class ButtonMappingService extends AccessibilityService {
             };
             Intent launchIntent = null;
             for (String pkg : smartTubePkgs) {
-                launchIntent = getPackageManager().getLaunchIntentForPackage(pkg);
+                // 1. Try Leanback TV launcher intent
+                try {
+                    launchIntent = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+                } catch (Exception ignored) {}
+                // 2. Try standard launcher intent
+                if (launchIntent == null) {
+                    try {
+                        launchIntent = getPackageManager().getLaunchIntentForPackage(pkg);
+                    } catch (Exception ignored) {}
+                }
+                // 3. Try direct SplashActivity component
+                if (launchIntent == null) {
+                    Intent directIntent = new Intent(Intent.ACTION_MAIN);
+                    directIntent.addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+                    directIntent.setComponent(new ComponentName(pkg, "com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"));
+                    if (getPackageManager().resolveActivity(directIntent, 0) != null) {
+                        launchIntent = directIntent;
+                    }
+                }
                 if (launchIntent != null) break;
             }
-            if (launchIntent != null) {
-                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(launchIntent);
-                Log.d(TAG, "Successfully started SmartTube");
-            } else {
-                Log.w(TAG, "SmartTube launch intent not found");
+
+            // Fallback: direct intent to org.smarttube.stable SplashActivity
+            if (launchIntent == null) {
+                launchIntent = new Intent(Intent.ACTION_MAIN);
+                launchIntent.setComponent(new ComponentName("org.smarttube.stable", "com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"));
             }
+
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            startActivity(launchIntent);
+            Log.d(TAG, "Successfully started SmartTube with intent: " + launchIntent);
         } catch (Exception e) {
             Log.e(TAG, "Failed to launch SmartTube", e);
         }

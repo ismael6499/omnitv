@@ -13,6 +13,8 @@
         <package android:name="com.disney.disneyplus.tv" />
         <package android:name="com.teamsmart.videomanager.tv" />
         <package android:name="com.liskovsoft.videomanager.tv" />
+        <package android:name="com.teamsmart.videoplayer.tv" />
+        <package android:name="org.smarttube.stable" />
         <package android:name="com.liskovsoft.smarttubetv.beta" />
         <package android:name="com.google.android.youtube.tvmusic" />
         <package android:name="com.google.android.apps.youtube.music" />
@@ -24,6 +26,8 @@
         <package android:name="com.paramountplus.android.tv" />
         <package android:name="com.apple.atve.amazon.trusted" />
     </queries>
+    
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
