@@ -3430,19 +3430,24 @@ public class ButtonMappingService extends AccessibilityService {
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 if (action == KeyEvent.ACTION_DOWN) {
                     stepVideoFrame(-1);
-                    updateFrameStepHudFeedback("◄ Retroceder Frame (-1)");
+                    updateFrameStepHudFeedback("◄ -1 Frame");
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 if (action == KeyEvent.ACTION_DOWN) {
                     stepVideoFrame(1);
-                    updateFrameStepHudFeedback("Avanzar Frame (+1) ►");
+                    updateFrameStepHudFeedback("+1 Frame ►");
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
                 if (action == KeyEvent.ACTION_DOWN) {
                     sendMediaPlayPause();
                     updateFrameStepHudFeedback("⏯️ Play / Pausa");
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    toggleFrameStepHudVisibility();
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE) {
@@ -3904,6 +3909,21 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
+    private final Runnable resetFrameStepFeedbackRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (frameStepHudView != null) {
+                try {
+                    TextView statusTv = frameStepHudView.findViewById(1001);
+                    if (statusTv != null) {
+                        statusTv.setText("🎞️ Cuadro por Cuadro (◄ / ►)");
+                        statusTv.setTextColor(0xFF81D4FA);
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+    };
+
     private void showFrameStepHud() {
         handler.post(new Runnable() {
             @Override
@@ -3916,53 +3936,23 @@ public class ButtonMappingService extends AccessibilityService {
                     float density = getResources().getDisplayMetrics().density;
 
                     LinearLayout root = new LinearLayout(ButtonMappingService.this);
-                    root.setOrientation(LinearLayout.VERTICAL);
-                    root.setGravity(Gravity.CENTER);
-                    root.setPadding(Math.round(24 * density), Math.round(14 * density), Math.round(24 * density), Math.round(14 * density));
+                    root.setOrientation(LinearLayout.HORIZONTAL);
+                    root.setGravity(Gravity.CENTER_VERTICAL);
+                    root.setPadding(Math.round(14 * density), Math.round(7 * density), Math.round(14 * density), Math.round(7 * density));
 
                     android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-                    bg.setColor(Color.argb(240, 18, 22, 30));
-                    bg.setCornerRadius(20 * density);
-                    bg.setStroke(Math.round(1.5f * density), 0xFF81D4FA);
+                    bg.setColor(Color.argb(200, 18, 22, 30));
+                    bg.setCornerRadius(14 * density);
+                    bg.setStroke(Math.round(1.2f * density), 0xFF81D4FA);
                     root.setBackground(bg);
 
-                    // Row 1: Action controls
-                    LinearLayout rowControls = new LinearLayout(ButtonMappingService.this);
-                    rowControls.setOrientation(LinearLayout.HORIZONTAL);
-                    rowControls.setGravity(Gravity.CENTER);
-
-                    TextView btnLeft = new TextView(ButtonMappingService.this);
-                    btnLeft.setText("  ◄◄  -1 Frame  ");
-                    btnLeft.setTextColor(0xFF81D4FA);
-                    btnLeft.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-                    btnLeft.setTypeface(Typeface.DEFAULT_BOLD);
-                    rowControls.addView(btnLeft);
-
-                    TextView btnMid = new TextView(ButtonMappingService.this);
-                    btnMid.setText("   |   ⏯️ Play / Pausa   |   ");
-                    btnMid.setTextColor(0xFFFFFFFF);
-                    btnMid.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-                    btnMid.setTypeface(Typeface.DEFAULT_BOLD);
-                    rowControls.addView(btnMid);
-
-                    TextView btnRight = new TextView(ButtonMappingService.this);
-                    btnRight.setText("  +1 Frame  ►►  ");
-                    btnRight.setTextColor(0xFF81D4FA);
-                    btnRight.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-                    btnRight.setTypeface(Typeface.DEFAULT_BOLD);
-                    rowControls.addView(btnRight);
-
-                    root.addView(rowControls);
-
-                    // Row 2: Status / Instruction
-                    TextView statusTv = new TextView(ButtonMappingService.this);
-                    statusTv.setId(1001);
-                    statusTv.setText("🎞️ Presiona ◄ / ► para mover cuadro por cuadro  •  [ Atrás: Salir ]");
-                    statusTv.setTextColor(0xFFB0BEC5);
-                    statusTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-                    statusTv.setGravity(Gravity.CENTER);
-                    statusTv.setPadding(0, Math.round(6 * density), 0, 0);
-                    root.addView(statusTv);
+                    TextView badgeTv = new TextView(ButtonMappingService.this);
+                    badgeTv.setId(1001);
+                    badgeTv.setText("🎞️ Cuadro por Cuadro (◄ / ►)");
+                    badgeTv.setTextColor(0xFF81D4FA);
+                    badgeTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                    badgeTv.setTypeface(Typeface.DEFAULT_BOLD);
+                    root.addView(badgeTv);
 
                     WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -3973,15 +3963,16 @@ public class ButtonMappingService extends AccessibilityService {
                                     | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                             PixelFormat.TRANSLUCENT
                     );
-                    params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-                    params.y = Math.round(36 * density);
+                    params.gravity = Gravity.TOP | Gravity.START;
+                    params.x = Math.round(24 * density);
+                    params.y = Math.round(20 * density);
 
                     wm.addView(root, params);
                     frameStepHudView = root;
                     isFrameStepHudActive = true;
-                    Log.d(TAG, "Frame Step HUD displayed.");
+                    Log.d(TAG, "Frame Step HUD badge displayed top-left.");
                 } catch (Exception e) {
-                    Log.e(TAG, "Error displaying Frame Step HUD", e);
+                    Log.e(TAG, "Error displaying Frame Step HUD badge", e);
                 }
             }
         });
@@ -3995,8 +3986,10 @@ public class ButtonMappingService extends AccessibilityService {
                     try {
                         TextView statusTv = frameStepHudView.findViewById(1001);
                         if (statusTv != null) {
-                            statusTv.setText("🎞️ " + msg + "  •  [ Atrás: Salir ]");
+                            statusTv.setText("🎞️ " + msg);
                             statusTv.setTextColor(0xFFFFEB3B);
+                            handler.removeCallbacks(resetFrameStepFeedbackRunnable);
+                            handler.postDelayed(resetFrameStepFeedbackRunnable, 750);
                         }
                     } catch (Exception ignored) {}
                 }
@@ -4004,7 +3997,19 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
+    private boolean isFrameStepHudHidden = false;
+
+    private void toggleFrameStepHudVisibility() {
+        if (frameStepHudView != null) {
+            isFrameStepHudHidden = !isFrameStepHudHidden;
+            frameStepHudView.setVisibility(isFrameStepHudHidden ? View.GONE : View.VISIBLE);
+            Log.d(TAG, "Frame Step HUD visibility toggled: hidden=" + isFrameStepHudHidden);
+        }
+    }
+
     private void dismissFrameStepHud() {
+        handler.removeCallbacks(resetFrameStepFeedbackRunnable);
+        isFrameStepHudHidden = false;
         if (frameStepHudView != null) {
             final View v = frameStepHudView;
             frameStepHudView = null;
