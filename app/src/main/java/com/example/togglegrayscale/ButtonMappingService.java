@@ -3517,6 +3517,26 @@ public class ButtonMappingService extends AccessibilityService {
                         }
                         return true;
                     }
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    int actionId = prefs.getInt("combo_mute_up_action", 0);
+                    if (actionId > 0) {
+                        if (action == KeyEvent.ACTION_DOWN) {
+                            muteState.cancel();
+                            isDismissingComboKey = true;
+                            executeAction(actionId);
+                        }
+                        return true;
+                    }
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    int actionId = prefs.getInt("combo_mute_down_action", 0);
+                    if (actionId > 0) {
+                        if (action == KeyEvent.ACTION_DOWN) {
+                            muteState.cancel();
+                            isDismissingComboKey = true;
+                            executeAction(actionId);
+                        }
+                        return true;
+                    }
                 } else if (keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190) {
                     int actionId = prefs.getInt("combo_youtube190_mute_action", 0);
                     if (actionId > 0) {

@@ -228,7 +228,7 @@ public class QuickMenuOverlay {
     // Button Combos Fields
     private LinearLayout panelButtonCombos;
     private TextView btnCombosMasterToggle;
-    private TextView btnComboMuteOk, btnComboMuteRight, btnComboMuteLeft;
+    private TextView btnComboMuteOk, btnComboMuteRight, btnComboMuteLeft, btnComboMuteUp, btnComboMuteDown;
     private TextView btnComboYoutube190Mute;
     private TextView btnComboInputOk;
     private TextView btnApplyCombos;
@@ -659,6 +659,8 @@ public class QuickMenuOverlay {
         btnComboMuteOk               = rootView.findViewById(R.id.btn_combo_mute_ok);
         btnComboMuteRight            = rootView.findViewById(R.id.btn_combo_mute_right);
         btnComboMuteLeft             = rootView.findViewById(R.id.btn_combo_mute_left);
+        btnComboMuteUp               = rootView.findViewById(R.id.btn_combo_mute_up);
+        btnComboMuteDown             = rootView.findViewById(R.id.btn_combo_mute_down);
         btnComboYoutube190Mute       = rootView.findViewById(R.id.btn_combo_youtube190_mute);
         btnComboInputOk              = rootView.findViewById(R.id.btn_combo_input_ok);
         btnApplyCombos               = rootView.findViewById(R.id.btn_apply_combos);
@@ -1075,7 +1077,7 @@ public class QuickMenuOverlay {
         }
 
         // 2. Button combo actions & master toggle
-        if (current == btnComboMuteOk || current == btnComboMuteRight || current == btnComboMuteLeft || current == btnComboYoutube190Mute || current == btnComboInputOk) {
+        if (current == btnComboMuteOk || current == btnComboMuteRight || current == btnComboMuteLeft || current == btnComboMuteUp || current == btnComboMuteDown || current == btnComboYoutube190Mute || current == btnComboInputOk) {
             adjustComboAction(current, delta);
             return true;
         }
@@ -2594,6 +2596,20 @@ public class QuickMenuOverlay {
                 }
             });
         }
+        if (btnComboMuteUp != null) {
+            btnComboMuteUp.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    adjustComboAction(btnComboMuteUp, 1);
+                }
+            });
+        }
+        if (btnComboMuteDown != null) {
+            btnComboMuteDown.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    adjustComboAction(btnComboMuteDown, 1);
+                }
+            });
+        }
         if (btnComboYoutube190Mute != null) {
             btnComboYoutube190Mute.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -3315,6 +3331,12 @@ public class QuickMenuOverlay {
         } else if (view == btnComboMuteLeft) {
             key = "combo_mute_left_action";
             def = 25;
+        } else if (view == btnComboMuteUp) {
+            key = "combo_mute_up_action";
+            def = 0;
+        } else if (view == btnComboMuteDown) {
+            key = "combo_mute_down_action";
+            def = 0;
         } else if (view == btnComboYoutube190Mute) {
             key = "combo_youtube190_mute_action";
             def = 0;
@@ -4452,6 +4474,8 @@ public class QuickMenuOverlay {
         int muteOk = op.getInt("combo_mute_ok_action", 23);
         int muteRight = op.getInt("combo_mute_right_action", 24);
         int muteLeft = op.getInt("combo_mute_left_action", 25);
+        int muteUp = op.getInt("combo_mute_up_action", 0);
+        int muteDown = op.getInt("combo_mute_down_action", 0);
         int ytMute = op.getInt("combo_youtube190_mute_action", 0);
         int inputOk = op.getInt("combo_input_ok_action", 0);
 
@@ -4470,6 +4494,14 @@ public class QuickMenuOverlay {
         if (btnComboMuteLeft != null) {
             btnComboMuteLeft.setText("   Mute + Flecha Izq:  " + (muteLeft == 0 ? "[ DESACTIVADO ]" : getActionName(muteLeft)));
             btnComboMuteLeft.setTextColor(muteLeft == 0 ? 0xFF888888 : 0xFF81D4FA);
+        }
+        if (btnComboMuteUp != null) {
+            btnComboMuteUp.setText("   Mute + Flecha Arriba:  " + (muteUp == 0 ? "[ DESACTIVADO ]" : getActionName(muteUp)));
+            btnComboMuteUp.setTextColor(muteUp == 0 ? 0xFF888888 : 0xFF81D4FA);
+        }
+        if (btnComboMuteDown != null) {
+            btnComboMuteDown.setText("   Mute + Flecha Abajo:  " + (muteDown == 0 ? "[ DESACTIVADO ]" : getActionName(muteDown)));
+            btnComboMuteDown.setTextColor(muteDown == 0 ? 0xFF888888 : 0xFF81D4FA);
         }
         if (btnComboYoutube190Mute != null) {
             btnComboYoutube190Mute.setText("   YouTube + Mute:  " + (ytMute == 0 ? "[ DESACTIVADO ]" : getActionName(ytMute)));
