@@ -57,6 +57,11 @@ public class YouTubeCaptionFetcher {
             }
         }
 
+        String cleanQuery = query.replaceAll("[•·].*$", "")
+                                 .replaceAll("[\\‘\\’\\\"\\'\\(\\)\\[\\]\\{\\}\\—\\–\\-]", " ")
+                                 .replaceAll("\\s+", " ").trim();
+        if (cleanQuery.isEmpty()) cleanQuery = query;
+
         try {
             JSONObject body = new JSONObject();
             JSONObject context = new JSONObject();
@@ -65,7 +70,7 @@ public class YouTubeCaptionFetcher {
             client.put("clientVersion", "20.10.38");
             context.put("client", client);
             body.put("context", context);
-            body.put("query", query);
+            body.put("query", cleanQuery);
 
             String response = postHttp(SEARCH_URL, body.toString());
             if (response != null) {
@@ -74,9 +79,10 @@ public class YouTubeCaptionFetcher {
                 Matcher m = p.matcher(response);
                 if (m.find()) {
                     String foundId = m.group(1);
-                    Log.d(TAG, "Resolved query '" + query + "' to videoId: " + foundId);
+                    Log.d(TAG, "Resolved query '" + cleanQuery + "' to videoId: " + foundId);
                     synchronized (queryToVideoIdCache) {
                         queryToVideoIdCache.put(query, foundId);
+                        queryToVideoIdCache.put(cleanQuery, foundId);
                     }
                     return foundId;
                 }
@@ -85,6 +91,29 @@ public class YouTubeCaptionFetcher {
             Log.e(TAG, "Error resolving video ID for query: " + query, e);
         }
         return null;
+    }
+
+    public static void fetchVideoFpsAsync(final String title, final String artist) {
+        if (title == null || title.trim().isEmpty()) return;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String cleanTitle = title.replaceAll("[\\‘\\’\\\"\\'\\(\\)\\[\\]\\{\\}\\—\\–\\-]", " ").trim();
+                    String cleanArtist = artist != null ? artist.replaceAll("[•·].*$", "").replaceAll("[\\‘\\’\\\"\\'\\(\\)\\[\\]\\{\\}\\—\\–\\-]", " ").trim() : "";
+                    String query = (cleanTitle + " " + cleanArtist).trim();
+                    String videoId = resolveVideoId(query);
+                    if (videoId == null && !cleanTitle.isEmpty()) {
+                        videoId = resolveVideoId(cleanTitle);
+                    }
+                    if (videoId != null) {
+                        fetchAvailableTracks(videoId);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error in fetchVideoFpsAsync", e);
+                }
+            }
+        }).start();
     }
 
     public static List<CaptionTrackMeta> fetchAvailableTracks(String videoId) {

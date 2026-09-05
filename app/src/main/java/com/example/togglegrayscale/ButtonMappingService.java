@@ -728,8 +728,10 @@ public class ButtonMappingService extends AccessibilityService {
 
         int fpsTitle = detectFpsFromTitle(title);
         if (fpsTitle > 0) {
-            detectedVideoFps = fpsTitle;
+            setDetectedVideoFps(fpsTitle);
             Log.d(TAG, "Detected " + detectedVideoFps + " FPS from video title: " + title);
+        } else if (pkg != null && (pkg.contains("smarttube") || pkg.contains("youtube"))) {
+            com.example.togglegrayscale.vot.YouTubeCaptionFetcher.fetchVideoFpsAsync(title, artist);
         }
         
         try {
@@ -3859,6 +3861,26 @@ public class ButtonMappingService extends AccessibilityService {
         if (fps > 0) {
             detectedVideoFps = fps;
             Log.d(TAG, "detectedVideoFps set to: " + fps);
+            if (instance != null) {
+                instance.updateFrameStepHud();
+            }
+        }
+    }
+
+    public void updateFrameStepHud() {
+        if (frameStepHudView != null) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        TextView statusTv = frameStepHudView.findViewById(1001);
+                        if (statusTv != null) {
+                            statusTv.setText(getFrameStepBadgeTitle());
+                            statusTv.setTextColor(0xFF81D4FA);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
         }
     }
 
@@ -3880,27 +3902,33 @@ public class ButtonMappingService extends AccessibilityService {
         return 0;
     }
 
-    private long getCalculatedFrameStepMs() {
+    public double getFrameDurationMs() {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-        int mode = op.getInt("frame_step_mode", 0); // 0: Auto, 1: 60fps, 2: 30fps, 3: 24fps
+        int mode = op.getInt("frame_step_mode", 0); // 0: Auto, 1: 24fps, 2: 30fps, 3: 60fps
         switch (mode) {
-            case 1: return 16L; // 60 fps (16.66ms)
-            case 2: return 33L; // 30 fps (33.33ms)
-            case 3: return 42L; // 24 fps (41.67ms)
+            case 1: return 1000.0 / 23.976; // 24 fps (41.708ms)
+            case 2: return 1000.0 / 29.97;  // 30 fps (33.367ms)
+            case 3: return 1000.0 / 59.94;  // 60 fps (16.683ms)
             default: { // Auto detection
-                if (detectedVideoFps >= 55) return 16L; // 60 fps
-                if (detectedVideoFps >= 45) return 20L; // 50 fps
-                if (detectedVideoFps <= 25 && detectedVideoFps >= 22) return 42L; // 24 fps
-                return 33L; // Standard 30 fps
+                if (detectedVideoFps >= 55) return 1000.0 / 59.94; // 60 fps
+                if (detectedVideoFps >= 45) return 1000.0 / 50.0;  // 50 fps
+                if (detectedVideoFps <= 26 && detectedVideoFps >= 22) return 1000.0 / 23.976; // 24 fps
+                if (detectedVideoFps == 24) return 1000.0 / 23.976;
+                return 1000.0 / 29.97; // Standard 30 fps
             }
         }
+    }
+
+    private long getCalculatedFrameStepMs() {
+        return Math.round(getFrameDurationMs());
     }
 
     private void cycleFrameStepMode() {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int mode = op.getInt("frame_step_mode", 0);
-        int nextMode = (mode + 1) % 4; // 0: Auto, 1: 60fps (16ms), 2: 30fps (33ms), 3: 24fps (42ms)
+        int nextMode = (mode + 1) % 4; // 0: Auto, 1: 24fps (42ms), 2: 30fps (33ms), 3: 60fps (16ms)
         op.edit().putInt("frame_step_mode", nextMode).apply();
+        MediaNotificationListener.resetFrameStepState();
         String label = getFrameStepModeLabel(nextMode);
         updateFrameStepHudFeedback("Modo: " + label);
         Log.d(TAG, "Frame step mode switched to: " + label);
@@ -3908,9 +3936,9 @@ public class ButtonMappingService extends AccessibilityService {
 
     private String getFrameStepModeLabel(int mode) {
         switch (mode) {
-            case 1: return "60 FPS (16ms)";
+            case 1: return "24 FPS (42ms)";
             case 2: return "30 FPS (33ms)";
-            case 3: return "24 FPS (42ms)";
+            case 3: return "60 FPS (16ms)";
             default: {
                 int fps = (detectedVideoFps > 0) ? detectedVideoFps : 30;
                 long ms = getCalculatedFrameStepMs();
@@ -3927,6 +3955,12 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void stepVideoFrame(final int direction) {
+        double frameDur = getFrameDurationMs();
+        if (MediaNotificationListener.stepActiveMediaFrame(direction, frameDur)) {
+            Log.d(TAG, "Frame stepped successfully via MediaSession frame snapping (dir=" + direction + ", dur=" + frameDur + "ms, detectedFps=" + detectedVideoFps + ")");
+            return;
+        }
+
         long frameDelta = (direction > 0 ? 1 : -1) * getCalculatedFrameStepMs();
         if (MediaNotificationListener.seekActiveMediaBy(frameDelta)) {
             Log.d(TAG, "Frame stepped successfully via MediaSession seekTo (" + frameDelta + "ms, detectedFps=" + detectedVideoFps + ")");
@@ -4036,6 +4070,9 @@ public class ButtonMappingService extends AccessibilityService {
     };
 
     private void showFrameStepHud() {
+        if (lastSeenMediaTitle != null && !lastSeenMediaTitle.isEmpty()) {
+            com.example.togglegrayscale.vot.YouTubeCaptionFetcher.fetchVideoFpsAsync(lastSeenMediaTitle, null);
+        }
         handler.post(new Runnable() {
             @Override
             public void run() {
@@ -4121,6 +4158,7 @@ public class ButtonMappingService extends AccessibilityService {
     private void dismissFrameStepHud() {
         handler.removeCallbacks(resetFrameStepFeedbackRunnable);
         isFrameStepHudHidden = false;
+        MediaNotificationListener.resetFrameStepState();
         if (frameStepHudView != null) {
             final View v = frameStepHudView;
             frameStepHudView = null;

@@ -104,6 +104,9 @@ public class MediaNotificationListener extends NotificationListenerService {
                 public void onPlaybackStateChanged(PlaybackState state) {
                     if (state != null) {
                         Log.d(TAG, "MediaController playbackStateChanged [" + pkg + "]: state=" + state.getState() + ", pos=" + state.getPosition());
+                        if (state.getState() == PlaybackState.STATE_PLAYING) {
+                            resetFrameStepState();
+                        }
                         ButtonMappingService svc = ButtonMappingService.instance;
                         if (svc != null) {
                             svc.onStreamingPlaybackStateChanged(pkg, state.getState(), state.getPosition());
@@ -112,6 +115,60 @@ public class MediaNotificationListener extends NotificationListenerService {
                 }
             });
         }
+    }
+
+    private static long lastSteppedFrameIndex = -1;
+    private static long lastStepTimestamp = 0;
+
+    public static void resetFrameStepState() {
+        lastSteppedFrameIndex = -1;
+        lastStepTimestamp = 0;
+    }
+
+    public static boolean stepActiveMediaFrame(int direction, double frameDurationMs) {
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getPlaybackState() != null) {
+                            String pkg = mc.getPackageName();
+                            if (pkg != null && (pkg.contains("smarttube") || pkg.contains("youtube"))) {
+                                long curPos = mc.getPlaybackState().getPosition();
+                                long now = android.os.SystemClock.elapsedRealtime();
+                                long targetFrameIndex;
+
+                                if (lastStepTimestamp > 0 && (now - lastStepTimestamp) < 1500 && lastSteppedFrameIndex >= 0) {
+                                    long expectedPos = Math.round(lastSteppedFrameIndex * frameDurationMs);
+                                    if (Math.abs(curPos - expectedPos) > (frameDurationMs * 4)) {
+                                        long baseFrame = Math.round(curPos / frameDurationMs);
+                                        targetFrameIndex = baseFrame + direction;
+                                    } else {
+                                        targetFrameIndex = lastSteppedFrameIndex + direction;
+                                    }
+                                } else {
+                                    long baseFrame = Math.round(curPos / frameDurationMs);
+                                    targetFrameIndex = baseFrame + direction;
+                                }
+
+                                if (targetFrameIndex < 0) targetFrameIndex = 0;
+                                lastSteppedFrameIndex = targetFrameIndex;
+                                lastStepTimestamp = now;
+
+                                long newPos = Math.round(targetFrameIndex * frameDurationMs + (frameDurationMs / 2.0));
+                                Log.d(TAG, "Stepping frame in " + pkg + " [dir=" + direction + ", frame=" + targetFrameIndex + ", dur=" + frameDurationMs + "ms] from " + curPos + " to " + newPos);
+                                mc.getTransportControls().seekTo(newPos);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error stepping active media frame", e);
+        }
+        return false;
     }
 
     public static void pauseAllActiveMedia(Context context) {
