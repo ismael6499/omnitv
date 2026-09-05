@@ -3464,14 +3464,12 @@ public class ButtonMappingService extends AccessibilityService {
         if (isFrameStepHudActive) {
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    stepVideoFrame(-1);
-                    updateFrameStepHudFeedback("◄ -1 (" + getCalculatedFrameStepMs() + "ms)");
+                    handleRapidFrameStep(-1);
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    stepVideoFrame(1);
-                    updateFrameStepHudFeedback("+1 (" + getCalculatedFrameStepMs() + "ms) ►");
+                    handleRapidFrameStep(1);
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
@@ -3924,6 +3922,8 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void cycleFrameStepMode() {
+        handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
+        mRapidFrameStepAccumulator = 0;
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int mode = op.getInt("frame_step_mode", 0);
         int nextMode = (mode + 1) % 4; // 0: Auto, 1: 24fps (42ms), 2: 30fps (33ms), 3: 60fps (16ms)
@@ -3952,6 +3952,59 @@ public class ButtonMappingService extends AccessibilityService {
         int mode = op.getInt("frame_step_mode", 0);
         String label = getFrameStepModeLabel(mode);
         return "🎞️ " + label + " (◄ / ► | ▲ FPS)";
+    }
+
+    private int mRapidFrameStepAccumulator = 0;
+    private long mLastRapidFrameStepTime = 0;
+
+    private final Runnable mExecuteBatchedFrameStepRunnable = new Runnable() {
+        @Override
+        public void run() {
+            executeBatchedFrameStep();
+        }
+    };
+
+    private void handleRapidFrameStep(int direction) {
+        long now = SystemClock.elapsedRealtime();
+        if (mLastRapidFrameStepTime > 0 && (now - mLastRapidFrameStepTime) > 350) {
+            mRapidFrameStepAccumulator = 0;
+        }
+        mLastRapidFrameStepTime = now;
+
+        mRapidFrameStepAccumulator += direction;
+        int count = Math.abs(mRapidFrameStepAccumulator);
+        long singleMs = getCalculatedFrameStepMs();
+        long totalMs = count * singleMs;
+
+        String feedback;
+        if (mRapidFrameStepAccumulator > 0) {
+            feedback = "+" + count + " (" + totalMs + "ms) ►";
+        } else if (mRapidFrameStepAccumulator < 0) {
+            feedback = "◄ -" + count + " (" + totalMs + "ms)";
+        } else {
+            feedback = "0 (" + singleMs + "ms)";
+        }
+        updateFrameStepHudFeedback(feedback);
+
+        handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
+        handler.postDelayed(mExecuteBatchedFrameStepRunnable, 140);
+    }
+
+    private void executeBatchedFrameStep() {
+        int framesToStep = mRapidFrameStepAccumulator;
+        mRapidFrameStepAccumulator = 0;
+        if (framesToStep == 0) return;
+
+        double frameDur = getFrameDurationMs();
+        if (MediaNotificationListener.stepActiveMediaFrameByCount(framesToStep, frameDur)) {
+            Log.d(TAG, "Batched frame step executed successfully (" + framesToStep + " frames, dur=" + frameDur + "ms)");
+            return;
+        }
+
+        long totalDelta = framesToStep * getCalculatedFrameStepMs();
+        if (MediaNotificationListener.seekActiveMediaBy(totalDelta)) {
+            Log.d(TAG, "Batched frame step via seekTo (" + totalDelta + "ms, detectedFps=" + detectedVideoFps + ")");
+        }
     }
 
     private void stepVideoFrame(final int direction) {
@@ -4137,7 +4190,7 @@ public class ButtonMappingService extends AccessibilityService {
                             statusTv.setText("🎞️ " + msg);
                             statusTv.setTextColor(0xFFFFEB3B);
                             handler.removeCallbacks(resetFrameStepFeedbackRunnable);
-                            handler.postDelayed(resetFrameStepFeedbackRunnable, 750);
+                            handler.postDelayed(resetFrameStepFeedbackRunnable, 900);
                         }
                     } catch (Exception ignored) {}
                 }
@@ -4157,6 +4210,8 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void dismissFrameStepHud() {
         handler.removeCallbacks(resetFrameStepFeedbackRunnable);
+        handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
+        mRapidFrameStepAccumulator = 0;
         isFrameStepHudHidden = false;
         MediaNotificationListener.resetFrameStepState();
         if (frameStepHudView != null) {

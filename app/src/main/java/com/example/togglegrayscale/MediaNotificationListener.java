@@ -126,6 +126,10 @@ public class MediaNotificationListener extends NotificationListenerService {
     }
 
     public static boolean stepActiveMediaFrame(int direction, double frameDurationMs) {
+        return stepActiveMediaFrameByCount(direction, frameDurationMs);
+    }
+
+    public static boolean stepActiveMediaFrameByCount(int frameDeltaCount, double frameDurationMs) {
         try {
             if (instance != null && instance.mediaSessionManager != null) {
                 ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
@@ -141,15 +145,15 @@ public class MediaNotificationListener extends NotificationListenerService {
 
                                 if (lastStepTimestamp > 0 && (now - lastStepTimestamp) < 1500 && lastSteppedFrameIndex >= 0) {
                                     long expectedPos = Math.round(lastSteppedFrameIndex * frameDurationMs);
-                                    if (Math.abs(curPos - expectedPos) > (frameDurationMs * 4)) {
+                                    if (Math.abs(curPos - expectedPos) > (frameDurationMs * 6)) {
                                         long baseFrame = Math.round(curPos / frameDurationMs);
-                                        targetFrameIndex = baseFrame + direction;
+                                        targetFrameIndex = baseFrame + frameDeltaCount;
                                     } else {
-                                        targetFrameIndex = lastSteppedFrameIndex + direction;
+                                        targetFrameIndex = lastSteppedFrameIndex + frameDeltaCount;
                                     }
                                 } else {
                                     long baseFrame = Math.round(curPos / frameDurationMs);
-                                    targetFrameIndex = baseFrame + direction;
+                                    targetFrameIndex = baseFrame + frameDeltaCount;
                                 }
 
                                 if (targetFrameIndex < 0) targetFrameIndex = 0;
@@ -157,7 +161,7 @@ public class MediaNotificationListener extends NotificationListenerService {
                                 lastStepTimestamp = now;
 
                                 long newPos = Math.round(targetFrameIndex * frameDurationMs + (frameDurationMs / 2.0));
-                                Log.d(TAG, "Stepping frame in " + pkg + " [dir=" + direction + ", frame=" + targetFrameIndex + ", dur=" + frameDurationMs + "ms] from " + curPos + " to " + newPos);
+                                Log.d(TAG, "Stepping " + frameDeltaCount + " frames in " + pkg + " [targetFrame=" + targetFrameIndex + ", dur=" + frameDurationMs + "ms] from " + curPos + " to " + newPos);
                                 mc.getTransportControls().seekTo(newPos);
                                 return true;
                             }
@@ -166,7 +170,7 @@ public class MediaNotificationListener extends NotificationListenerService {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "Error stepping active media frame", e);
+            Log.e(TAG, "Error stepping active media frame by count: " + frameDeltaCount, e);
         }
         return false;
     }
