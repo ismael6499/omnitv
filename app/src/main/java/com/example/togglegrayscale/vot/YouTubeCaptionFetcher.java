@@ -105,6 +105,27 @@ public class YouTubeCaptionFetcher {
             if (response == null) return tracks;
 
             JSONObject root = new JSONObject(response);
+
+            // Detect real video stream FPS
+            JSONObject streamingData = root.optJSONObject("streamingData");
+            if (streamingData != null) {
+                JSONArray formats = streamingData.optJSONArray("adaptiveFormats");
+                if (formats != null) {
+                    int maxFps = 0;
+                    for (int i = 0; i < formats.length(); i++) {
+                        JSONObject f = formats.optJSONObject(i);
+                        if (f != null && f.optString("mimeType", "").contains("video")) {
+                            int fps = f.optInt("fps", 0);
+                            if (fps > maxFps) maxFps = fps;
+                        }
+                    }
+                    if (maxFps > 0) {
+                        Log.d(TAG, "Detected video FPS from stream formats: " + maxFps);
+                        com.example.togglegrayscale.ButtonMappingService.setDetectedVideoFps(maxFps);
+                    }
+                }
+            }
+
             JSONObject captions = root.optJSONObject("captions");
             if (captions == null) return tracks;
             JSONObject renderer = captions.optJSONObject("playerCaptionsTracklistRenderer");

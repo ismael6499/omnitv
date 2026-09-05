@@ -725,6 +725,12 @@ public class ButtonMappingService extends AccessibilityService {
         }
         if (title == null || title.isEmpty()) return;
         Log.d(TAG, "onStreamingVideoChanged: pkg=" + pkg + ", title='" + title + "', artist='" + artist + "', dur=" + duration + ", mediaId=" + mediaId);
+
+        int fpsTitle = detectFpsFromTitle(title);
+        if (fpsTitle > 0) {
+            detectedVideoFps = fpsTitle;
+            Log.d(TAG, "Detected " + detectedVideoFps + " FPS from video title: " + title);
+        }
         
         try {
             com.example.togglegrayscale.vot.VotManager.getInstance(this).onVideoChanged(pkg, title, artist, duration);
@@ -3457,13 +3463,13 @@ public class ButtonMappingService extends AccessibilityService {
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 if (action == KeyEvent.ACTION_DOWN) {
                     stepVideoFrame(-1);
-                    updateFrameStepHudFeedback("◄ -1 Frame");
+                    updateFrameStepHudFeedback("◄ -1 (" + getCalculatedFrameStepMs() + "ms)");
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 if (action == KeyEvent.ACTION_DOWN) {
                     stepVideoFrame(1);
-                    updateFrameStepHudFeedback("+1 Frame ►");
+                    updateFrameStepHudFeedback("+1 (" + getCalculatedFrameStepMs() + "ms) ►");
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
@@ -3472,7 +3478,12 @@ public class ButtonMappingService extends AccessibilityService {
                     updateFrameStepHudFeedback("⏯️ Play / Pausa");
                 }
                 return true;
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    cycleFrameStepMode();
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (action == KeyEvent.ACTION_DOWN) {
                     toggleFrameStepHudVisibility();
                 }
@@ -3842,10 +3853,83 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
+    private static int detectedVideoFps = 30;
+
+    public static void setDetectedVideoFps(int fps) {
+        if (fps > 0) {
+            detectedVideoFps = fps;
+            Log.d(TAG, "detectedVideoFps set to: " + fps);
+        }
+    }
+
+    private int detectFpsFromTitle(String title) {
+        if (title == null) return 0;
+        String lower = title.toLowerCase();
+        if (lower.contains("60fps") || lower.contains("60 fps") || lower.contains("1080p60") || lower.contains("4k60") || lower.contains("720p60") || lower.contains("60 cuadros")) {
+            return 60;
+        }
+        if (lower.contains("50fps") || lower.contains("50 fps") || lower.contains("1080p50") || lower.contains("720p50")) {
+            return 50;
+        }
+        if (lower.contains("24fps") || lower.contains("24 fps") || lower.contains("23.976") || lower.contains("24p")) {
+            return 24;
+        }
+        if (lower.contains("25fps") || lower.contains("25 fps") || lower.contains("25p")) {
+            return 25;
+        }
+        return 0;
+    }
+
+    private long getCalculatedFrameStepMs() {
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int mode = op.getInt("frame_step_mode", 0); // 0: Auto, 1: 60fps, 2: 30fps, 3: 24fps
+        switch (mode) {
+            case 1: return 16L; // 60 fps (16.66ms)
+            case 2: return 33L; // 30 fps (33.33ms)
+            case 3: return 42L; // 24 fps (41.67ms)
+            default: { // Auto detection
+                if (detectedVideoFps >= 55) return 16L; // 60 fps
+                if (detectedVideoFps >= 45) return 20L; // 50 fps
+                if (detectedVideoFps <= 25 && detectedVideoFps >= 22) return 42L; // 24 fps
+                return 33L; // Standard 30 fps
+            }
+        }
+    }
+
+    private void cycleFrameStepMode() {
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int mode = op.getInt("frame_step_mode", 0);
+        int nextMode = (mode + 1) % 4; // 0: Auto, 1: 60fps (16ms), 2: 30fps (33ms), 3: 24fps (42ms)
+        op.edit().putInt("frame_step_mode", nextMode).apply();
+        String label = getFrameStepModeLabel(nextMode);
+        updateFrameStepHudFeedback("Modo: " + label);
+        Log.d(TAG, "Frame step mode switched to: " + label);
+    }
+
+    private String getFrameStepModeLabel(int mode) {
+        switch (mode) {
+            case 1: return "60 FPS (16ms)";
+            case 2: return "30 FPS (33ms)";
+            case 3: return "24 FPS (42ms)";
+            default: {
+                int fps = (detectedVideoFps > 0) ? detectedVideoFps : 30;
+                long ms = getCalculatedFrameStepMs();
+                return "Auto (" + fps + "fps / " + ms + "ms)";
+            }
+        }
+    }
+
+    private String getFrameStepBadgeTitle() {
+        SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int mode = op.getInt("frame_step_mode", 0);
+        String label = getFrameStepModeLabel(mode);
+        return "🎞️ " + label + " (◄ / ► | ▲ FPS)";
+    }
+
     private void stepVideoFrame(final int direction) {
-        long frameDelta = (direction > 0 ? 1 : -1) * 35L; // ~30 fps frame duration
+        long frameDelta = (direction > 0 ? 1 : -1) * getCalculatedFrameStepMs();
         if (MediaNotificationListener.seekActiveMediaBy(frameDelta)) {
-            Log.d(TAG, "Frame stepped successfully via MediaSession seekTo (" + frameDelta + "ms)");
+            Log.d(TAG, "Frame stepped successfully via MediaSession seekTo (" + frameDelta + "ms, detectedFps=" + detectedVideoFps + ")");
             return;
         }
 
@@ -3943,7 +4027,7 @@ public class ButtonMappingService extends AccessibilityService {
                 try {
                     TextView statusTv = frameStepHudView.findViewById(1001);
                     if (statusTv != null) {
-                        statusTv.setText("🎞️ Cuadro por Cuadro (◄ / ►)");
+                        statusTv.setText(getFrameStepBadgeTitle());
                         statusTv.setTextColor(0xFF81D4FA);
                     }
                 } catch (Exception ignored) {}
@@ -3975,7 +4059,7 @@ public class ButtonMappingService extends AccessibilityService {
 
                     TextView badgeTv = new TextView(ButtonMappingService.this);
                     badgeTv.setId(1001);
-                    badgeTv.setText("🎞️ Cuadro por Cuadro (◄ / ►)");
+                    badgeTv.setText(getFrameStepBadgeTitle());
                     badgeTv.setTextColor(0xFF81D4FA);
                     badgeTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
                     badgeTv.setTypeface(Typeface.DEFAULT_BOLD);
