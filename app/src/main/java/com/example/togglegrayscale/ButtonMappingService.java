@@ -3369,7 +3369,7 @@ public class ButtonMappingService extends AccessibilityService {
         int action = event.getAction();
 
         // 0. Quick Brightness Slider Key Interception
-        if (isBrightnessSliderActive) {
+        if (isBrightnessSliderActive && !QuickMenuOverlay.getInstance().isShowing()) {
             if (handleBrightnessSliderKeyEvent(event)) {
                 return true;
             }
@@ -4183,29 +4183,31 @@ public class ButtonMappingService extends AccessibilityService {
         int perpAction = prefs.getInt("quick_slider_perp_action", 0);
         resetSliderInactivityTimer();
 
-        if (perpAction == 0) { // Ciclar Niveles Guardados
+        if (perpAction == 0) { // Ciclar Niveles Guardados (Arriba = Subir, Abajo = Bajar)
             String levelsStr = prefs.getString("brightness_levels_list", "80,50,20");
             String[] parts = levelsStr.split(",");
-            if (parts.length > 0) {
-                int[] levels = new int[parts.length];
-                for (int i = 0; i < parts.length; i++) {
-                    try { levels[i] = Integer.parseInt(parts[i].trim()); } catch (Exception e) { levels[i] = 50; }
-                }
-                int cur = Math.round(currentSliderBrightness);
-                int closestIdx = 0;
-                int minDiff = Math.abs(cur - levels[0]);
-                for (int i = 1; i < levels.length; i++) {
-                    int diff = Math.abs(cur - levels[i]);
-                    if (diff < minDiff) { minDiff = diff; closestIdx = i; }
-                }
-                int nextIdx;
-                if (dir > 0) {
-                    nextIdx = (closestIdx + 1) % levels.length;
-                } else {
-                    nextIdx = (closestIdx - 1 + levels.length) % levels.length;
-                }
-                applySliderBrightness((float) levels[nextIdx]);
+            java.util.TreeSet<Integer> sortedLevels = new java.util.TreeSet<>();
+            for (String p : parts) {
+                try {
+                    int v = Integer.parseInt(p.trim());
+                    if (v >= 1 && v <= 100) sortedLevels.add(v);
+                } catch (Exception ignored) {}
             }
+            if (sortedLevels.isEmpty()) {
+                sortedLevels.add(20);
+                sortedLevels.add(50);
+                sortedLevels.add(80);
+            }
+            int cur = Math.round(currentSliderBrightness);
+            int target;
+            if (dir > 0) { // Subir brillo: buscar el siguiente mayor
+                Integer higher = sortedLevels.higher(cur);
+                target = (higher != null) ? higher : sortedLevels.first();
+            } else { // Bajar brillo: buscar el siguiente menor
+                Integer lower = sortedLevels.lower(cur);
+                target = (lower != null) ? lower : sortedLevels.last();
+            }
+            applySliderBrightness((float) target);
         } else if (perpAction == 1) { // Saltos de 5%
             stepSliderBrightness(dir * 5.0f, 0);
         } else if (perpAction == 2) { // Saltos de 10%

@@ -802,16 +802,13 @@ public class QuickMenuOverlay {
         }
 
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_UP
-                || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-                || keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
             if (action == KeyEvent.ACTION_DOWN) {
                 if (event.getRepeatCount() == 0) {
                     boolean handled = handleOverlayNavigation(keyCode, action, event);
                     if (handled) {
                         startHoldRepeat(keyCode, event);
                         return true;
-                    } else if (openSubPanel != null && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
-                        startHoldRepeat(keyCode, event);
                     }
                 } else {
                     return true;
@@ -819,6 +816,16 @@ public class QuickMenuOverlay {
             } else if (action == KeyEvent.ACTION_UP) {
                 if (keyCode == mHoldingKeyCode) {
                     stopHoldRepeat();
+                }
+            }
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                stopHoldRepeat();
+                if (event.getRepeatCount() == 0) {
+                    boolean handled = handleOverlayNavigation(keyCode, action, event);
+                    if (handled) {
+                        return true;
+                    }
                 }
             }
         }
@@ -1900,8 +1907,8 @@ public class QuickMenuOverlay {
             btnSliderTestNow.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    dismiss();
                     sendServiceAction("ACTION_SHOW_BRIGHTNESS_SLIDER");
-                    btnSliderTestNow.requestFocus();
                 }
             });
         }
@@ -3671,7 +3678,6 @@ public class QuickMenuOverlay {
         if (next < 0) next += totalOptions;
         getOverlayPrefs().edit().putInt(key, next).apply();
         updateQuickSliderConfigPanel();
-        sendServiceAction("ACTION_SHOW_BRIGHTNESS_SLIDER");
     }
 
     private void updateBrightnessConfigPanel() {
