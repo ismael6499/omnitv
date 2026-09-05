@@ -3770,6 +3770,12 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void stepVideoFrame(final int direction) {
+        long frameDelta = (direction > 0 ? 1 : -1) * 35L; // ~30 fps frame duration
+        if (MediaNotificationListener.seekActiveMediaBy(frameDelta)) {
+            Log.d(TAG, "Frame stepped successfully via MediaSession seekTo (" + frameDelta + "ms)");
+            return;
+        }
+
         try {
             if (audioManager != null) {
                 int keyStep = direction > 0 ? KeyEvent.KEYCODE_MEDIA_STEP_FORWARD : KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD;

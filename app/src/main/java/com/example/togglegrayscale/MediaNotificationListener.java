@@ -124,4 +124,30 @@ public class MediaNotificationListener extends NotificationListenerService {
             Log.e(TAG, "Error pausing media via MediaController", e);
         }
     }
+
+    public static boolean seekActiveMediaBy(long deltaMs) {
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getPlaybackState() != null) {
+                            String pkg = mc.getPackageName();
+                            if (pkg != null && (pkg.contains("smarttube") || pkg.contains("youtube"))) {
+                                long curPos = mc.getPlaybackState().getPosition();
+                                long newPos = Math.max(0, curPos + deltaMs);
+                                Log.d(TAG, "Seeking " + pkg + " from " + curPos + " to " + newPos + " (delta: " + deltaMs + "ms)");
+                                mc.getTransportControls().seekTo(newPos);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error seeking active media via MediaController", e);
+        }
+        return false;
+    }
 }
