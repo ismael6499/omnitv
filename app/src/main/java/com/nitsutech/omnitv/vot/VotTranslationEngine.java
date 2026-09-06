@@ -202,7 +202,7 @@ public class VotTranslationEngine {
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 conn.setRequestProperty("HTTP-Referer", "https://github.com/ismael6499/omnitv");
-                conn.setRequestProperty("X-Title", "TV Control Hub VOT");
+                conn.setRequestProperty("X-Title", "OmniTV VOT");
 
                 byte[] input = body.toString().getBytes(StandardCharsets.UTF_8);
                 try (OutputStream os = conn.getOutputStream()) {

@@ -27,9 +27,9 @@ public class NotificationService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "TV Control Hub",
+                    "OmniTV",
                     NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setDescription("TV Control Hub quick controls");
+            channel.setDescription("OmniTV quick controls");
             notificationManager.createNotificationChannel(channel);
         }
 
@@ -50,7 +50,7 @@ public class NotificationService extends Service {
             builder = new Notification.Builder(this);
         }
 
-        builder.setContentTitle("TV Control Hub")
+        builder.setContentTitle("OmniTV")
                 .setContentText("Centro de control rápido para Android TV")
                 .setSmallIcon(R.drawable.ic_notification)
                 .setOngoing(true)

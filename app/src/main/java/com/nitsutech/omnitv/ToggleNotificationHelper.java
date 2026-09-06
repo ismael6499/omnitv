@@ -20,9 +20,9 @@ public class ToggleNotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "TV Control Hub",
+                    "OmniTV",
                     NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setDescription("TV Control Hub quick controls");
+            channel.setDescription("OmniTV quick controls");
             notificationManager.createNotificationChannel(channel);
         }
 
@@ -44,7 +44,7 @@ public class ToggleNotificationHelper {
             builder = new Notification.Builder(context);
         }
 
-        builder.setContentTitle("TV Control Hub")
+        builder.setContentTitle("OmniTV")
                 .setContentText("Centro de control rápido para Android TV")
                 .setSmallIcon(android.R.drawable.ic_menu_manage) // Using system icon
                 .setOngoing(true) // Persistent

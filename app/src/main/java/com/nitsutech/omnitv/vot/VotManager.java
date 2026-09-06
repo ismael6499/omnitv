@@ -299,13 +299,13 @@ public class VotManager {
     }
 
     public void testVoiceAndDucking() {
-        String phrase = "Doblaje de voz de prueba con atenuación de audio en TV Control Hub.";
+        String phrase = "Doblaje de voz de prueba con atenuación de audio en OmniTV.";
         if ("en".equalsIgnoreCase(targetLang)) {
-            phrase = "This is a voice dubbing and audio ducking test in TV Control Hub.";
+            phrase = "This is a voice dubbing and audio ducking test in OmniTV.";
         } else if ("ko".equalsIgnoreCase(targetLang)) {
-            phrase = "TV 컨트롤 허브의 음성 더빙 및 오디오 더킹 테스트입니다.";
+            phrase = "OmniTV의 음성 더빙 및 오디오 더킹 테스트입니다.";
         } else if ("ja".equalsIgnoreCase(targetLang)) {
-            phrase = "TVコントロールハブの音声吹き替えとオーディオダッキングのテストです。";
+            phrase = "OmniTVの音声吹き替えとオーディオダッキングのテストです。";
         }
         ttsEngine.speakTestPhrase(phrase);
     }
