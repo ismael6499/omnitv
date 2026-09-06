@@ -2,21 +2,40 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/ismael6499/omnitv?color=blue&style=flat-square)](https://github.com/ismael6499/omnitv/releases)
 [![Platform](https://img.shields.io/badge/Platform-Android%20TV%20%7C%20Google%20TV-green?style=flat-square)](https://android.com/tv/)
+[![SmartTube AI](https://img.shields.io/badge/SmartTube-AI%20Chat%20%26%20Assistant-FF0000?style=flat-square&logo=youtube)](https://github.com/ismael6499/omnitv)
+[![Gemini AI](https://img.shields.io/badge/Gemini%20AI-Video%20Intelligence-4285F4?style=flat-square&logo=google)](https://github.com/ismael6499/omnitv)
+[![Voice Remote](https://img.shields.io/badge/Voice%20Search-Remote%20Mic-8A2BE2?style=flat-square)](https://github.com/ismael6499/omnitv)
 [![API](https://img.shields.io/badge/API-24%2B-orange?style=flat-square)](https://android.com)
 [![License](https://img.shields.io/badge/License-MIT-purple?style=flat-square)](LICENSE)
 
-**OmniTV** is an all-in-one power-tool and accessibility suite engineered specifically for **Android TV** and **Google TV** (Chromecast with Google TV, Google TV Streamer, Xiaomi Mi Box, Nvidia Shield, smart TVs, and more).
+> **Tags / Topics:** `smarttube` `youtube` `ai-assistant` `gemini` `voice-chat` `android-tv` `google-tv` `remote-remapper` `video-summary` `accessibility-service` `screen-dimmer` `blue-light-filter` `oled-saver` `sleep-timer` `subtitle-translation`
 
-Operating seamlessly as an Accessibility Service, OmniTV intercepts remote control buttons non-intrusively, bringing a fast Quick Menu overlay, customizable remote key remapping, eye-care screen filters, OLED burn-in protection, scheduled sleep timers, and on-device live subtitle translation.
+**OmniTV** is an all-in-one power-tool, AI copilot, and accessibility suite engineered specifically for **Android TV** and **Google TV** (Chromecast with Google TV, Google TV Streamer, Xiaomi Mi Box, Nvidia Shield, smart TVs, and more).
+
+Operating seamlessly as an Accessibility Service, OmniTV intercepts remote control buttons non-intrusively, bringing a premier **SmartTube & YouTube AI Video Assistant with TV Remote Voice Chat**, a blazing-fast Quick Menu overlay, customizable remote key remapping, eye-care screen filters, OLED burn-in protection, scheduled sleep timers, and on-device live subtitle translation.
 
 ---
 
 ## ✨ Features
 
+### 🤖 SmartTube & YouTube AI Video Assistant & Voice Chat (Premier Feature)
+- **YouTube TV-Style Side Drawer**: 540dp non-intrusive translucent side drawer that overlays seamlessly beside active video playback (**SmartTube** & **YouTube TV**) without pausing, resizing, or interrupting your stream.
+- **🎙️ Remote Voice Recognition**: Speak naturally into your TV remote microphone by pressing **[ 🎙️ Hablar ]** or the remote's Voice Assist button. OmniTV transcribes your question on-device with zero app switching or screen takeovers.
+- **⚡ One-Click Smart Actions**: Instant preset pills for deep video understanding:
+  - `📝 Resumir Video`: High-yield overview and executive summary of the entire video.
+  - `💡 Puntos Clave`: Bulleted core takeaways and crucial arguments.
+  - `🎯 Conclusiones`: Main decisions, verdicts, and final thoughts.
+  - `⏱️ Momentos Clave`: Chronological breakdown and topic index with exact timestamps.
+- **⏱️ Interactive Clickable Timestamps**: AI-generated timestamps (e.g. `[ ⏱️ 04:15 ]`) render as high-contrast D-pad interactive badges. Pressing **OK / D-Pad Center** immediately jumps video playback in SmartTube / YouTube to the exact second.
+- **💬 Conversational Memory & Video Persistence**: Remembers full multi-turn conversation and context for the currently playing video across service reloads and screen standby. Reset cleanly at any time with **[ 🔄 Nuevo chat ]**.
+- **🚫 Question Deduplication**: AI dynamically generates relevant follow-up questions while actively ensuring questions already asked are never repeated.
+- **🔄 Live Video Auto-Detection**: Actively tracks background video transitions in SmartTube and YouTube; automatically refreshes the active video ID and title when you switch videos.
+- **🧠 Dynamic Multi-Model AI Engine**: Native support for Google Gemini (`gemini-3.5-flash-lite`, `gemini-2.5-flash`, `gemini-3.5-flash`) or OpenRouter (`deepseek-chat`, `gpt-4o-mini`, `llama-3.3-70b-instruct`) with dynamic live model retrieval.
+
 ### 🎮 Remote Button Remapper & Multi-Action Engine
 - Intercept and remap remote buttons (Mute, YouTube, TV Input, Color keys, etc.).
 - Supports **Single Click**, **Double Click**, **Triple Click**, **Long Press**, and **Key Combinations**.
-- Assign actions: Toggle Quick Menu, Cycle Brightness, Screen Dimmer, Blue Light Filter, Sleep Timer, Take Screenshot, Mute/Unmute, Open Apps, or Translate Subtitles.
+- Assign actions: **Open AI Summary Overlay**, Toggle Quick Menu, Cycle Brightness, Screen Dimmer, Blue Light Filter, Sleep Timer, Take Screenshot, Mute/Unmute, Open Apps, or Translate Subtitles.
 
 ### 🪟 Non-Intrusive Quick Menu Overlay
 - Built using `TYPE_ACCESSIBILITY_OVERLAY` (`FLAG_NOT_TOUCH_MODAL | FLAG_LAYOUT_IN_SCREEN`).
@@ -75,10 +94,11 @@ Download the latest `OmniTV-vX.X.X.apk` from the [Releases](https://github.com/i
 adb install -r OmniTV-v1.0.0.apk
 ```
 
-### 4. Grant Required Permission & Enable Service
-Grant the secure settings permission:
+### 4. Grant Required Permissions & Enable Service
+Grant secure settings and voice microphone permissions:
 ```bash
 adb shell pm grant com.nitsutech.omnitv android.permission.WRITE_SECURE_SETTINGS
+adb shell pm grant com.nitsutech.omnitv android.permission.RECORD_AUDIO
 ```
 
 Enable the Accessibility Service (or activate it manually in TV Settings > Accessibility):
@@ -87,7 +107,7 @@ adb shell settings put secure accessibility_enabled 1
 adb shell settings put secure enabled_accessibility_services com.nitsutech.omnitv/.ButtonMappingService
 ```
 
-You are ready to go! Press your mapped remote key (or open the app) to launch the Quick Menu.
+You are ready to go! Press your mapped remote key (or open the app) to launch the Quick Menu or open the AI Assistant while watching SmartTube / YouTube!
 
 ---
 

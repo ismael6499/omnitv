@@ -1195,7 +1195,7 @@ public class ButtonMappingService extends AccessibilityService {
                 }
                 break;
             case "ACTION_TOGGLE_DIMMER": toggleDimmer(); break;
-            case "ACTION_TOGGLE_STILL_WATCHING": toggleStillWatching(); break;
+            case "ACTION_TOGGLE_STILL_WATCHING":
             case "ACTION_UPDATE_STILL_WATCHING": updateStillWatching(); break;
             case "ACTION_TEST_STILL_WATCHING_BEEP": playStillWatchingBeep(); break;
             case "ACTION_TOGGLE_NIGHT_SCHEDULE":
@@ -1345,15 +1345,22 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case 9: // Filtro Luz Azul
                 toggleBlueLight();
+                Toast.makeText(this, isBlueLightActive ? "🌙 Filtro Luz Azul: Activado" : "🌙 Filtro Luz Azul: Desactivado", Toast.LENGTH_SHORT).show();
                 break;
             case 10: // Reloj en Pantalla
                 toggleClock();
+                Toast.makeText(this, isClockActive ? "🕒 Reloj en Pantalla: Activado" : "🕒 Reloj en Pantalla: Desactivado", Toast.LENGTH_SHORT).show();
                 break;
             case 11: // Dimmer de Pantalla
                 toggleDimmer();
+                Toast.makeText(this, isDimmerActive ? "🔅 Dimmer de Pantalla: Activado" : "🔅 Dimmer de Pantalla: Desactivado", Toast.LENGTH_SHORT).show();
                 break;
             case 12: // Modo Cine
+                SharedPreferences opCine = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                boolean nextCine = !opCine.getBoolean(KEY_CINE_MODE, false);
+                opCine.edit().putBoolean(KEY_CINE_MODE, nextCine).apply();
                 toggleCineMode();
+                Toast.makeText(this, nextCine ? "🎬 Modo Cine: Activado" : "🎬 Modo Cine: Desactivado", Toast.LENGTH_SHORT).show();
                 break;
             case 13: // Info del Sistema
                 showSystemInfoOverlay();
@@ -2805,6 +2812,7 @@ public class ButtonMappingService extends AccessibilityService {
         } else {
             stopStillWatchingTimer();
         }
+        Toast.makeText(this, nextState ? "📺 ¿Sigues viendo?: Activado" : "📺 ¿Sigues viendo?: Desactivado", Toast.LENGTH_SHORT).show();
     }
 
     private void updateStillWatching() {

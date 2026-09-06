@@ -29,9 +29,11 @@ public class ToggleUtils {
                 Settings.Secure.putInt(resolver, "accessibility_display_daltonizer", 0);
                 Settings.Secure.putInt(resolver, "accessibility_display_daltonizer_enabled", 1);
                 Log.d("ToggleUtils", "Grayscale enabled (daltonizer=0, enabled=1)");
+                Toast.makeText(context, "🏁 Escala de Grises: Activada", Toast.LENGTH_SHORT).show();
             } else {
                 Settings.Secure.putInt(resolver, "accessibility_display_daltonizer_enabled", 0);
                 Log.d("ToggleUtils", "Grayscale disabled (enabled=0)");
+                Toast.makeText(context, "🌈 Escala de Grises: Desactivada", Toast.LENGTH_SHORT).show();
             }
         } catch (SecurityException e) {
             Toast.makeText(context, "Por favor concede permisos WRITE_SECURE_SETTINGS vía ADB", Toast.LENGTH_LONG).show();
