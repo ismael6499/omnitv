@@ -22,6 +22,9 @@ public class VotTtsEngine implements TextToSpeech.OnInitListener {
     private boolean hasDuckedFocus = false;
     private float baseSpeechRate = 1.1f;
     private float basePitch = 1.0f;
+    private String currentLanguage = "es";
+    private float ttsVolume = 1.0f;
+    private int duckingMode = 0; // 0: Duck 25%, 1: Mute video, 2: No ducking
 
     public interface SpeechListener {
         void onSpeechStart(String utteranceId);
@@ -48,13 +51,8 @@ public class VotTtsEngine implements TextToSpeech.OnInitListener {
     @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
-            int res = tts.setLanguage(new Locale("es", "US"));
-            if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                res = tts.setLanguage(new Locale("es", "ES"));
-                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    res = tts.setLanguage(new Locale("es"));
-                }
-            }
+            isInitialized = true;
+            setLanguage(currentLanguage);
             tts.setSpeechRate(baseSpeechRate);
             tts.setPitch(basePitch);
 
@@ -80,11 +78,41 @@ public class VotTtsEngine implements TextToSpeech.OnInitListener {
                 }
             });
 
-            isInitialized = true;
-            Log.d(TAG, "TextToSpeech initialized successfully with Spanish language");
+            Log.d(TAG, "TextToSpeech initialized successfully with language: " + currentLanguage);
         } else {
             Log.e(TAG, "Failed to initialize TextToSpeech, status: " + status);
         }
+    }
+
+    public void setLanguage(String langCode) {
+        if (langCode == null || langCode.isEmpty()) langCode = "es";
+        this.currentLanguage = langCode;
+        if (tts == null || !isInitialized) return;
+        Locale loc;
+        if ("en".equalsIgnoreCase(langCode)) {
+            loc = Locale.US;
+        } else if ("ko".equalsIgnoreCase(langCode)) {
+            loc = Locale.KOREA;
+        } else if ("ja".equalsIgnoreCase(langCode)) {
+            loc = Locale.JAPAN;
+        } else {
+            loc = new Locale("es", "US");
+        }
+        int res = tts.setLanguage(loc);
+        if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+            if ("en".equalsIgnoreCase(langCode)) loc = Locale.ENGLISH;
+            else if ("es".equalsIgnoreCase(langCode)) loc = new Locale("es");
+            tts.setLanguage(loc);
+        }
+        Log.d(TAG, "TTS language set to: " + loc);
+    }
+
+    public void setVolume(float volume) {
+        this.ttsVolume = Math.max(0.1f, Math.min(1.0f, volume));
+    }
+
+    public void setDuckingMode(int mode) {
+        this.duckingMode = mode;
     }
 
     public void setSpeechRate(float rate) {
@@ -115,6 +143,7 @@ public class VotTtsEngine implements TextToSpeech.OnInitListener {
 
         Bundle params = new Bundle();
         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "vot_cue_" + cue.id);
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
         tts.speak(cue.translatedText, TextToSpeech.QUEUE_FLUSH, params, "vot_cue_" + cue.id);
     }
 
@@ -129,6 +158,7 @@ public class VotTtsEngine implements TextToSpeech.OnInitListener {
 
         Bundle params = new Bundle();
         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "vot_test_phrase");
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
         tts.speak(phrase, TextToSpeech.QUEUE_FLUSH, params, "vot_test_phrase");
     }
 

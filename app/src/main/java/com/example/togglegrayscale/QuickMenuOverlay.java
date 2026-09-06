@@ -76,9 +76,22 @@ public class QuickMenuOverlay {
 
     private static final String[] VOT_SOURCE_LANGS = {"auto", "en", "ko", "ja"};
     private static final String[] VOT_SOURCE_LANG_NAMES = {"Auto (Detectar)", "Inglés (English)", "Coreano (한국어)", "Japonés (日本語)"};
+    private static final String[] VOT_TARGET_LANGS = {"es", "en", "ko", "ja"};
+    private static final String[] VOT_TARGET_LANG_NAMES = {"Español (Latam)", "Inglés (English)", "Coreano (한국어)", "Japonés (日本語)"};
     private static final float[] VOT_SPEECH_RATES = {1.0f, 1.15f, 1.3f, 1.45f};
     private static final String[] VOT_SPEECH_RATE_NAMES = {"Normal (1.0x)", "Rápido (1.15x)", "Muy Rápido (1.3x)", "Ultra (1.45x)"};
-    private static final String[] VOT_PROVIDER_NAMES = {"Google (Gratuito)", "OpenRouter IA"};
+    private static final float[] VOT_TTS_VOLUMES = {1.0f, 0.85f, 0.70f, 0.50f};
+    private static final String[] VOT_TTS_VOLUME_NAMES = {"100% (Máximo)", "85% (Equilibrado)", "70% (Medio)", "50% (Bajo)"};
+    private static final int[] VOT_DUCKING_MODES = {0, 1, 2};
+    private static final String[] VOT_DUCKING_MODE_NAMES = {"Atenuar Video (~25%)", "Silenciar Video al Hablar", "Sin Atenuación (Normal)"};
+    private static final String[] VOT_PROVIDER_NAMES = {"Google (Gratuito)", "MyMemory (50k/día)", "OpenRouter IA"};
+    private static final String[] VOT_OPENROUTER_MODELS = {
+        "deepseek/deepseek-chat",
+        "google/gemini-2.0-flash-001",
+        "openai/gpt-4o-mini",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "mistralai/mistral-small-24b-instruct-2501"
+    };
 
     private static final String[] TRANSLATE_TARGET_LANGS = {"Español", "English"};
     private static final String[] TRANSLATE_SOURCE_LANGS = {
@@ -244,9 +257,14 @@ public class QuickMenuOverlay {
     private LinearLayout panelVotConfig;
     private TextView btnVotMasterToggle;
     private TextView btnVotSourceLang;
+    private TextView btnVotTargetLang;
+    private TextView btnVotTtsVolume;
+    private TextView btnVotDuckingMode;
     private TextView btnVotSubtitlesMode;
     private TextView btnVotSpeechRate;
     private TextView btnVotProvider;
+    private TextView btnVotOpenrouterModel;
+    private TextView btnVotOpenrouterKey;
     private TextView btnVotTestVoice;
     private TextView btnVotApply;
 
@@ -686,9 +704,14 @@ public class QuickMenuOverlay {
         panelVotConfig               = rootView.findViewById(R.id.panel_vot_config);
         btnVotMasterToggle           = rootView.findViewById(R.id.btn_vot_master_toggle);
         btnVotSourceLang             = rootView.findViewById(R.id.btn_vot_source_lang);
+        btnVotTargetLang             = rootView.findViewById(R.id.btn_vot_target_lang);
+        btnVotTtsVolume              = rootView.findViewById(R.id.btn_vot_tts_volume);
+        btnVotDuckingMode            = rootView.findViewById(R.id.btn_vot_ducking_mode);
         btnVotSubtitlesMode          = rootView.findViewById(R.id.btn_vot_subtitles_mode);
         btnVotSpeechRate             = rootView.findViewById(R.id.btn_vot_speech_rate);
         btnVotProvider               = rootView.findViewById(R.id.btn_vot_provider);
+        btnVotOpenrouterModel        = rootView.findViewById(R.id.btn_vot_openrouter_model);
+        btnVotOpenrouterKey          = rootView.findViewById(R.id.btn_vot_openrouter_key);
         btnVotTestVoice              = rootView.findViewById(R.id.btn_vot_test_voice);
         btnVotApply                  = rootView.findViewById(R.id.btn_vot_apply);
 
@@ -1334,6 +1357,18 @@ public class QuickMenuOverlay {
             cycleVotSourceLang(delta);
             return true;
         }
+        if (current == btnVotTargetLang) {
+            cycleVotTargetLang(delta);
+            return true;
+        }
+        if (current == btnVotTtsVolume) {
+            cycleVotTtsVolume(delta);
+            return true;
+        }
+        if (current == btnVotDuckingMode) {
+            cycleVotDuckingMode(delta);
+            return true;
+        }
         if (current == btnVotSubtitlesMode) {
             cycleVotSubtitlesMode(delta);
             return true;
@@ -1344,6 +1379,14 @@ public class QuickMenuOverlay {
         }
         if (current == btnVotProvider) {
             cycleVotProvider(delta);
+            return true;
+        }
+        if (current == btnVotOpenrouterModel) {
+            cycleVotOpenrouterModel(delta);
+            return true;
+        }
+        if (current == btnVotOpenrouterKey) {
+            handleVotOpenrouterKeyAction();
             return true;
         }
 
@@ -2698,6 +2741,27 @@ public class QuickMenuOverlay {
                 }
             });
         }
+        if (btnVotTargetLang != null) {
+            btnVotTargetLang.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleVotTargetLang(1);
+                }
+            });
+        }
+        if (btnVotTtsVolume != null) {
+            btnVotTtsVolume.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleVotTtsVolume(1);
+                }
+            });
+        }
+        if (btnVotDuckingMode != null) {
+            btnVotDuckingMode.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleVotDuckingMode(1);
+                }
+            });
+        }
         if (btnVotSubtitlesMode != null) {
             btnVotSubtitlesMode.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -2716,6 +2780,20 @@ public class QuickMenuOverlay {
             btnVotProvider.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     cycleVotProvider(1);
+                }
+            });
+        }
+        if (btnVotOpenrouterModel != null) {
+            btnVotOpenrouterModel.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleVotOpenrouterModel(1);
+                }
+            });
+        }
+        if (btnVotOpenrouterKey != null) {
+            btnVotOpenrouterKey.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    handleVotOpenrouterKeyAction();
                 }
             });
         }
@@ -2785,6 +2863,44 @@ public class QuickMenuOverlay {
         updateVotConfigPanel();
     }
 
+    private void cycleVotTargetLang(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        String cur = op.getString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_TARGET_LANG, "es");
+        int idx = 0;
+        for (int i = 0; i < VOT_TARGET_LANGS.length; i++) {
+            if (VOT_TARGET_LANGS[i].equalsIgnoreCase(cur)) {
+                idx = i;
+                break;
+            }
+        }
+        int next = (idx + delta + VOT_TARGET_LANGS.length) % VOT_TARGET_LANGS.length;
+        com.example.togglegrayscale.vot.VotManager.getInstance(context).setTargetLanguage(VOT_TARGET_LANGS[next]);
+        updateVotConfigPanel();
+    }
+
+    private void cycleVotTtsVolume(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        float cur = op.getFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_TTS_VOLUME, 1.0f);
+        int idx = 0;
+        for (int i = 0; i < VOT_TTS_VOLUMES.length; i++) {
+            if (Math.abs(VOT_TTS_VOLUMES[i] - cur) < 0.05f) {
+                idx = i;
+                break;
+            }
+        }
+        int next = (idx + delta + VOT_TTS_VOLUMES.length) % VOT_TTS_VOLUMES.length;
+        com.example.togglegrayscale.vot.VotManager.getInstance(context).setTtsVolume(VOT_TTS_VOLUMES[next]);
+        updateVotConfigPanel();
+    }
+
+    private void cycleVotDuckingMode(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        int cur = op.getInt(com.example.togglegrayscale.vot.VotManager.KEY_VOT_DUCKING_MODE, 0);
+        int next = (cur + delta + VOT_DUCKING_MODES.length) % VOT_DUCKING_MODES.length;
+        com.example.togglegrayscale.vot.VotManager.getInstance(context).setDuckingMode(next);
+        updateVotConfigPanel();
+    }
+
     private void cycleVotSpeechRate(int delta) {
         SharedPreferences op = getOverlayPrefs();
         float cur = op.getFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
@@ -2809,6 +2925,46 @@ public class QuickMenuOverlay {
         updateVotConfigPanel();
     }
 
+    private void cycleVotOpenrouterModel(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        String cur = op.getString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[0]);
+        int idx = 0;
+        for (int i = 0; i < VOT_OPENROUTER_MODELS.length; i++) {
+            if (VOT_OPENROUTER_MODELS[i].equalsIgnoreCase(cur)) {
+                idx = i;
+                break;
+            }
+        }
+        int next = (idx + delta + VOT_OPENROUTER_MODELS.length) % VOT_OPENROUTER_MODELS.length;
+        op.edit().putString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[next]).apply();
+        updateVotConfigPanel();
+    }
+
+    private void handleVotOpenrouterKeyAction() {
+        try {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
+                CharSequence clipText = clipboard.getPrimaryClip().getItemAt(0).getText();
+                if (clipText != null && clipText.length() > 5) {
+                    String key = clipText.toString().trim();
+                    getOverlayPrefs().edit().putString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, key).apply();
+                    String masked = key.length() > 8 ? (key.substring(0, 4) + "..." + key.substring(key.length() - 4)) : "***";
+                    android.widget.Toast.makeText(context, "🔑 Key pegada del portapapeles (" + masked + ")", android.widget.Toast.LENGTH_LONG).show();
+                    updateVotConfigPanel();
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading clipboard", e);
+        }
+        String curKey = getOverlayPrefs().getString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, "");
+        if (!curKey.isEmpty()) {
+            android.widget.Toast.makeText(context, "🔑 Key activa. Para cambiarla copia la nueva en el móvil y presiona OK, o usa ADB: adb shell am broadcast -a com.example.togglegrayscale.SET_OPENROUTER_KEY --es key 'tu-key'", android.widget.Toast.LENGTH_LONG).show();
+        } else {
+            android.widget.Toast.makeText(context, "💡 Copia la API Key en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a com.example.togglegrayscale.SET_OPENROUTER_KEY --es key 'tu-api-key'", android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void updateVotConfigPanel() {
         SharedPreferences op = getOverlayPrefs();
         boolean enabled = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_ENABLED, false);
@@ -2830,11 +2986,41 @@ public class QuickMenuOverlay {
             btnVotSourceLang.setText("   Idioma Video:  " + langName + "  (◄ / ►)");
         }
 
+        String curTargetLang = op.getString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_TARGET_LANG, "es");
+        String targetLangName = "Español (Latam)";
+        for (int i = 0; i < VOT_TARGET_LANGS.length; i++) {
+            if (VOT_TARGET_LANGS[i].equalsIgnoreCase(curTargetLang)) {
+                targetLangName = VOT_TARGET_LANG_NAMES[i];
+                break;
+            }
+        }
+        if (btnVotTargetLang != null) {
+            btnVotTargetLang.setText("   Idioma Salida:  " + targetLangName + "  (◄ / ►)");
+        }
+
+        float curVol = op.getFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_TTS_VOLUME, 1.0f);
+        String volName = "100% (Máximo)";
+        for (int i = 0; i < VOT_TTS_VOLUMES.length; i++) {
+            if (Math.abs(VOT_TTS_VOLUMES[i] - curVol) < 0.05f) {
+                volName = VOT_TTS_VOLUME_NAMES[i];
+                break;
+            }
+        }
+        if (btnVotTtsVolume != null) {
+            btnVotTtsVolume.setText("   Volumen Voz:  " + volName + "  (◄ / ►)");
+        }
+
+        int ducking = op.getInt(com.example.togglegrayscale.vot.VotManager.KEY_VOT_DUCKING_MODE, 0);
+        String duckLabel = (ducking >= 0 && ducking < VOT_DUCKING_MODE_NAMES.length) ? VOT_DUCKING_MODE_NAMES[ducking] : "Atenuar Video (~25%)";
+        if (btnVotDuckingMode != null) {
+            btnVotDuckingMode.setText("   Atenuación Video:  " + duckLabel + "  (◄ / ►)");
+        }
+
         boolean showSubs = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true);
         boolean bilingual = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, false);
         String subLabel = "Ocultos";
         if (showSubs && bilingual) subLabel = "Bilingüe (Original + Doblaje)";
-        else if (showSubs) subLabel = "Solo Doblaje en Español";
+        else if (showSubs) subLabel = "Solo Doblaje en " + targetLangName;
         if (btnVotSubtitlesMode != null) {
             btnVotSubtitlesMode.setText("   Subtítulos:  " + subLabel + "  (◄ / ►)");
         }
@@ -2855,6 +3041,25 @@ public class QuickMenuOverlay {
         String provLabel = (provider >= 0 && provider < VOT_PROVIDER_NAMES.length) ? VOT_PROVIDER_NAMES[provider] : "Google (Gratuito)";
         if (btnVotProvider != null) {
             btnVotProvider.setText("   Motor Traducción:  " + provLabel + "  (◄ / ►)");
+        }
+
+        String curModel = op.getString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[0]);
+        if (btnVotOpenrouterModel != null) {
+            btnVotOpenrouterModel.setText("   Modelo IA:  " + curModel + "  (◄ / ►)");
+            btnVotOpenrouterModel.setVisibility(provider == 2 ? View.VISIBLE : View.GONE);
+        }
+
+        String curKey = op.getString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, "").trim();
+        if (btnVotOpenrouterKey != null) {
+            if (!curKey.isEmpty()) {
+                String masked = curKey.length() > 8 ? (curKey.substring(0, 4) + "••••" + curKey.substring(curKey.length() - 4)) : "Configurada";
+                btnVotOpenrouterKey.setText("   API Key IA:  " + masked + " (OK: info/pegar)");
+                btnVotOpenrouterKey.setTextColor(0xFF81C784);
+            } else {
+                btnVotOpenrouterKey.setText("   API Key IA:  [No configurada - OK: pegar]");
+                btnVotOpenrouterKey.setTextColor(0xFFFFB74D);
+            }
+            btnVotOpenrouterKey.setVisibility(provider == 2 ? View.VISIBLE : View.GONE);
         }
     }
 

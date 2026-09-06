@@ -1258,6 +1258,22 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_TRANSLATE_SCREEN":
                 triggerScreenTranslation();
                 break;
+            case "SET_OPENROUTER_KEY":
+            case "ACTION_SET_OPENROUTER_KEY":
+                if (extras != null && extras.getString("key") != null) {
+                    String k = extras.getString("key").trim();
+                    getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putString("vot_openrouter_key", k).apply();
+                    android.widget.Toast.makeText(this, "🔑 OpenRouter API Key guardada", android.widget.Toast.LENGTH_SHORT).show();
+                }
+                break;
+            case "SET_OPENROUTER_MODEL":
+            case "ACTION_SET_OPENROUTER_MODEL":
+                if (extras != null && extras.getString("model") != null) {
+                    String m = extras.getString("model").trim();
+                    getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putString("vot_openrouter_model", m).apply();
+                    android.widget.Toast.makeText(this, "🤖 OpenRouter Modelo: " + m, android.widget.Toast.LENGTH_SHORT).show();
+                }
+                break;
             case "ACTION_UPDATE_MINDFUL_DELAY":
                 // Preference state refreshed
                 break;

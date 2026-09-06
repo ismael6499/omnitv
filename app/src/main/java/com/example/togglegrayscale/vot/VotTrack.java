@@ -76,6 +76,13 @@ public class VotTrack {
         }
     }
 
+    public synchronized void invalidateTranslations() {
+        for (VotCue cue : cues) {
+            cue.isTranslated = false;
+            cue.translatedText = "";
+        }
+    }
+
     public synchronized int size() {
         return cues.size();
     }

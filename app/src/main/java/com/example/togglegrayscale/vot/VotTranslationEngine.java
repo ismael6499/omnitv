@@ -49,17 +49,64 @@ public class VotTranslationEngine {
         if (needed.isEmpty()) return;
 
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        int provider = prefs.getInt(KEY_TRANSLATION_PROVIDER, 0);
+        int provider = prefs.getInt(KEY_TRANSLATION_PROVIDER, 0); // 0: Google, 1: MyMemory, 2: OpenRouter
         String openRouterKey = prefs.getString(KEY_OPENROUTER_KEY, "").trim();
 
-        if (provider == 1 && !openRouterKey.isEmpty()) {
+        if (provider == 2 && !openRouterKey.isEmpty()) {
             boolean success = translateWithOpenRouter(context, needed, sourceLang, targetLang, openRouterKey);
             if (success) return;
             Log.w(TAG, "OpenRouter translation failed, falling back to Google Translate");
+        } else if (provider == 1) {
+            translateWithMyMemory(needed, sourceLang, targetLang);
+            return;
         }
 
         // Fallback / default: Google Translate free endpoint
         translateWithGoogle(needed, sourceLang, targetLang);
+    }
+
+    private static void translateWithMyMemory(List<VotCue> cues, String sourceLang, String targetLang) {
+        if (sourceLang == null || sourceLang.isEmpty() || sourceLang.equalsIgnoreCase("auto")) {
+            sourceLang = "en";
+        }
+        if (targetLang == null || targetLang.isEmpty()) {
+            targetLang = "es";
+        }
+        String langpair = sourceLang.toLowerCase() + "|" + targetLang.toLowerCase();
+
+        for (VotCue cue : cues) {
+            try {
+                String text = cue.originalText;
+                String encoded = URLEncoder.encode(text, "UTF-8");
+                String urlStr = "https://api.mymemory.translated.net/get?q=" + encoded 
+                        + "&langpair=" + langpair + "&de=acostaagustin6499@gmail.com";
+
+                String jsonStr = getHttp(urlStr);
+                if (jsonStr != null && !jsonStr.isEmpty()) {
+                    JSONObject root = new JSONObject(jsonStr);
+                    JSONObject respData = root.optJSONObject("responseData");
+                    if (respData != null) {
+                        String translated = respData.optString("translatedText", "").trim();
+                        if (translated.contains("&")) {
+                            translated = android.text.Html.fromHtml(translated).toString().trim();
+                        }
+                        if (!translated.isEmpty() && !translated.startsWith("MYMEMORY WARNING")) {
+                            cue.translatedText = translated;
+                            cue.isTranslated = true;
+                            synchronized (translationCache) {
+                                translationCache.put(text, translated);
+                            }
+                            continue;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "MyMemory translation error for cue: " + cue.originalText, e);
+            }
+
+            // Fallback to Google for this specific cue if MyMemory fails
+            translateWithGoogle(java.util.Collections.singletonList(cue), sourceLang, targetLang);
+        }
     }
 
     private static void translateWithGoogle(List<VotCue> cues, String sourceLang, String targetLang) {
@@ -114,9 +161,14 @@ public class VotTranslationEngine {
             String model = prefs.getString(KEY_OPENROUTER_MODEL, "deepseek/deepseek-chat");
             if (model.isEmpty()) model = "deepseek/deepseek-chat";
 
+            String targetLangName = "natural Latin American Spanish";
+            if ("en".equalsIgnoreCase(targetLang)) targetLangName = "natural conversational English";
+            else if ("ko".equalsIgnoreCase(targetLang)) targetLangName = "natural conversational Korean";
+            else if ("ja".equalsIgnoreCase(targetLang)) targetLangName = "natural conversational Japanese";
+
             StringBuilder promptBuilder = new StringBuilder();
             promptBuilder.append("Translate each numbered line from ").append(sourceLang)
-                    .append(" to natural Latin American Spanish. Maintain sentence tone and natural spoken flow. Return ONLY the translations with line numbers (e.g. 1: traducción):\n");
+                    .append(" to ").append(targetLangName).append(". Maintain sentence tone and natural spoken flow. Return ONLY the translations with line numbers (e.g. 1: translation):\n");
 
             for (int i = 0; i < cues.size(); i++) {
                 promptBuilder.append(i + 1).append(": ").append(cues.get(i).originalText).append("\n");
@@ -128,7 +180,7 @@ public class VotTranslationEngine {
 
             JSONObject sysMsg = new JSONObject();
             sysMsg.put("role", "system");
-            sysMsg.put("content", "You are an expert film and TV voice-over dubbing translator. Translate text to natural, spoken Latin American Spanish.");
+            sysMsg.put("content", "You are an expert film and TV voice-over dubbing translator. Translate text to " + targetLangName + ".");
             messages.put(sysMsg);
 
             JSONObject userMsg = new JSONObject();

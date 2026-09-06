@@ -1078,6 +1078,51 @@
                         android:clickable="true"
                         android:layout_marginBottom="4dp" />
 
+                    <!-- Idioma de Salida -->
+                    <TextView
+                        android:id="@+id/btn_vot_target_lang"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Idioma Salida:  Español (Latam)"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Volumen de Voz -->
+                    <TextView
+                        android:id="@+id/btn_vot_tts_volume"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Volumen Voz:  100%"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Atenuación de Video (Ducking) -->
+                    <TextView
+                        android:id="@+id/btn_vot_ducking_mode"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Atenuación Video:  Ducking ~25%"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
                     <!-- Subtítulos Flotantes -->
                     <TextView
                         android:id="@+id/btn_vot_subtitles_mode"
@@ -1115,6 +1160,36 @@
                         android:layout_height="44dp"
                         android:background="@drawable/card_background"
                         android:text="   Motor:  Google Gratuito"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Modelo OpenRouter -->
+                    <TextView
+                        android:id="@+id/btn_vot_openrouter_model"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Modelo IA:  deepseek/deepseek-chat"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- API Key OpenRouter -->
+                    <TextView
+                        android:id="@+id/btn_vot_openrouter_key"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   API Key IA:  [Pegar o Configurar]"
                         android:textColor="#CCCCCC"
                         android:textSize="14sp"
                         android:gravity="center_vertical"

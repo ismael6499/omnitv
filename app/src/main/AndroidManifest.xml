@@ -93,6 +93,16 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".vot.VotConfigReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.togglegrayscale.SET_OPENROUTER_KEY" />
+                <action android:name="com.example.togglegrayscale.SET_OPENROUTER_MODEL" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".NotificationService"
             android:enabled="true"

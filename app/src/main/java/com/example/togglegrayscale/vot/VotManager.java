@@ -17,6 +17,9 @@ public class VotManager {
 
     public static final String KEY_VOT_ENABLED = "vot_enabled";
     public static final String KEY_VOT_SOURCE_LANG = "vot_source_lang"; // "auto", "en", "ko", "ja"
+    public static final String KEY_VOT_TARGET_LANG = "vot_target_lang"; // "es", "en", "ko", "ja"
+    public static final String KEY_VOT_DUCKING_MODE = "vot_ducking_mode"; // 0: Duck 25%, 1: Mute/Pause, 2: Sin atenuación
+    public static final String KEY_VOT_TTS_VOLUME = "vot_tts_volume"; // 1.0f, 0.85f, 0.70f, 0.50f
     public static final String KEY_VOT_SHOW_SUBTITLES = "vot_show_subtitles";
     public static final String KEY_VOT_BILINGUAL = "vot_bilingual";
     public static final String KEY_VOT_SPEECH_RATE = "vot_speech_rate"; // 1.0f, 1.15f, 1.3f
@@ -33,6 +36,9 @@ public class VotManager {
     private boolean showSubtitles = true;
     private boolean isBilingual = false;
     private String sourceLang = "auto";
+    private String targetLang = "es";
+    private int duckingMode = 0;
+    private float ttsVolume = 1.0f;
 
     private VotTrack currentTrack;
     private String currentVideoId;
@@ -76,9 +82,15 @@ public class VotManager {
         showSubtitles = prefs.getBoolean(KEY_VOT_SHOW_SUBTITLES, true);
         isBilingual = prefs.getBoolean(KEY_VOT_BILINGUAL, false);
         sourceLang = prefs.getString(KEY_VOT_SOURCE_LANG, "auto");
+        targetLang = prefs.getString(KEY_VOT_TARGET_LANG, "es");
+        duckingMode = prefs.getInt(KEY_VOT_DUCKING_MODE, 0);
+        ttsVolume = prefs.getFloat(KEY_VOT_TTS_VOLUME, 1.0f);
         float rate = prefs.getFloat(KEY_VOT_SPEECH_RATE, 1.1f);
         ttsEngine.setSpeechRate(rate);
-        Log.d(TAG, "Preferences loaded: enabled=" + isEnabled + ", lang=" + sourceLang + ", subs=" + showSubtitles + ", rate=" + rate);
+        ttsEngine.setLanguage(targetLang);
+        ttsEngine.setDuckingMode(duckingMode);
+        ttsEngine.setVolume(ttsVolume);
+        Log.d(TAG, "Preferences loaded: enabled=" + isEnabled + ", src=" + sourceLang + ", tgt=" + targetLang + ", subs=" + showSubtitles + ", rate=" + rate + ", duck=" + duckingMode + ", vol=" + ttsVolume);
     }
 
     public synchronized void setEnabled(boolean enabled) {
@@ -98,6 +110,43 @@ public class VotManager {
 
     public boolean isEnabled() {
         return isEnabled;
+    }
+
+    public String getTargetLanguage() {
+        return targetLang;
+    }
+
+    public synchronized void setTargetLanguage(String lang) {
+        if (lang == null || lang.isEmpty()) lang = "es";
+        this.targetLang = lang;
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_VOT_TARGET_LANG, lang).apply();
+        ttsEngine.setLanguage(lang);
+        if (currentTrack != null) {
+            currentTrack.invalidateTranslations();
+        }
+    }
+
+    public int getDuckingMode() {
+        return duckingMode;
+    }
+
+    public synchronized void setDuckingMode(int mode) {
+        this.duckingMode = mode;
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putInt(KEY_VOT_DUCKING_MODE, mode).apply();
+        ttsEngine.setDuckingMode(mode);
+    }
+
+    public float getTtsVolume() {
+        return ttsVolume;
+    }
+
+    public synchronized void setTtsVolume(float volume) {
+        this.ttsVolume = Math.max(0.1f, Math.min(1.0f, volume));
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putFloat(KEY_VOT_TTS_VOLUME, this.ttsVolume).apply();
+        ttsEngine.setVolume(this.ttsVolume);
     }
 
     public synchronized void onVideoChanged(String pkg, String title, String artist, long duration) {
@@ -207,7 +256,7 @@ public class VotManager {
                             Log.d(TAG, "Successfully loaded track with " + track.size() + " cues!");
                             // Pre-translate first 10 cues immediately
                             List<VotCue> initialCues = track.getUpcomingUntranslatedCues(getEstimatedPositionMs(), 10, 60000);
-                            VotTranslationEngine.translateCues(context, initialCues, sourceLang, "es");
+                            VotTranslationEngine.translateCues(context, initialCues, sourceLang, targetLang);
 
                             synchronized (VotManager.this) {
                                 currentTrack = track;
@@ -239,7 +288,7 @@ public class VotManager {
             @Override
             public void run() {
                 try {
-                    VotTranslationEngine.translateCues(context, untranslated, sourceLang, "es");
+                    VotTranslationEngine.translateCues(context, untranslated, sourceLang, targetLang);
                 } catch (Exception e) {
                     Log.e(TAG, "Error in triggerPreTranslation", e);
                 } finally {
@@ -250,7 +299,15 @@ public class VotManager {
     }
 
     public void testVoiceAndDucking() {
-        ttsEngine.speakTestPhrase("Doblaje de voz de prueba con atenuación de audio en TV Control Hub.");
+        String phrase = "Doblaje de voz de prueba con atenuación de audio en TV Control Hub.";
+        if ("en".equalsIgnoreCase(targetLang)) {
+            phrase = "This is a voice dubbing and audio ducking test in TV Control Hub.";
+        } else if ("ko".equalsIgnoreCase(targetLang)) {
+            phrase = "TV 컨트롤 허브의 음성 더빙 및 오디오 더킹 테스트입니다.";
+        } else if ("ja".equalsIgnoreCase(targetLang)) {
+            phrase = "TVコントロールハブの音声吹き替えとオーディオダッキングのテストです。";
+        }
+        ttsEngine.speakTestPhrase(phrase);
     }
 
     public void destroy() {
