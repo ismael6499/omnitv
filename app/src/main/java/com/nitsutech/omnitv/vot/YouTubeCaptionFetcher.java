@@ -48,9 +48,26 @@ public class YouTubeCaptionFetcher {
         }
     }
 
+    public static String getCachedVideoId(String query) {
+        if (query == null || query.trim().isEmpty()) return null;
+        String clean = query.trim();
+        synchronized (queryToVideoIdCache) {
+            if (queryToVideoIdCache.containsKey(clean)) {
+                return queryToVideoIdCache.get(clean);
+            }
+            String stripped = clean.replaceAll("[•·].*$", "")
+                                   .replaceAll("[\\‘\\’\\\"\\'\\(\\)\\[\\]\\{\\}\\—\\–\\-]", " ")
+                                   .replaceAll("\\s+", " ").trim();
+            return queryToVideoIdCache.get(stripped);
+        }
+    }
+
     public static String resolveVideoId(String query) {
         if (query == null || query.trim().isEmpty()) return null;
         query = query.trim();
+        if (query.matches("^[a-zA-Z0-9_-]{11}$")) {
+            return query;
+        }
         synchronized (queryToVideoIdCache) {
             if (queryToVideoIdCache.containsKey(query)) {
                 return queryToVideoIdCache.get(query);

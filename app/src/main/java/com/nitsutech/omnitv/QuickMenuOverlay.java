@@ -34,7 +34,7 @@ public class QuickMenuOverlay {
         "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
         "pause_screen_off", "scheduled_sleep", "cycle_brightness", "mindful_delay", "still_watching",
-        "night_schedule", "oled_saver", "vot", "trigger_translate", "translate", "button_combos",
+        "night_schedule", "oled_saver", "vot", "trigger_ai_summary", "ai_summary", "trigger_translate", "translate", "button_combos",
         "config_mute", "config_youtube_190", "config_youtube_189",
         "developer_options"
     };
@@ -71,7 +71,17 @@ public class QuickMenuOverlay {
         "Ciclar Brillo Inverso",
         "Slider de Brillo Rápido",
         "SmartTube",
-        "Doblaje de Voz (VOT)"
+        "Doblaje de Voz (VOT)",
+        "Resumen IA (Gemini)"
+    };
+
+    private static final String[] AI_PROVIDER_NAMES = {"Google Gemini Directo", "OpenRouter (Multi-modelo)"};
+    private static final String[] AI_GEMINI_MODELS = {"gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.5-flash"};
+    private static final String[] AI_OPENROUTER_MODELS = {
+        "google/gemini-2.0-flash-001",
+        "deepseek/deepseek-chat",
+        "openai/gpt-4o-mini",
+        "meta-llama/llama-3.3-70b-instruct:free"
     };
 
     private static final String[] VOT_SOURCE_LANGS = {"auto", "en", "ko", "ja"};
@@ -267,6 +277,15 @@ public class QuickMenuOverlay {
     private TextView btnVotOpenrouterKey;
     private TextView btnVotTestVoice;
     private TextView btnVotApply;
+
+    // AI Summary Config Panel Fields
+    private LinearLayout panelAiSummaryConfig;
+    private TextView btnAiLaunchNow;
+    private TextView btnAiProviderToggle;
+    private TextView btnAiModelToggle;
+    private TextView btnAiApiKeyConfig;
+    private TextView btnAiApiHelp;
+    private TextView btnAiApply;
 
     // Clock Config Panel Fields
     private LinearLayout panelClockConfig;
@@ -715,6 +734,15 @@ public class QuickMenuOverlay {
         btnVotTestVoice              = rootView.findViewById(R.id.btn_vot_test_voice);
         btnVotApply                  = rootView.findViewById(R.id.btn_vot_apply);
 
+        // AI Summary panel
+        panelAiSummaryConfig         = rootView.findViewById(R.id.panel_ai_summary_config);
+        btnAiLaunchNow               = rootView.findViewById(R.id.btn_ai_launch_now);
+        btnAiProviderToggle          = rootView.findViewById(R.id.btn_ai_provider_toggle);
+        btnAiModelToggle             = rootView.findViewById(R.id.btn_ai_model_toggle);
+        btnAiApiKeyConfig            = rootView.findViewById(R.id.btn_ai_api_key_config);
+        btnAiApiHelp                 = rootView.findViewById(R.id.btn_ai_api_help);
+        btnAiApply                   = rootView.findViewById(R.id.btn_ai_apply);
+
         setupSubPanelListeners();
     }
 
@@ -908,6 +936,7 @@ public class QuickMenuOverlay {
             case "translate_config": return panelTranslateConfig;
             case "button_combos_config": return panelButtonCombos;
             case "vot_config": return panelVotConfig;
+            case "ai_summary_config": return panelAiSummaryConfig;
             default: return panelButtonConfig;
         }
     }
@@ -1387,6 +1416,18 @@ public class QuickMenuOverlay {
         }
         if (current == btnVotOpenrouterKey) {
             handleVotOpenrouterKeyAction();
+            return true;
+        }
+        if (current == btnAiProviderToggle) {
+            cycleAiProvider(delta);
+            return true;
+        }
+        if (current == btnAiModelToggle) {
+            cycleAiModel(delta);
+            return true;
+        }
+        if (current == btnAiApiKeyConfig) {
+            handleAiApiKeyAction();
             return true;
         }
 
@@ -2812,6 +2853,52 @@ public class QuickMenuOverlay {
                 }
             });
         }
+
+        // AI Summary panel listeners
+        if (btnAiLaunchNow != null) {
+            btnAiLaunchNow.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    dismiss();
+                    com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().show(context);
+                }
+            });
+        }
+        if (btnAiProviderToggle != null) {
+            btnAiProviderToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleAiProvider(1);
+                }
+            });
+        }
+        if (btnAiModelToggle != null) {
+            btnAiModelToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleAiModel(1);
+                }
+            });
+        }
+        if (btnAiApiKeyConfig != null) {
+            btnAiApiKeyConfig.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    handleAiApiKeyAction();
+                }
+            });
+        }
+        if (btnAiApiHelp != null) {
+            btnAiApiHelp.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    android.widget.Toast.makeText(context, "Tip: Obtené tu clave gratis en aistudio.google.com y copiala con tu móvil usando Google TV Remote.", android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+        if (btnAiApply != null) {
+            btnAiApply.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    closeSubPanels();
+                    buildMenu();
+                }
+            });
+        }
     }
 
     private void toggleVotMaster() {
@@ -3063,6 +3150,118 @@ public class QuickMenuOverlay {
         }
     }
 
+    private void cycleAiProvider(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        int cur = op.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
+        int next = (cur + delta + AI_PROVIDER_NAMES.length) % AI_PROVIDER_NAMES.length;
+        op.edit().putInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, next).apply();
+        updateAiSummaryConfigPanel();
+    }
+
+    private void cycleAiModel(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        int provider = op.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
+        if (provider == 0) {
+            java.util.List<String> models = com.nitsutech.omnitv.ai.AiSummaryEngine.getAvailableGeminiModels(context);
+            String cur = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL, com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL);
+            int idx = models.indexOf(cur);
+            if (idx < 0) idx = 0;
+            int next = (idx + delta + models.size()) % models.size();
+            String selected = models.get(next);
+            op.edit().putString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL, selected).apply();
+            android.widget.Toast.makeText(context, "🤖 Modelo Gemini: " + selected, android.widget.Toast.LENGTH_SHORT).show();
+        } else {
+            String cur = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL, AI_OPENROUTER_MODELS[0]);
+            int idx = 0;
+            for (int i = 0; i < AI_OPENROUTER_MODELS.length; i++) {
+                if (AI_OPENROUTER_MODELS[i].equalsIgnoreCase(cur)) {
+                    idx = i;
+                    break;
+                }
+            }
+            int next = (idx + delta + AI_OPENROUTER_MODELS.length) % AI_OPENROUTER_MODELS.length;
+            op.edit().putString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL, AI_OPENROUTER_MODELS[next]).apply();
+        }
+        updateAiSummaryConfigPanel();
+    }
+
+    private void handleAiApiKeyAction() {
+        SharedPreferences op = getOverlayPrefs();
+        int provider = op.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
+        final String prefKey = provider == 0 ? com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_KEY
+                                             : com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_KEY;
+        final String name = provider == 0 ? "Gemini" : "OpenRouter";
+        final String action = provider == 0 ? "com.nitsutech.omnitv.SET_GEMINI_KEY" : "com.nitsutech.omnitv.SET_OPENROUTER_KEY";
+
+        try {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
+                CharSequence text = clipboard.getPrimaryClip().getItemAt(0).getText();
+                if (text != null && text.length() > 5) {
+                    String cleanKey = text.toString().trim();
+                    op.edit().putString(prefKey, cleanKey).apply();
+                    String masked = cleanKey.length() > 8 ? (cleanKey.substring(0, 4) + "..." + cleanKey.substring(cleanKey.length() - 4)) : "***";
+                    android.widget.Toast.makeText(context, "🔑 Clave de " + name + " pegada (" + masked + ")", android.widget.Toast.LENGTH_SHORT).show();
+                    updateAiSummaryConfigPanel();
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error pasting clipboard key: " + e.getMessage());
+        }
+
+        String existing = op.getString(prefKey, "").trim();
+        if (!existing.isEmpty()) {
+            android.widget.Toast.makeText(context, "ℹ️ Clave configurada: " + (existing.length() > 8 ? existing.substring(0, 4) + "..." + existing.substring(existing.length() - 4) : "***") + "\nPara cambiarla, copia la nueva y presiona OK.", android.widget.Toast.LENGTH_LONG).show();
+        } else {
+            android.widget.Toast.makeText(context, "💡 Copia la clave en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a " + action + " --es key 'tu-api-key'", android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void updateAiSummaryConfigPanel() {
+        SharedPreferences op = getOverlayPrefs();
+        int provider = op.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
+
+        if (btnAiProviderToggle != null) {
+            String pName = (provider >= 0 && provider < AI_PROVIDER_NAMES.length) ? AI_PROVIDER_NAMES[provider] : "Google Gemini Directo";
+            btnAiProviderToggle.setText("   Proveedor:  " + pName + "  (◄ / ►)");
+        }
+
+        if (btnAiModelToggle != null) {
+            if (provider == 0) {
+                java.util.List<String> models = com.nitsutech.omnitv.ai.AiSummaryEngine.getAvailableGeminiModels(context);
+                String curModel = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL, com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL);
+                int idx = models.indexOf(curModel);
+                String pos = (idx >= 0) ? (" [" + (idx + 1) + "/" + models.size() + "]") : "";
+                btnAiModelToggle.setText("   Modelo Gemini:  " + curModel + pos + "  (◄ / ►)");
+            } else {
+                String curModel = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL, AI_OPENROUTER_MODELS[0]);
+                btnAiModelToggle.setText("   Modelo OpenRouter:  " + curModel + "  (◄ / ►)");
+            }
+        }
+
+        if (btnAiApiKeyConfig != null) {
+            String key;
+            String prefix;
+            if (provider == 0) {
+                key = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_KEY, "").trim();
+                prefix = "API Key Gemini";
+            } else {
+                key = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_KEY, "").trim();
+                prefix = "API Key OpenRouter";
+            }
+
+            if (!key.isEmpty()) {
+                String masked = key.length() > 8 ? (key.substring(0, 4) + "••••" + key.substring(key.length() - 4)) : "Configurada";
+                btnAiApiKeyConfig.setText("   " + prefix + ":  " + masked + " (OK: pegar/info)");
+                btnAiApiKeyConfig.setTextColor(0xFF81C784);
+            } else {
+                btnAiApiKeyConfig.setText("   " + prefix + ":  [No configurada - OK: pegar]");
+                btnAiApiKeyConfig.setTextColor(0xFFFFB74D);
+            }
+        }
+    }
+
     private void updateCustomTimerUI() {
         if (txtCustomHours != null) txtCustomHours.setText(customHours + "h");
         if (txtCustomMins != null) txtCustomMins.setText(String.format(java.util.Locale.US, "%02dm", customMins));
@@ -3177,6 +3376,7 @@ public class QuickMenuOverlay {
         if (panelTranslateConfig != null) panelTranslateConfig.setVisibility(View.GONE);
         if (panelButtonCombos != null) panelButtonCombos.setVisibility(View.GONE);
         if (panelVotConfig != null) panelVotConfig.setVisibility(View.GONE);
+        if (panelAiSummaryConfig != null) panelAiSummaryConfig.setVisibility(View.GONE);
         if (panelQuickBrightnessSlider != null) panelQuickBrightnessSlider.setVisibility(View.GONE);
         openSubPanel = null;
         configuringButton = null;
@@ -3514,6 +3714,30 @@ public class QuickMenuOverlay {
                     updateVotConfigPanel();
                     if (btnVotMasterToggle != null) btnVotMasterToggle.requestFocus();
                 }
+            case "trigger_ai_summary":
+                dismiss();
+                com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().show(context);
+                break;
+            case "ai_summary":
+                if ("ai_summary_config".equals(openSubPanel)) {
+                    closeSubPanels();
+                    buildMenu();
+                } else {
+                    closeSubPanels();
+                    buildMenu();
+                    if (panelAiSummaryConfig != null) panelAiSummaryConfig.setVisibility(View.VISIBLE);
+                    openSubPanel = "ai_summary_config";
+                    menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    updateAiSummaryConfigPanel();
+                    com.nitsutech.omnitv.ai.AiSummaryEngine.fetchAvailableGeminiModelsAsync(context, new Runnable() {
+                        @Override public void run() {
+                            if ("ai_summary_config".equals(openSubPanel)) {
+                                updateAiSummaryConfigPanel();
+                            }
+                        }
+                    });
+                    if (btnAiLaunchNow != null) btnAiLaunchNow.requestFocus();
+                }
                 break;
             default:
                 Log.w(TAG, "Unknown item: " + id);
@@ -3579,6 +3803,8 @@ public class QuickMenuOverlay {
                 boolean on = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_ENABLED, false);
                 return fmtToggle("🎙️  Doblaje al Vuelo (VOT)", on);
             }
+            case "trigger_ai_summary": return "🤖  Asistente IA (Video Actual)";
+            case "ai_summary": return "⚙️  Configurar Asistente IA";
             case "trigger_translate": return "🌐  Traducir Pantalla Ahora";
             case "translate": return "⚙️  Configurar Traductor (CTS)";
             case "button_combos": return "⚡  Combinaciones de Teclas";
@@ -3608,6 +3834,7 @@ public class QuickMenuOverlay {
     private int getColorForId(String id) {
         if ("reboot".equals(id)) return 0xFFFF6B6B;
         if ("mindful_delay".equals(id)) return 0xFF81D4FA;
+        if ("ai_summary".equals(id) || "trigger_ai_summary".equals(id)) return 0xFF8AB4F8;
         return Color.WHITE;
     }
 
@@ -3615,7 +3842,7 @@ public class QuickMenuOverlay {
         switch (id) {
             case "manage_apps": case "timer": case "blue_light":
             case "clock": case "dimmer": case "grayscale": case "cine_mode":
-            case "cycle_brightness": case "auto_pause": case "mindful_delay": case "vot":
+            case "cycle_brightness": case "auto_pause": case "mindful_delay": case "vot": case "trigger_ai_summary": case "ai_summary":
                 return 1;
             case "screen_off": case "pause_screen_off": case "scheduled_sleep":
                 return 2;

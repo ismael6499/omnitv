@@ -1231,6 +1231,132 @@
                 </LinearLayout>
             </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
+
+        <!-- SUBPANEL: Asistente de Video IA (Gemini / OpenRouter) -->
+        <LinearLayout
+            android:id="@+id/panel_ai_summary_config"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#252830"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:visibility="gone">
+
+            <com.nitsutech.omnitv.MaxHeightScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fadeScrollbars="false"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="🤖  Asistente IA / Resumen de Video:"
+                        android:textColor="#8AB4F8"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp"
+                        android:paddingStart="4dp" />
+
+                    <!-- Boton Lanzar Asistente -->
+                    <TextView
+                        android:id="@+id/btn_ai_launch_now"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="🚀  Abrir Asistente con Video Actual"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="6dp" />
+
+                    <!-- Proveedor de IA -->
+                    <TextView
+                        android:id="@+id/btn_ai_provider_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Proveedor:  Google Gemini Directo"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Modelo de IA -->
+                    <TextView
+                        android:id="@+id/btn_ai_model_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Modelo:  gemini-2.5-flash"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Configurar Clave API -->
+                    <TextView
+                        android:id="@+id/btn_ai_api_key_config"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   API Key:  [Configurar / Pegar]"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Ayuda / Instrucciones de Vinculacion -->
+                    <TextView
+                        android:id="@+id/btn_ai_api_help"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_background"
+                        android:text="💡 Tip: Podes pegar la clave con el celular usando la app Google TV Remote, o por comando ADB."
+                        android:textColor="#888888"
+                        android:textSize="11sp"
+                        android:padding="8dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="6dp" />
+
+                    <!-- Boton Listo -->
+                    <TextView
+                        android:id="@+id/btn_ai_apply"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="✓  Listo"
+                        android:textColor="#4CAF50"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+                </LinearLayout>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Internal eye-care filter overlays (ensures zero-flash dimming when menu opens) -->

@@ -5,6 +5,9 @@
 *.aab
 device_backup/
 *_backup.xml
+*.env
+.env*
+keys/
 
 # Files for the ART/Dalvik VM
 *.dex

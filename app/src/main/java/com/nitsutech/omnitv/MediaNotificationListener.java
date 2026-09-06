@@ -13,6 +13,8 @@ import java.util.List;
 public class MediaNotificationListener extends NotificationListenerService {
     private static final String TAG = "MediaNotifListener";
     public static MediaNotificationListener instance;
+    public static volatile String activeTitle = "";
+    public static volatile String activeMediaId = "";
 
     private MediaSessionManager mediaSessionManager;
     private final MediaSessionManager.OnActiveSessionsChangedListener sessionsChangedListener = 
@@ -68,11 +70,17 @@ public class MediaNotificationListener extends NotificationListenerService {
             MediaMetadata curMeta = controller.getMetadata();
             if (curMeta != null) {
                 String title = curMeta.getString(MediaMetadata.METADATA_KEY_TITLE);
+                if (title != null && !title.trim().isEmpty()) {
+                    activeTitle = title.trim();
+                }
                 String artist = curMeta.getString(MediaMetadata.METADATA_KEY_ARTIST);
                 long duration = curMeta.getLong(MediaMetadata.METADATA_KEY_DURATION);
                 String mediaId = curMeta.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
                 if ((mediaId == null || mediaId.isEmpty()) && curMeta.getDescription() != null) {
                     mediaId = curMeta.getDescription().getMediaId();
+                }
+                if (mediaId != null && !mediaId.trim().isEmpty()) {
+                    activeMediaId = mediaId.trim();
                 }
                 ButtonMappingService svc = ButtonMappingService.instance;
                 if (svc != null) {
@@ -85,11 +93,17 @@ public class MediaNotificationListener extends NotificationListenerService {
                 public void onMetadataChanged(MediaMetadata metadata) {
                     if (metadata != null) {
                         String title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE);
+                        if (title != null && !title.trim().isEmpty()) {
+                            activeTitle = title.trim();
+                        }
                         String artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST);
                         long duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION);
                         String mediaId = metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
                         if ((mediaId == null || mediaId.isEmpty()) && metadata.getDescription() != null) {
                             mediaId = metadata.getDescription().getMediaId();
+                        }
+                        if (mediaId != null && !mediaId.trim().isEmpty()) {
+                            activeMediaId = mediaId.trim();
                         }
                         Log.d(TAG, "MediaController metadataChanged [" + pkg + "]: title='" + title + "', artist='" + artist + "', dur=" + duration + ", mediaId=" + mediaId);
                         
@@ -218,5 +232,45 @@ public class MediaNotificationListener extends NotificationListenerService {
             Log.e(TAG, "Error seeking active media via MediaController", e);
         }
         return false;
+    }
+
+    public static boolean seekToPosition(long positionMs) {
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getPlaybackState() != null) {
+                            String pkg = mc.getPackageName();
+                            if (pkg != null && (pkg.contains("smarttube") || pkg.contains("youtube") || pkg.contains("netflix") || pkg.contains("disney"))) {
+                                Log.d(TAG, "Seeking " + pkg + " to absolute position: " + positionMs + "ms");
+                                mc.getTransportControls().seekTo(positionMs);
+                                return true;
+                            }
+                        }
+                    }
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getTransportControls() != null) {
+                            mc.getTransportControls().seekTo(positionMs);
+                            return true;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error seeking to position " + positionMs, e);
+        }
+        return false;
+    }
+
+    public static String extractCleanVideoId(String input) {
+        if (input == null || input.trim().isEmpty()) return null;
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("([a-zA-Z0-9_-]{11})");
+        java.util.regex.Matcher m = p.matcher(input.trim());
+        if (m.find()) {
+            return m.group(1);
+        }
+        return null;
     }
 }

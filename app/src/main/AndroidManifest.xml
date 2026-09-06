@@ -101,6 +101,11 @@
             <intent-filter>
                 <action android:name="com.nitsutech.omnitv.SET_OPENROUTER_KEY" />
                 <action android:name="com.nitsutech.omnitv.SET_OPENROUTER_MODEL" />
+                <action android:name="com.nitsutech.omnitv.SET_GEMINI_KEY" />
+                <action android:name="com.nitsutech.omnitv.SET_AI_PROVIDER" />
+                <action android:name="com.nitsutech.omnitv.SET_AI_MODEL" />
+                <action android:name="com.nitsutech.omnitv.OPEN_AI_SUMMARY" />
+                <action android:name="com.nitsutech.omnitv.QUERY_AI_SUMMARY" />
                 <action android:name="com.example.togglegrayscale.SET_OPENROUTER_KEY" />
                 <action android:name="com.example.togglegrayscale.SET_OPENROUTER_MODEL" />
             </intent-filter>

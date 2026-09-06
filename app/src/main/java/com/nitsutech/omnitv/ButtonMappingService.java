@@ -190,6 +190,7 @@ public class ButtonMappingService extends AccessibilityService {
     private boolean isDismissingStillWatchingKey = false;
     private int stillWatchingDismissKeyCode = 0;
     private boolean isDismissingQuickMenuKey = false;
+    private boolean isDismissingAiSummaryKey = false;
     private View stillWatchingOverlayView = null;
     private int stillWatchingCountdownSeconds = 30;
     private long cachedStillWatchingIntervalMs = 30 * 60 * 1000L;
@@ -1282,6 +1283,9 @@ public class ButtonMappingService extends AccessibilityService {
                     @Override public void run() { performGlobalAction(GLOBAL_ACTION_RECENTS); }
                 }, 300);
                 break;
+            case "ACTION_OPEN_AI_SUMMARY":
+                openAiSummary();
+                break;
         }
     }
 
@@ -1396,7 +1400,15 @@ public class ButtonMappingService extends AccessibilityService {
             case 31: // Doblaje de Voz (VOT)
                 toggleVotDubbing();
                 break;
+            case 32: // Resumen IA (Gemini)
+                openAiSummary();
+                break;
         }
+    }
+
+    private void openAiSummary() {
+        Log.d(TAG, "Opening AI Video Summary Overlay");
+        com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().show(this);
     }
 
     private void toggleVotDubbing() {
@@ -3834,6 +3846,23 @@ public class ButtonMappingService extends AccessibilityService {
                 isDismissingQuickMenuKey = true;
             }
             return true;
+        }
+
+        // 7. Intercept keys if AiSummaryOverlay is active (or dismissing via BACK)
+        if (com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isShowing() || isDismissingAiSummaryKey) {
+            if (isDismissingAiSummaryKey && keyCode == KeyEvent.KEYCODE_BACK) {
+                if (action == KeyEvent.ACTION_UP) {
+                    isDismissingAiSummaryKey = false;
+                }
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                isDismissingAiSummaryKey = true;
+                com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().hide();
+                return true;
+            }
+            boolean handled = com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().onKeyEvent(event);
+            if (handled) return true;
         }
 
         return super.onKeyEvent(event);

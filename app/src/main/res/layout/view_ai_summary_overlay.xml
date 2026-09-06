@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ai_overlay_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#55000000"
+    android:clickable="true"
+    android:focusable="true">
+
+    <LinearLayout
+        android:id="@+id/ai_panel_drawer"
+        android:layout_width="540dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:background="#1B1D24"
+        android:elevation="16dp"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="14dp"
+        android:clickable="true"
+        android:focusable="true">
+
+        <!-- Top Header Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="✨ OmniTV AI • Asistente de Video"
+                android:textColor="#8AB4F8"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btn_ai_reset"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/pill_youtube_tv"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginEnd="8dp"
+                android:gravity="center"
+                android:text="🔄 Nuevo chat"
+                android:textColor="#AAAAAA"
+                android:textSize="12sp"
+                android:focusable="true"
+                android:clickable="true"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/btn_ai_close"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/pill_youtube_tv"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:gravity="center"
+                android:text="✕ Cerrar"
+                android:textColor="#DDDDDD"
+                android:textSize="12sp"
+                android:focusable="true"
+                android:clickable="true" />
+        </LinearLayout>
+
+        <!-- Current Video Title -->
+        <TextView
+            android:id="@+id/text_ai_video_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📺 Detectando video activo..."
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Status & Model Badge -->
+        <TextView
+            android:id="@+id/text_ai_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="✨ Listo para analizar con Gemini 2.5 Flash"
+            android:textColor="#9AA0A6"
+            android:textSize="12sp"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Main Action Pills (Always on top for quick mode switching) -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btn_pill_summary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:text="📝 Resumir Video"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/btn_pill_key_points"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:text="💡 Puntos Clave"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/btn_pill_conclusions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:text="🎯 Conclusiones"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/btn_pill_moments"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:text="⏱️ Momentos Clave"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:clickable="true" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- Main Content Area: ScrollView with Chips and Follow-up Questions -->
+        <ScrollView
+            android:id="@+id/scroll_ai_content"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="false"
+            android:layout_marginBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Loading State -->
+                <LinearLayout
+                    android:id="@+id/layout_ai_loading"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp"
+                    android:visibility="gone">
+
+                    <ProgressBar
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:indeterminate="true"
+                        android:layout_marginEnd="12dp" />
+
+                    <TextView
+                        android:id="@+id/text_ai_loading_msg"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Consultando a Gemini..."
+                        android:textColor="#8AB4F8"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <!-- Initial Welcome / Fallback Card -->
+                <TextView
+                    android:id="@+id/text_ai_welcome"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="✨ Elegí una opción arriba o una pregunta abajo para explorar este video."
+                    android:textColor="#CCCCCC"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="4dp"
+                    android:background="@drawable/card_chip_content"
+                    android:padding="14dp"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Container for Interactive Content Chips -->
+                <LinearLayout
+                    android:id="@+id/container_ai_chips"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <!-- Separated Follow-up Questions Section (Appears below chips) -->
+                <LinearLayout
+                    android:id="@+id/layout_suggested_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp">
+
+                    <!-- Visual Separator Line -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#353A47"
+                        android:layout_marginBottom="12dp" />
+
+                    <!-- Suggested Questions Header -->
+                    <TextView
+                        android:id="@+id/label_suggested_questions"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="❓ Preguntas para profundizar sobre el video:"
+                        android:textColor="#8AB4F8"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Suggested Question Pills Container -->
+                    <LinearLayout
+                        android:id="@+id/container_suggested_questions"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/btn_suggested_1"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="40dp"
+                            android:background="@drawable/pill_youtube_tv"
+                            android:gravity="center_vertical|start"
+                            android:paddingStart="14dp"
+                            android:paddingEnd="14dp"
+                            android:paddingTop="8dp"
+                            android:paddingBottom="8dp"
+                            android:text="1. ¿De qué trata este video?"
+                            android:textColor="#EEEEEE"
+                            android:textSize="13sp"
+                            android:focusable="true"
+                            android:clickable="true"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:id="@+id/btn_suggested_2"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="40dp"
+                            android:background="@drawable/pill_youtube_tv"
+                            android:gravity="center_vertical|start"
+                            android:paddingStart="14dp"
+                            android:paddingEnd="14dp"
+                            android:paddingTop="8dp"
+                            android:paddingBottom="8dp"
+                            android:text="2. ¿Cuáles son los puntos principales?"
+                            android:textColor="#EEEEEE"
+                            android:textSize="13sp"
+                            android:focusable="true"
+                            android:clickable="true"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:id="@+id/btn_suggested_3"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="40dp"
+                            android:background="@drawable/pill_youtube_tv"
+                            android:gravity="center_vertical|start"
+                            android:paddingStart="14dp"
+                            android:paddingEnd="14dp"
+                            android:paddingTop="8dp"
+                            android:paddingBottom="8dp"
+                            android:text="3. ¿Qué conclusiones o consejos da el autor?"
+                            android:textColor="#EEEEEE"
+                            android:textSize="13sp"
+                            android:focusable="true"
+                            android:clickable="true"
+                            android:layout_marginBottom="8dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Footer Navigation Hint -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="🎮 Flechas para navegar • OK para seleccionar / saltar a minuto • Atrás para salir"
+            android:textColor="#666666"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+</FrameLayout>

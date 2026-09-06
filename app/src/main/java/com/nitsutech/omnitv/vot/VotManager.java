@@ -149,6 +149,24 @@ public class VotManager {
         ttsEngine.setVolume(this.ttsVolume);
     }
 
+    public synchronized String getCurrentVideoTitle() {
+        return currentVideoTitle;
+    }
+
+    public synchronized VotTrack getCurrentTrack() {
+        return currentTrack;
+    }
+
+    public synchronized String getCurrentVideoId() {
+        if (currentVideoId != null && !currentVideoId.trim().isEmpty()) {
+            return currentVideoId.trim();
+        }
+        if (currentTrack != null && currentTrack.videoId != null && !currentTrack.videoId.trim().isEmpty()) {
+            return currentTrack.videoId.trim();
+        }
+        return null;
+    }
+
     public synchronized void onVideoChanged(String pkg, String title, String artist, long duration) {
         if (title == null || title.isEmpty()) return;
         if (currentVideoTitle != null && currentVideoTitle.equalsIgnoreCase(title)) {
