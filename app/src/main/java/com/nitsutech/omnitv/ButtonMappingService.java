@@ -741,6 +741,12 @@ public class ButtonMappingService extends AccessibilityService {
             Log.e(TAG, "Error notifying VotManager of video change", e);
         }
 
+        try {
+            com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().onVideoChanged(title, mediaId);
+        } catch (Exception e) {
+            Log.e(TAG, "Error notifying AiSummaryOverlay of video change", e);
+        }
+
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int mode = op.getInt("auto_pause_mode", 0);
         if (mode == 0) return;

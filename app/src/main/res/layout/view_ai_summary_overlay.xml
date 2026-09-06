@@ -40,6 +40,22 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/btn_ai_mic"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/pill_youtube_tv"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginEnd="8dp"
+                android:gravity="center"
+                android:text="🎙️ Hablar"
+                android:textColor="#8AB4F8"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:focusable="true"
+                android:clickable="true" />
+
+            <TextView
                 android:id="@+id/btn_ai_reset"
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
@@ -104,6 +120,22 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btn_pill_voice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:text="🎙️ Preguntar con voz"
+                    android:textColor="#8AB4F8"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_marginEnd="8dp" />
 
                 <TextView
                     android:id="@+id/btn_pill_summary"

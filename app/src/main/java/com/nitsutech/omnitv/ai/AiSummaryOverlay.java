@@ -19,15 +19,24 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.nitsutech.omnitv.ButtonMappingService;
 import com.nitsutech.omnitv.MediaNotificationListener;
 import com.nitsutech.omnitv.R;
 import com.nitsutech.omnitv.vot.VotCue;
 import com.nitsutech.omnitv.vot.VotTrack;
 import com.nitsutech.omnitv.vot.YouTubeCaptionFetcher;
 
+import android.content.Intent;
+import android.os.Bundle;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.json.JSONArray;
@@ -53,6 +62,13 @@ public class AiSummaryOverlay {
     private TextView btnSuggested3;
     private View currentThinkingView;
     private TextView btnAiReset;
+    private TextView btnAiMic;
+    private TextView btnPillVoice;
+    private View currentListeningCard;
+    private TextView textListeningStatus;
+    private SpeechRecognizer speechRecognizer;
+    private boolean isListening = false;
+    private final Set<String> askedQuestionsSet = new HashSet<>();
 
     // Persistent conversation state per video
     private static class ChatTurn {
@@ -116,6 +132,8 @@ public class AiSummaryOverlay {
         try {
             windowManager.addView(overlayView, params);
             isShowing = true;
+            mainHandler.removeCallbacks(videoPollRunnable);
+            mainHandler.postDelayed(videoPollRunnable, 1500);
             Log.d(TAG, "AiSummaryOverlay displayed successfully");
         } catch (Exception e) {
             Log.e(TAG, "Error adding AiSummaryOverlay to WindowManager", e);
@@ -124,6 +142,14 @@ public class AiSummaryOverlay {
 
     public synchronized void hide() {
         if (!isShowing || overlayView == null || windowManager == null) return;
+        mainHandler.removeCallbacks(videoPollRunnable);
+        stopVoiceInput();
+        if (speechRecognizer != null) {
+            try {
+                speechRecognizer.destroy();
+            } catch (Exception ignored) {}
+            speechRecognizer = null;
+        }
         try {
             windowManager.removeView(overlayView);
         } catch (Exception e) {
@@ -132,6 +158,8 @@ public class AiSummaryOverlay {
         overlayView = null;
         isShowing = false;
         currentThinkingView = null;
+        currentListeningCard = null;
+        textListeningStatus = null;
         // Keep conversationHistory, recordedTurns, lastVideoTitle, and lastTranscript
         // so if the user re-opens the assistant on the same video, the conversation continues!
         Log.d(TAG, "AiSummaryOverlay hidden (conversation state retained for: " + lastVideoTitle + ")");
@@ -162,6 +190,16 @@ public class AiSummaryOverlay {
         if (btnAiReset != null) {
             btnAiReset.setOnClickListener(v -> resetConversation(context));
             btnAiReset.setVisibility(!recordedTurns.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+
+        btnAiMic = overlayView.findViewById(R.id.btn_ai_mic);
+        if (btnAiMic != null) {
+            btnAiMic.setOnClickListener(v -> toggleVoiceInput(context));
+        }
+
+        btnPillVoice = overlayView.findViewById(R.id.btn_pill_voice);
+        if (btnPillVoice != null) {
+            btnPillVoice.setOnClickListener(v -> toggleVoiceInput(context));
         }
 
         View root = overlayView.findViewById(R.id.ai_overlay_root);
@@ -230,8 +268,19 @@ public class AiSummaryOverlay {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
 
+        if (keyCode == KeyEvent.KEYCODE_VOICE_ASSIST || keyCode == 231 || keyCode == KeyEvent.KEYCODE_ASSIST || keyCode == 219 || keyCode == KeyEvent.KEYCODE_SEARCH || keyCode == 84) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                toggleVoiceInput(overlayView.getContext());
+            }
+            return true;
+        }
+
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (action == KeyEvent.ACTION_DOWN) {
+                if (isListening) {
+                    stopVoiceInput();
+                    return true;
+                }
                 hide();
             }
             return true;
@@ -278,8 +327,46 @@ public class AiSummaryOverlay {
         return true;
     }
 
+    public void onVideoChanged(String newTitle, String newMediaId) {
+        mainHandler.post(() -> {
+            if (newTitle == null || newTitle.trim().isEmpty()) return;
+            if (isShowing) {
+                if (!isSameVideo(newTitle, newMediaId, currentVideoTitle, currentVideoId)) {
+                    Log.d(TAG, "onVideoChanged event: video switched to '" + newTitle + "' [id: " + newMediaId + "]");
+                    Context ctx = overlayView != null ? overlayView.getContext() : ButtonMappingService.instance;
+                    if (ctx != null) {
+                        detectVideoAndLoadTranscript(ctx);
+                    }
+                }
+            }
+        });
+    }
+
+    private final Runnable videoPollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isShowing) return;
+            Context ctx = overlayView != null ? overlayView.getContext() : ButtonMappingService.instance;
+            if (ctx != null) {
+                String liveTitle = resolveCurrentTitle(ctx);
+                String liveId = resolveCurrentVideoId(ctx, liveTitle);
+                if (liveTitle != null && !liveTitle.isEmpty() && !liveTitle.equals("Video actual en pantalla")) {
+                    if (!isSameVideo(liveTitle, liveId, currentVideoTitle, currentVideoId)) {
+                        Log.d(TAG, "Poller detected new video: '" + liveTitle + "' [id: " + liveId + "] (was: '" + currentVideoTitle + "')");
+                        detectVideoAndLoadTranscript(ctx);
+                    }
+                }
+            }
+            mainHandler.postDelayed(this, 1500);
+        }
+    };
+
     private String resolveCurrentTitle(Context context) {
-        String title = MediaNotificationListener.activeTitle;
+        MediaNotificationListener.LiveVideoInfo info = MediaNotificationListener.getLiveVideoInfo(context);
+        String title = info != null ? info.title : "";
+        if (title == null || title.trim().isEmpty()) {
+            title = MediaNotificationListener.activeTitle;
+        }
         if (title == null || title.trim().isEmpty()) {
             title = com.nitsutech.omnitv.vot.VotManager.getInstance(context).getCurrentVideoTitle();
         }
@@ -290,6 +377,13 @@ public class AiSummaryOverlay {
     }
 
     private String resolveCurrentVideoId(Context context, String title) {
+        MediaNotificationListener.LiveVideoInfo info = MediaNotificationListener.getLiveVideoInfo(context);
+        if (info != null && info.mediaId != null && !info.mediaId.trim().isEmpty()) {
+            String cleanId = MediaNotificationListener.extractCleanVideoId(info.mediaId);
+            if (cleanId != null && !cleanId.isEmpty()) {
+                return cleanId;
+            }
+        }
         String mediaId = MediaNotificationListener.activeMediaId;
         String cleanId = MediaNotificationListener.extractCleanVideoId(mediaId);
         if (cleanId != null && !cleanId.isEmpty()) {
@@ -363,9 +457,11 @@ public class AiSummaryOverlay {
     }
 
     private void resetConversation(Context context) {
+        stopVoiceInput();
         conversationHistory.clear();
         recordedTurns.clear();
         lastSuggestedQuestions.clear();
+        askedQuestionsSet.clear();
         if (containerAiChips != null) containerAiChips.removeAllViews();
         if (textAiWelcome != null) textAiWelcome.setVisibility(View.VISIBLE);
         if (layoutSuggestedSection != null) layoutSuggestedSection.setVisibility(View.GONE);
@@ -480,6 +576,13 @@ public class AiSummaryOverlay {
                 }
             }
 
+            askedQuestionsSet.clear();
+            for (ChatTurn turn : recordedTurns) {
+                if (turn.isUser && turn.text != null && !turn.text.trim().isEmpty()) {
+                    askedQuestionsSet.add(normalizeTitle(turn.text));
+                }
+            }
+
             Log.d(TAG, "Successfully loaded conversation from SharedPreferences (" + recordedTurns.size() + " turns) for video: " + lastVideoTitle + " [id: " + lastVideoId + "]");
             return true;
         } catch (Exception e) {
@@ -529,6 +632,7 @@ public class AiSummaryOverlay {
         conversationHistory.clear();
         recordedTurns.clear();
         lastSuggestedQuestions.clear();
+        askedQuestionsSet.clear();
         if (btnAiReset != null) btnAiReset.setVisibility(View.GONE);
         saveConversationToPrefs(context);
 
@@ -665,6 +769,8 @@ public class AiSummaryOverlay {
         // Clean number prefix from question if clicked from suggested pills
         String cleanQuestion = question.replaceAll("^[0-9]+[.)-]\\s*", "").trim();
         if (cleanQuestion.isEmpty()) return;
+
+        askedQuestionsSet.add(normalizeTitle(cleanQuestion));
 
         float density = context.getResources().getDisplayMetrics().density;
         int p14 = (int) (14 * density);
@@ -878,7 +984,7 @@ public class AiSummaryOverlay {
         }
     }
 
-    private void renderSuggestedQuestions(Context context, List<String> suggestedQuestions) {
+    private void renderSuggestedQuestions(Context context, List<String> rawSuggestedQuestions) {
         if (layoutSuggestedSection == null) return;
 
         layoutSuggestedSection.setVisibility(View.GONE);
@@ -888,6 +994,8 @@ public class AiSummaryOverlay {
         btnSuggested1.setAlpha(0f);
         btnSuggested2.setAlpha(0f);
         btnSuggested3.setAlpha(0f);
+
+        List<String> suggestedQuestions = filterDeduplicatedQuestions(rawSuggestedQuestions);
 
         if (suggestedQuestions == null || suggestedQuestions.isEmpty()) return;
 
@@ -919,6 +1027,271 @@ public class AiSummaryOverlay {
                 btnSuggested3.setVisibility(View.VISIBLE);
                 btnSuggested3.animate().alpha(1f).setDuration(250).start();
             }, 1050);
+        }
+    }
+
+    private List<String> filterDeduplicatedQuestions(List<String> rawList) {
+        if (rawList == null) return Collections.emptyList();
+        List<String> filtered = new ArrayList<>();
+        for (String q : rawList) {
+            if (q == null || q.trim().isEmpty()) continue;
+            String clean = q.replaceAll("^[0-9]+[.)-]\\s*", "").trim();
+            String norm = normalizeTitle(clean);
+            if (norm.isEmpty()) continue;
+
+            boolean isDuplicate = false;
+            for (String asked : askedQuestionsSet) {
+                if (norm.equals(asked)) {
+                    isDuplicate = true;
+                    break;
+                }
+                if (norm.length() >= 8 && asked.length() >= 8) {
+                    if (norm.contains(asked) || asked.contains(norm)) {
+                        isDuplicate = true;
+                        break;
+                    }
+                }
+            }
+            if (!isDuplicate) {
+                for (String added : filtered) {
+                    String normAdded = normalizeTitle(added);
+                    if (norm.equals(normAdded)) {
+                        isDuplicate = true;
+                        break;
+                    }
+                }
+            }
+            if (!isDuplicate) {
+                filtered.add(clean);
+            }
+        }
+        return filtered;
+    }
+
+    private void toggleVoiceInput(Context context) {
+        if (isListening) {
+            stopVoiceInput();
+        } else {
+            startVoiceInput(context);
+        }
+    }
+
+    private void stopVoiceInput() {
+        if (!isListening) return;
+        isListening = false;
+        if (speechRecognizer != null) {
+            try {
+                speechRecognizer.stopListening();
+            } catch (Exception ignored) {}
+        }
+        updateMicButtonState(false);
+        removeListeningCard();
+    }
+
+    private void startVoiceInput(Context context) {
+        if (isListening) return;
+
+        if (context.checkCallingOrSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(context, "⚠️ Permiso de micrófono requerido (RECORD_AUDIO)", Toast.LENGTH_LONG).show();
+            Log.w(TAG, "RECORD_AUDIO permission not granted");
+            return;
+        }
+
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            Toast.makeText(context, "⚠️ Reconocimiento de voz no disponible en este sistema", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            if (speechRecognizer != null) {
+                try {
+                    speechRecognizer.destroy();
+                } catch (Exception ignored) {}
+                speechRecognizer = null;
+            }
+
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context.getApplicationContext());
+            speechRecognizer.setRecognitionListener(new RecognitionListener() {
+                @Override
+                public void onReadyForSpeech(Bundle params) {
+                    Log.d(TAG, "SpeechRecognizer onReadyForSpeech");
+                    updateListeningCardText("🎙️ Escuchando... Habla ahora al micrófono");
+                }
+
+                @Override
+                public void onBeginningOfSpeech() {
+                    Log.d(TAG, "SpeechRecognizer onBeginningOfSpeech");
+                    updateListeningCardText("🎙️ Detectando voz...");
+                }
+
+                @Override
+                public void onRmsChanged(float rmsdB) {}
+
+                @Override
+                public void onBufferReceived(byte[] buffer) {}
+
+                @Override
+                public void onEndOfSpeech() {
+                    Log.d(TAG, "SpeechRecognizer onEndOfSpeech");
+                    updateListeningCardText("⏳ Procesando pregunta...");
+                }
+
+                @Override
+                public void onError(int error) {
+                    Log.w(TAG, "SpeechRecognizer onError: " + error);
+                    isListening = false;
+                    updateMicButtonState(false);
+                    removeListeningCard();
+
+                    String msg;
+                    switch (error) {
+                        case SpeechRecognizer.ERROR_NO_MATCH:
+                        case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
+                            msg = "🎙️ No se detectó ninguna pregunta. Presiona [🎙️ Hablar] para reintentar.";
+                            break;
+                        case SpeechRecognizer.ERROR_AUDIO:
+                            msg = "🎙️ Error de audio en el micrófono.";
+                            break;
+                        case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
+                            msg = "🎙️ Permiso de micrófono insuficiente.";
+                            break;
+                        default:
+                            msg = "🎙️ Escucha finalizada (código " + error + ").";
+                            break;
+                    }
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
+                }
+
+                @Override
+                public void onResults(Bundle results) {
+                    isListening = false;
+                    updateMicButtonState(false);
+                    removeListeningCard();
+
+                    ArrayList<String> matches = results != null ? results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) : null;
+                    if (matches != null && !matches.isEmpty()) {
+                        String recognized = matches.get(0).trim();
+                        if (!recognized.isEmpty()) {
+                            Log.d(TAG, "Speech recognition result: " + recognized);
+                            executePrompt(context, recognized, false);
+                        }
+                    } else {
+                        Toast.makeText(context, "🎙️ No se reconoció texto. Prueba hablar más cerca.", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onPartialResults(Bundle partialResults) {
+                    ArrayList<String> matches = partialResults != null ? partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) : null;
+                    if (matches != null && !matches.isEmpty()) {
+                        String partial = matches.get(0).trim();
+                        if (!partial.isEmpty()) {
+                            updateListeningCardText("🎙️ \"" + partial + "...\"");
+                        }
+                    }
+                }
+
+                @Override
+                public void onEvent(int eventType, Bundle params) {}
+            });
+
+            Intent recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES");
+            recognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+            recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+
+            isListening = true;
+            updateMicButtonState(true);
+            showListeningCard(context);
+            speechRecognizer.startListening(recognizerIntent);
+            Log.d(TAG, "SpeechRecognizer started listening successfully");
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing or starting SpeechRecognizer", e);
+            isListening = false;
+            updateMicButtonState(false);
+            removeListeningCard();
+            Toast.makeText(context, "Error al iniciar micrófono: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void updateMicButtonState(boolean listening) {
+        if (btnAiMic != null) {
+            if (listening) {
+                btnAiMic.setText("🔴 Escuchando...");
+                btnAiMic.setTextColor(0xFFFF6B6B);
+            } else {
+                btnAiMic.setText("🎙️ Hablar");
+                btnAiMic.setTextColor(0xFF8AB4F8);
+            }
+        }
+        if (btnPillVoice != null) {
+            if (listening) {
+                btnPillVoice.setText("🔴 Escuchando...");
+                btnPillVoice.setTextColor(0xFFFF6B6B);
+            } else {
+                btnPillVoice.setText("🎙️ Preguntar con voz");
+                btnPillVoice.setTextColor(0xFF8AB4F8);
+            }
+        }
+    }
+
+    private void showListeningCard(Context context) {
+        if (containerAiChips == null) return;
+        removeListeningCard();
+
+        float density = context.getResources().getDisplayMetrics().density;
+        int p14 = (int) (14 * density);
+        int mb10 = (int) (10 * density);
+
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setBackgroundResource(R.drawable.card_chip_content);
+        card.setPadding(p14, p14, p14, p14);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.bottomMargin = mb10;
+        card.setLayoutParams(params);
+
+        ProgressBar spinner = new ProgressBar(context);
+        spinner.setIndeterminate(true);
+        int pSize = (int) (22 * density);
+        LinearLayout.LayoutParams progParams = new LinearLayout.LayoutParams(pSize, pSize);
+        progParams.rightMargin = (int) (12 * density);
+        spinner.setLayoutParams(progParams);
+
+        TextView tv = new TextView(context);
+        tv.setText("🎙️ Escuchando... Habla al micrófono del control remoto");
+        tv.setTextColor(0xFF8AB4F8);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        tv.setTypeface(tv.getTypeface(), android.graphics.Typeface.BOLD);
+
+        card.addView(spinner);
+        card.addView(tv);
+
+        containerAiChips.addView(card);
+        currentListeningCard = card;
+        textListeningStatus = tv;
+
+        scrollContent.post(() -> centerViewInScrollView(card));
+    }
+
+    private void updateListeningCardText(String text) {
+        mainHandler.post(() -> {
+            if (textListeningStatus != null && currentListeningCard != null) {
+                textListeningStatus.setText(text);
+            }
+        });
+    }
+
+    private void removeListeningCard() {
+        if (currentListeningCard != null && containerAiChips != null) {
+            containerAiChips.removeView(currentListeningCard);
+            currentListeningCard = null;
+            textListeningStatus = null;
         }
     }
 

@@ -69,48 +69,48 @@ public class MediaNotificationListener extends NotificationListenerService {
             // Check current metadata
             MediaMetadata curMeta = controller.getMetadata();
             if (curMeta != null) {
-                String title = curMeta.getString(MediaMetadata.METADATA_KEY_TITLE);
+                String title = extractTitleFromMetadata(curMeta);
                 if (title != null && !title.trim().isEmpty()) {
                     activeTitle = title.trim();
                 }
-                String artist = curMeta.getString(MediaMetadata.METADATA_KEY_ARTIST);
+                String artist = extractArtistFromMetadata(curMeta);
                 long duration = curMeta.getLong(MediaMetadata.METADATA_KEY_DURATION);
-                String mediaId = curMeta.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
-                if ((mediaId == null || mediaId.isEmpty()) && curMeta.getDescription() != null) {
-                    mediaId = curMeta.getDescription().getMediaId();
-                }
+                String mediaId = extractMediaIdFromMetadata(curMeta);
                 if (mediaId != null && !mediaId.trim().isEmpty()) {
                     activeMediaId = mediaId.trim();
                 }
                 ButtonMappingService svc = ButtonMappingService.instance;
                 if (svc != null) {
-                    svc.onStreamingVideoChanged(pkg, title, artist, duration, mediaId);
+                    svc.onStreamingVideoChanged(pkg, activeTitle, artist, duration, activeMediaId);
                 }
+                try {
+                    com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().onVideoChanged(activeTitle, activeMediaId);
+                } catch (Exception ignored) {}
             }
             
             controller.registerCallback(new MediaController.Callback() {
                 @Override
                 public void onMetadataChanged(MediaMetadata metadata) {
                     if (metadata != null) {
-                        String title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE);
+                        String title = extractTitleFromMetadata(metadata);
                         if (title != null && !title.trim().isEmpty()) {
                             activeTitle = title.trim();
                         }
-                        String artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST);
+                        String artist = extractArtistFromMetadata(metadata);
                         long duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION);
-                        String mediaId = metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
-                        if ((mediaId == null || mediaId.isEmpty()) && metadata.getDescription() != null) {
-                            mediaId = metadata.getDescription().getMediaId();
-                        }
+                        String mediaId = extractMediaIdFromMetadata(metadata);
                         if (mediaId != null && !mediaId.trim().isEmpty()) {
                             activeMediaId = mediaId.trim();
                         }
-                        Log.d(TAG, "MediaController metadataChanged [" + pkg + "]: title='" + title + "', artist='" + artist + "', dur=" + duration + ", mediaId=" + mediaId);
+                        Log.d(TAG, "MediaController metadataChanged [" + pkg + "]: title='" + activeTitle + "', artist='" + artist + "', dur=" + duration + ", mediaId=" + activeMediaId);
                         
                         ButtonMappingService svc = ButtonMappingService.instance;
                         if (svc != null) {
-                            svc.onStreamingVideoChanged(pkg, title, artist, duration, mediaId);
+                            svc.onStreamingVideoChanged(pkg, activeTitle, artist, duration, activeMediaId);
                         }
+                        try {
+                            com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().onVideoChanged(activeTitle, activeMediaId);
+                        } catch (Exception ignored) {}
                     }
                 }
 
@@ -272,5 +272,96 @@ public class MediaNotificationListener extends NotificationListenerService {
             return m.group(1);
         }
         return null;
+    }
+
+    public static String extractTitleFromMetadata(MediaMetadata meta) {
+        if (meta == null) return null;
+        String t = meta.getString(MediaMetadata.METADATA_KEY_TITLE);
+        if (t != null && !t.trim().isEmpty()) return t.trim();
+        t = meta.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
+        if (t != null && !t.trim().isEmpty()) return t.trim();
+        if (meta.getDescription() != null) {
+            CharSequence cs = meta.getDescription().getTitle();
+            if (cs != null && !cs.toString().trim().isEmpty()) {
+                return cs.toString().trim();
+            }
+            cs = meta.getDescription().getDescription();
+            if (cs != null && !cs.toString().trim().isEmpty()) {
+                String s = cs.toString().trim();
+                int commaIdx = s.indexOf(",");
+                if (commaIdx > 2) {
+                    return s.substring(0, commaIdx).trim();
+                }
+                return s;
+            }
+        }
+        return null;
+    }
+
+    public static String extractArtistFromMetadata(MediaMetadata meta) {
+        if (meta == null) return null;
+        String a = meta.getString(MediaMetadata.METADATA_KEY_ARTIST);
+        if (a != null && !a.trim().isEmpty()) return a.trim();
+        a = meta.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE);
+        if (a != null && !a.trim().isEmpty()) return a.trim();
+        if (meta.getDescription() != null && meta.getDescription().getSubtitle() != null) {
+            return meta.getDescription().getSubtitle().toString().trim();
+        }
+        return null;
+    }
+
+    public static String extractMediaIdFromMetadata(MediaMetadata meta) {
+        if (meta == null) return null;
+        String id = meta.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
+        if (id != null && !id.trim().isEmpty()) return id.trim();
+        if (meta.getDescription() != null && meta.getDescription().getMediaId() != null) {
+            return meta.getDescription().getMediaId().trim();
+        }
+        return null;
+    }
+
+    public static class LiveVideoInfo {
+        public String title = "";
+        public String mediaId = "";
+        public String artist = "";
+        public String pkg = "";
+    }
+
+    public static LiveVideoInfo getLiveVideoInfo(Context context) {
+        LiveVideoInfo info = new LiveVideoInfo();
+        info.title = activeTitle != null ? activeTitle : "";
+        info.mediaId = activeMediaId != null ? activeMediaId : "";
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null) {
+                    for (MediaController mc : controllers) {
+                        if (mc == null) continue;
+                        String pkg = mc.getPackageName();
+                        PlaybackState ps = mc.getPlaybackState();
+                        boolean isPlaying = ps != null && ps.getState() == PlaybackState.STATE_PLAYING;
+                        MediaMetadata mm = mc.getMetadata();
+                        if (mm != null) {
+                            String t = extractTitleFromMetadata(mm);
+                            String id = extractMediaIdFromMetadata(mm);
+                            String a = extractArtistFromMetadata(mm);
+                            if (t != null && !t.isEmpty()) {
+                                info.title = t;
+                                info.mediaId = id != null ? id : "";
+                                info.artist = a != null ? a : "";
+                                info.pkg = pkg != null ? pkg : "";
+                                activeTitle = t;
+                                if (id != null && !id.isEmpty()) activeMediaId = id;
+                                if (isPlaying) break; // Priority on playing session
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error fetching live video info", e);
+        }
+        return info;
     }
 }

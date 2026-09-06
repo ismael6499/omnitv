@@ -145,7 +145,10 @@ public class AiSummaryEngine {
             + "4. Al final de CADA una de tus respuestas, agrega OBLIGATORIAMENTE la línea exacta '" + DELIMITER_QUESTIONS + "' y justo debajo EXACTAMENTE 3 preguntas de seguimiento atractivas y relevantes para que el usuario pueda seguir explorando el video con su control remoto, una por línea numerada:\n"
             + "1. [Pregunta corta 1]\n"
             + "2. [Pregunta corta 2]\n"
-            + "3. [Pregunta corta 3]";
+            + "3. [Pregunta corta 3]\n\n"
+            + "REGLA ESTRICTA DE NO REPETICIÓN:\n"
+            + "- NUNCA repitas preguntas, temas o aspectos que el usuario ya haya preguntado o que ya hayas respondido en turnos anteriores de la conversación.\n"
+            + "- Formula SIEMPRE 3 preguntas COMPLETAMENTE NUEVAS, frescas e intrigantes sobre aspectos aún no explorados del video (detalles específicos, curiosidades, explicaciones técnicas, implicaciones futuras, etc.).";
 
     public static class ChatMessage {
         public final String role; // "user" or "model" / "assistant"
@@ -291,7 +294,20 @@ public class AiSummaryEngine {
                 curTurn.put("role", "user");
                 JSONArray curParts = new JSONArray();
                 JSONObject curPart = new JSONObject();
-                curPart.put("text", currentQuestion);
+                StringBuilder qBuilder = new StringBuilder(currentQuestion);
+                StringBuilder prevQuestions = new StringBuilder();
+                for (ChatMessage m : history) {
+                    if ("user".equals(m.role) && m.content != null && !m.content.trim().isEmpty()) {
+                        if (prevQuestions.length() > 0) prevQuestions.append("; ");
+                        prevQuestions.append(m.content.trim());
+                    }
+                }
+                if (prevQuestions.length() > 0) {
+                    qBuilder.append("\n\n(Instrucción importante para '").append(DELIMITER_QUESTIONS).append("': Las 3 preguntas sugeridas al final deben ser completamente nuevas y distintas a las ya consultadas: ")
+                            .append(prevQuestions.toString())
+                            .append(")");
+                }
+                curPart.put("text", qBuilder.toString());
                 curParts.put(curPart);
                 curTurn.put("parts", curParts);
                 contents.put(curTurn);
@@ -418,7 +434,20 @@ public class AiSummaryEngine {
 
                 JSONObject cur = new JSONObject();
                 cur.put("role", "user");
-                cur.put("content", currentQuestion);
+                StringBuilder qBuilder = new StringBuilder(currentQuestion);
+                StringBuilder prevQuestions = new StringBuilder();
+                for (ChatMessage m : history) {
+                    if ("user".equals(m.role) && m.content != null && !m.content.trim().isEmpty()) {
+                        if (prevQuestions.length() > 0) prevQuestions.append("; ");
+                        prevQuestions.append(m.content.trim());
+                    }
+                }
+                if (prevQuestions.length() > 0) {
+                    qBuilder.append("\n\n(Instrucción importante para '").append(DELIMITER_QUESTIONS).append("': Las 3 preguntas sugeridas al final deben ser completamente nuevas y distintas a las ya consultadas: ")
+                            .append(prevQuestions.toString())
+                            .append(")");
+                }
+                cur.put("content", qBuilder.toString());
                 messages.put(cur);
             } else {
                 JSONObject m = new JSONObject();
