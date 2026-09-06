@@ -1,4 +1,4 @@
-package com.example.togglegrayscale;
+package com.nitsutech.omnitv;
 
 import android.content.Context;
 import android.content.Intent;
@@ -2800,7 +2800,7 @@ public class QuickMenuOverlay {
         if (btnVotTestVoice != null) {
             btnVotTestVoice.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    com.example.togglegrayscale.vot.VotManager.getInstance(context).testVoiceAndDucking();
+                    com.nitsutech.omnitv.vot.VotManager.getInstance(context).testVoiceAndDucking();
                 }
             });
         }
@@ -2816,16 +2816,16 @@ public class QuickMenuOverlay {
 
     private void toggleVotMaster() {
         SharedPreferences op = getOverlayPrefs();
-        boolean cur = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_ENABLED, false);
+        boolean cur = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_ENABLED, false);
         boolean next = !cur;
-        com.example.togglegrayscale.vot.VotManager.getInstance(context).setEnabled(next);
+        com.nitsutech.omnitv.vot.VotManager.getInstance(context).setEnabled(next);
         updateVotConfigPanel();
         buildMenu();
     }
 
     private void cycleVotSourceLang(int delta) {
         SharedPreferences op = getOverlayPrefs();
-        String cur = op.getString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SOURCE_LANG, "auto");
+        String cur = op.getString(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SOURCE_LANG, "auto");
         int idx = 0;
         for (int i = 0; i < VOT_SOURCE_LANGS.length; i++) {
             if (VOT_SOURCE_LANGS[i].equalsIgnoreCase(cur)) {
@@ -2834,15 +2834,15 @@ public class QuickMenuOverlay {
             }
         }
         int next = (idx + delta + VOT_SOURCE_LANGS.length) % VOT_SOURCE_LANGS.length;
-        op.edit().putString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SOURCE_LANG, VOT_SOURCE_LANGS[next]).apply();
-        com.example.togglegrayscale.vot.VotManager.getInstance(context).loadPreferences();
+        op.edit().putString(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SOURCE_LANG, VOT_SOURCE_LANGS[next]).apply();
+        com.nitsutech.omnitv.vot.VotManager.getInstance(context).loadPreferences();
         updateVotConfigPanel();
     }
 
     private void cycleVotSubtitlesMode(int delta) {
         SharedPreferences op = getOverlayPrefs();
-        boolean showSubs = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true);
-        boolean bilingual = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, false);
+        boolean showSubs = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true);
+        boolean bilingual = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_BILINGUAL, false);
 
         int state = 0;
         if (showSubs && bilingual) state = 2;
@@ -2850,22 +2850,22 @@ public class QuickMenuOverlay {
 
         int next = (state + delta + 3) % 3;
         if (next == 0) {
-            op.edit().putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, false)
-                     .putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, false).apply();
+            op.edit().putBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, false)
+                     .putBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_BILINGUAL, false).apply();
         } else if (next == 1) {
-            op.edit().putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true)
-                     .putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, false).apply();
+            op.edit().putBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true)
+                     .putBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_BILINGUAL, false).apply();
         } else {
-            op.edit().putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true)
-                     .putBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, true).apply();
+            op.edit().putBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true)
+                     .putBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_BILINGUAL, true).apply();
         }
-        com.example.togglegrayscale.vot.VotManager.getInstance(context).loadPreferences();
+        com.nitsutech.omnitv.vot.VotManager.getInstance(context).loadPreferences();
         updateVotConfigPanel();
     }
 
     private void cycleVotTargetLang(int delta) {
         SharedPreferences op = getOverlayPrefs();
-        String cur = op.getString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_TARGET_LANG, "es");
+        String cur = op.getString(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_TARGET_LANG, "es");
         int idx = 0;
         for (int i = 0; i < VOT_TARGET_LANGS.length; i++) {
             if (VOT_TARGET_LANGS[i].equalsIgnoreCase(cur)) {
@@ -2874,13 +2874,13 @@ public class QuickMenuOverlay {
             }
         }
         int next = (idx + delta + VOT_TARGET_LANGS.length) % VOT_TARGET_LANGS.length;
-        com.example.togglegrayscale.vot.VotManager.getInstance(context).setTargetLanguage(VOT_TARGET_LANGS[next]);
+        com.nitsutech.omnitv.vot.VotManager.getInstance(context).setTargetLanguage(VOT_TARGET_LANGS[next]);
         updateVotConfigPanel();
     }
 
     private void cycleVotTtsVolume(int delta) {
         SharedPreferences op = getOverlayPrefs();
-        float cur = op.getFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_TTS_VOLUME, 1.0f);
+        float cur = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_TTS_VOLUME, 1.0f);
         int idx = 0;
         for (int i = 0; i < VOT_TTS_VOLUMES.length; i++) {
             if (Math.abs(VOT_TTS_VOLUMES[i] - cur) < 0.05f) {
@@ -2889,21 +2889,21 @@ public class QuickMenuOverlay {
             }
         }
         int next = (idx + delta + VOT_TTS_VOLUMES.length) % VOT_TTS_VOLUMES.length;
-        com.example.togglegrayscale.vot.VotManager.getInstance(context).setTtsVolume(VOT_TTS_VOLUMES[next]);
+        com.nitsutech.omnitv.vot.VotManager.getInstance(context).setTtsVolume(VOT_TTS_VOLUMES[next]);
         updateVotConfigPanel();
     }
 
     private void cycleVotDuckingMode(int delta) {
         SharedPreferences op = getOverlayPrefs();
-        int cur = op.getInt(com.example.togglegrayscale.vot.VotManager.KEY_VOT_DUCKING_MODE, 0);
+        int cur = op.getInt(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_DUCKING_MODE, 0);
         int next = (cur + delta + VOT_DUCKING_MODES.length) % VOT_DUCKING_MODES.length;
-        com.example.togglegrayscale.vot.VotManager.getInstance(context).setDuckingMode(next);
+        com.nitsutech.omnitv.vot.VotManager.getInstance(context).setDuckingMode(next);
         updateVotConfigPanel();
     }
 
     private void cycleVotSpeechRate(int delta) {
         SharedPreferences op = getOverlayPrefs();
-        float cur = op.getFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
+        float cur = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
         int idx = 1;
         for (int i = 0; i < VOT_SPEECH_RATES.length; i++) {
             if (Math.abs(VOT_SPEECH_RATES[i] - cur) < 0.05f) {
@@ -2912,22 +2912,22 @@ public class QuickMenuOverlay {
             }
         }
         int next = (idx + delta + VOT_SPEECH_RATES.length) % VOT_SPEECH_RATES.length;
-        op.edit().putFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SPEECH_RATE, VOT_SPEECH_RATES[next]).apply();
-        com.example.togglegrayscale.vot.VotManager.getInstance(context).loadPreferences();
+        op.edit().putFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SPEECH_RATE, VOT_SPEECH_RATES[next]).apply();
+        com.nitsutech.omnitv.vot.VotManager.getInstance(context).loadPreferences();
         updateVotConfigPanel();
     }
 
     private void cycleVotProvider(int delta) {
         SharedPreferences op = getOverlayPrefs();
-        int cur = op.getInt(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, 0);
+        int cur = op.getInt(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, 0);
         int next = (cur + delta + VOT_PROVIDER_NAMES.length) % VOT_PROVIDER_NAMES.length;
-        op.edit().putInt(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, next).apply();
+        op.edit().putInt(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, next).apply();
         updateVotConfigPanel();
     }
 
     private void cycleVotOpenrouterModel(int delta) {
         SharedPreferences op = getOverlayPrefs();
-        String cur = op.getString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[0]);
+        String cur = op.getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[0]);
         int idx = 0;
         for (int i = 0; i < VOT_OPENROUTER_MODELS.length; i++) {
             if (VOT_OPENROUTER_MODELS[i].equalsIgnoreCase(cur)) {
@@ -2936,7 +2936,7 @@ public class QuickMenuOverlay {
             }
         }
         int next = (idx + delta + VOT_OPENROUTER_MODELS.length) % VOT_OPENROUTER_MODELS.length;
-        op.edit().putString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[next]).apply();
+        op.edit().putString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[next]).apply();
         updateVotConfigPanel();
     }
 
@@ -2947,7 +2947,7 @@ public class QuickMenuOverlay {
                 CharSequence clipText = clipboard.getPrimaryClip().getItemAt(0).getText();
                 if (clipText != null && clipText.length() > 5) {
                     String key = clipText.toString().trim();
-                    getOverlayPrefs().edit().putString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, key).apply();
+                    getOverlayPrefs().edit().putString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, key).apply();
                     String masked = key.length() > 8 ? (key.substring(0, 4) + "..." + key.substring(key.length() - 4)) : "***";
                     android.widget.Toast.makeText(context, "🔑 Key pegada del portapapeles (" + masked + ")", android.widget.Toast.LENGTH_LONG).show();
                     updateVotConfigPanel();
@@ -2957,24 +2957,24 @@ public class QuickMenuOverlay {
         } catch (Exception e) {
             Log.e(TAG, "Error reading clipboard", e);
         }
-        String curKey = getOverlayPrefs().getString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, "");
+        String curKey = getOverlayPrefs().getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, "");
         if (!curKey.isEmpty()) {
-            android.widget.Toast.makeText(context, "🔑 Key activa. Para cambiarla copia la nueva en el móvil y presiona OK, o usa ADB: adb shell am broadcast -a com.example.togglegrayscale.SET_OPENROUTER_KEY --es key 'tu-key'", android.widget.Toast.LENGTH_LONG).show();
+            android.widget.Toast.makeText(context, "🔑 Key activa. Para cambiarla copia la nueva en el móvil y presiona OK, o usa ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'tu-key'", android.widget.Toast.LENGTH_LONG).show();
         } else {
-            android.widget.Toast.makeText(context, "💡 Copia la API Key en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a com.example.togglegrayscale.SET_OPENROUTER_KEY --es key 'tu-api-key'", android.widget.Toast.LENGTH_LONG).show();
+            android.widget.Toast.makeText(context, "💡 Copia la API Key en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'tu-api-key'", android.widget.Toast.LENGTH_LONG).show();
         }
     }
 
     private void updateVotConfigPanel() {
         SharedPreferences op = getOverlayPrefs();
-        boolean enabled = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_ENABLED, false);
+        boolean enabled = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_ENABLED, false);
 
         if (btnVotMasterToggle != null) {
             btnVotMasterToggle.setText(enabled ? "   Doblaje:  [ON]" : "   Doblaje:  [OFF]");
             btnVotMasterToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFFF6B6B);
         }
 
-        String curLang = op.getString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SOURCE_LANG, "auto");
+        String curLang = op.getString(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SOURCE_LANG, "auto");
         String langName = "Auto (Detectar)";
         for (int i = 0; i < VOT_SOURCE_LANGS.length; i++) {
             if (VOT_SOURCE_LANGS[i].equalsIgnoreCase(curLang)) {
@@ -2986,7 +2986,7 @@ public class QuickMenuOverlay {
             btnVotSourceLang.setText("   Idioma Video:  " + langName + "  (◄ / ►)");
         }
 
-        String curTargetLang = op.getString(com.example.togglegrayscale.vot.VotManager.KEY_VOT_TARGET_LANG, "es");
+        String curTargetLang = op.getString(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_TARGET_LANG, "es");
         String targetLangName = "Español (Latam)";
         for (int i = 0; i < VOT_TARGET_LANGS.length; i++) {
             if (VOT_TARGET_LANGS[i].equalsIgnoreCase(curTargetLang)) {
@@ -2998,7 +2998,7 @@ public class QuickMenuOverlay {
             btnVotTargetLang.setText("   Idioma Salida:  " + targetLangName + "  (◄ / ►)");
         }
 
-        float curVol = op.getFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_TTS_VOLUME, 1.0f);
+        float curVol = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_TTS_VOLUME, 1.0f);
         String volName = "100% (Máximo)";
         for (int i = 0; i < VOT_TTS_VOLUMES.length; i++) {
             if (Math.abs(VOT_TTS_VOLUMES[i] - curVol) < 0.05f) {
@@ -3010,14 +3010,14 @@ public class QuickMenuOverlay {
             btnVotTtsVolume.setText("   Volumen Voz:  " + volName + "  (◄ / ►)");
         }
 
-        int ducking = op.getInt(com.example.togglegrayscale.vot.VotManager.KEY_VOT_DUCKING_MODE, 0);
+        int ducking = op.getInt(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_DUCKING_MODE, 0);
         String duckLabel = (ducking >= 0 && ducking < VOT_DUCKING_MODE_NAMES.length) ? VOT_DUCKING_MODE_NAMES[ducking] : "Atenuar Video (~25%)";
         if (btnVotDuckingMode != null) {
             btnVotDuckingMode.setText("   Atenuación Video:  " + duckLabel + "  (◄ / ►)");
         }
 
-        boolean showSubs = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true);
-        boolean bilingual = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_BILINGUAL, false);
+        boolean showSubs = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true);
+        boolean bilingual = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_BILINGUAL, false);
         String subLabel = "Ocultos";
         if (showSubs && bilingual) subLabel = "Bilingüe (Original + Doblaje)";
         else if (showSubs) subLabel = "Solo Doblaje en " + targetLangName;
@@ -3025,7 +3025,7 @@ public class QuickMenuOverlay {
             btnVotSubtitlesMode.setText("   Subtítulos:  " + subLabel + "  (◄ / ►)");
         }
 
-        float curRate = op.getFloat(com.example.togglegrayscale.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
+        float curRate = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
         String rateLabel = "Rápido (1.15x)";
         for (int i = 0; i < VOT_SPEECH_RATES.length; i++) {
             if (Math.abs(VOT_SPEECH_RATES[i] - curRate) < 0.05f) {
@@ -3037,19 +3037,19 @@ public class QuickMenuOverlay {
             btnVotSpeechRate.setText("   Velocidad Voz:  " + rateLabel + "  (◄ / ►)");
         }
 
-        int provider = op.getInt(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, 0);
+        int provider = op.getInt(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, 0);
         String provLabel = (provider >= 0 && provider < VOT_PROVIDER_NAMES.length) ? VOT_PROVIDER_NAMES[provider] : "Google (Gratuito)";
         if (btnVotProvider != null) {
             btnVotProvider.setText("   Motor Traducción:  " + provLabel + "  (◄ / ►)");
         }
 
-        String curModel = op.getString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[0]);
+        String curModel = op.getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[0]);
         if (btnVotOpenrouterModel != null) {
             btnVotOpenrouterModel.setText("   Modelo IA:  " + curModel + "  (◄ / ►)");
             btnVotOpenrouterModel.setVisibility(provider == 2 ? View.VISIBLE : View.GONE);
         }
 
-        String curKey = op.getString(com.example.togglegrayscale.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, "").trim();
+        String curKey = op.getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, "").trim();
         if (btnVotOpenrouterKey != null) {
             if (!curKey.isEmpty()) {
                 String masked = curKey.length() > 8 ? (curKey.substring(0, 4) + "••••" + curKey.substring(curKey.length() - 4)) : "Configurada";
@@ -3576,7 +3576,7 @@ public class QuickMenuOverlay {
             case "night_schedule": return fmtToggle("🌙  Horario Nocturno", op.getBoolean(ButtonMappingService.KEY_NIGHT_SCHEDULE, false));
             case "oled_saver": return fmtToggle("🛡️  Protector OLED (Burn-In)", op.getBoolean(ButtonMappingService.KEY_OLED_SAVER, false));
             case "vot": {
-                boolean on = op.getBoolean(com.example.togglegrayscale.vot.VotManager.KEY_VOT_ENABLED, false);
+                boolean on = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_ENABLED, false);
                 return fmtToggle("🎙️  Doblaje al Vuelo (VOT)", on);
             }
             case "trigger_translate": return "🌐  Traducir Pantalla Ahora";

@@ -1,4 +1,4 @@
-package com.example.togglegrayscale.vot;
+package com.nitsutech.omnitv.vot;
 
 import android.text.Html;
 import android.util.Log;
@@ -150,7 +150,7 @@ public class YouTubeCaptionFetcher {
                     }
                     if (maxFps > 0) {
                         Log.d(TAG, "Detected video FPS from stream formats: " + maxFps);
-                        com.example.togglegrayscale.ButtonMappingService.setDetectedVideoFps(maxFps);
+                        com.nitsutech.omnitv.ButtonMappingService.setDetectedVideoFps(maxFps);
                     }
                 }
             }

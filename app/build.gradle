@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.togglegrayscale'
+    namespace 'com.nitsutech.omnitv'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.togglegrayscale"
+        applicationId "com.nitsutech.omnitv"
         minSdk 21
         targetSdk 34
         versionCode 1

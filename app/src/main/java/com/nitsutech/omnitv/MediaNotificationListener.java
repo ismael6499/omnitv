@@ -1,4 +1,4 @@
-package com.example.togglegrayscale;
+package com.nitsutech.omnitv;
 
 import android.content.ComponentName;
 import android.content.Context;

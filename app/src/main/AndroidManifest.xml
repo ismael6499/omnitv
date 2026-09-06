@@ -89,6 +89,7 @@
                 <action android:name="android.intent.action.TIME_SET" />
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="com.nitsutech.omnitv.ACTION_TRIGGER_SCHEDULED_SLEEP" />
                 <action android:name="com.example.togglegrayscale.ACTION_TRIGGER_SCHEDULED_SLEEP" />
             </intent-filter>
         </receiver>
@@ -98,6 +99,8 @@
             android:enabled="true"
             android:exported="true">
             <intent-filter>
+                <action android:name="com.nitsutech.omnitv.SET_OPENROUTER_KEY" />
+                <action android:name="com.nitsutech.omnitv.SET_OPENROUTER_MODEL" />
                 <action android:name="com.example.togglegrayscale.SET_OPENROUTER_KEY" />
                 <action android:name="com.example.togglegrayscale.SET_OPENROUTER_MODEL" />
             </intent-filter>

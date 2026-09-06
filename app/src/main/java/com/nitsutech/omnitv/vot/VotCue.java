@@ -1,4 +1,4 @@
-package com.example.togglegrayscale.vot;
+package com.nitsutech.omnitv.vot;
 
 public class VotCue {
     public final int id;

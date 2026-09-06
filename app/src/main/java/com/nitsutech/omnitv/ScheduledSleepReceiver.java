@@ -1,4 +1,4 @@
-package com.example.togglegrayscale;
+package com.nitsutech.omnitv;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -18,7 +18,8 @@ import java.util.Set;
 
 public class ScheduledSleepReceiver extends BroadcastReceiver {
     private static final String TAG = "ScheduledSleepReceiver";
-    public static final String ACTION_TRIGGER_SCHEDULED_SLEEP = "com.example.togglegrayscale.ACTION_TRIGGER_SCHEDULED_SLEEP";
+    public static final String ACTION_TRIGGER_SCHEDULED_SLEEP = "com.nitsutech.omnitv.ACTION_TRIGGER_SCHEDULED_SLEEP";
+    public static final String ACTION_TRIGGER_SCHEDULED_SLEEP_LEGACY = "com.example.togglegrayscale.ACTION_TRIGGER_SCHEDULED_SLEEP";
     public static final String PREFS_NAME = "overlay_prefs";
 
     @Override
@@ -32,12 +33,13 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
                 || Intent.ACTION_TIME_CHANGED.equals(action)
                 || Intent.ACTION_TIMEZONE_CHANGED.equals(action)
                 || "android.intent.action.MY_PACKAGE_REPLACED".equals(action)
-                || ACTION_TRIGGER_SCHEDULED_SLEEP.equals(action)) {
+                || ACTION_TRIGGER_SCHEDULED_SLEEP.equals(action)
+                || ACTION_TRIGGER_SCHEDULED_SLEEP_LEGACY.equals(action)) {
 
             SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             boolean enabled = prefs.getBoolean("scheduled_sleep_enabled", false);
 
-            if (ACTION_TRIGGER_SCHEDULED_SLEEP.equals(action) && enabled) {
+            if ((ACTION_TRIGGER_SCHEDULED_SLEEP.equals(action) || ACTION_TRIGGER_SCHEDULED_SLEEP_LEGACY.equals(action)) && enabled) {
                 String todayStr = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
                 String currentStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(new Date());
                 String skipStr = prefs.getString("scheduled_sleep_skip_date", "");

@@ -1,4 +1,4 @@
-package com.example.togglegrayscale.vot;
+package com.nitsutech.omnitv.vot;
 
 import android.content.Context;
 import android.graphics.Color;

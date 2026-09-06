@@ -1,4 +1,4 @@
-package com.example.togglegrayscale.vot;
+package com.nitsutech.omnitv.vot;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -17,7 +17,7 @@ public class VotConfigReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
 
-        if ("com.example.togglegrayscale.SET_OPENROUTER_KEY".equals(action)) {
+        if ("com.nitsutech.omnitv.SET_OPENROUTER_KEY".equals(action) || "com.example.togglegrayscale.SET_OPENROUTER_KEY".equals(action)) {
             String key = intent.getStringExtra("key");
             if (key != null) {
                 key = key.trim();
@@ -26,7 +26,7 @@ public class VotConfigReceiver extends BroadcastReceiver {
                 Toast.makeText(context, "🔑 OpenRouter Key guardada (" + masked + ")", Toast.LENGTH_LONG).show();
                 Log.d(TAG, "OpenRouter API Key updated successfully via broadcast");
             }
-        } else if ("com.example.togglegrayscale.SET_OPENROUTER_MODEL".equals(action)) {
+        } else if ("com.nitsutech.omnitv.SET_OPENROUTER_MODEL".equals(action) || "com.example.togglegrayscale.SET_OPENROUTER_MODEL".equals(action)) {
             String model = intent.getStringExtra("model");
             if (model != null) {
                 model = model.trim();

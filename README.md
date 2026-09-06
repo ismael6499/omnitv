@@ -1,4 +1,4 @@
-﻿# OmniTV 📺⚡
+# OmniTV 📺⚡
 
 [![GitHub Release](https://img.shields.io/github/v/release/ismael6499/omnitv?color=blue&style=flat-square)](https://github.com/ismael6499/omnitv/releases)
 [![Platform](https://img.shields.io/badge/Platform-Android%20TV%20%7C%20Google%20TV-green?style=flat-square)](https://android.com/tv/)
@@ -78,13 +78,13 @@ adb install -r OmniTV-v1.0.0.apk
 ### 4. Grant Required Permission & Enable Service
 Grant the secure settings permission:
 ```bash
-adb shell pm grant com.example.togglegrayscale android.permission.WRITE_SECURE_SETTINGS
+adb shell pm grant com.nitsutech.omnitv android.permission.WRITE_SECURE_SETTINGS
 ```
 
 Enable the Accessibility Service (or activate it manually in TV Settings > Accessibility):
 ```bash
 adb shell settings put secure accessibility_enabled 1
-adb shell settings put secure enabled_accessibility_services com.example.togglegrayscale/.ButtonMappingService
+adb shell settings put secure enabled_accessibility_services com.nitsutech.omnitv/.ButtonMappingService
 ```
 
 You are ready to go! Press your mapped remote key (or open the app) to launch the Quick Menu.

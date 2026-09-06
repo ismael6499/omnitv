@@ -81,7 +81,7 @@
             <TextView android:id="@+id/txt_brightness_pct" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:text="Nivel: 100%" android:textColor="#FFFFFF"
                 android:textSize="14sp" android:gravity="center" android:layout_marginBottom="12dp" />
-            <com.example.togglegrayscale.MaxHeightScrollView
+            <com.nitsutech.omnitv.MaxHeightScrollView
                 android:id="@+id/scroll_brightness_levels"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -259,7 +259,7 @@
 
                     <TextView android:id="@+id/btn_apply_brightness" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
                 </LinearLayout>
-            </com.example.togglegrayscale.MaxHeightScrollView>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- Cycle Brightness & OSD HUD sub-panel -->
@@ -271,7 +271,7 @@
                 android:text="Configurar Cartel Indicador de Brillo:" android:textColor="#AAAAAA" android:textSize="13sp"
                 android:layout_marginBottom="6dp" android:paddingStart="4dp" />
 
-            <com.example.togglegrayscale.MaxHeightScrollView
+            <com.nitsutech.omnitv.MaxHeightScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fadeScrollbars="false"
@@ -358,7 +358,7 @@
 
                     <TextView android:id="@+id/btn_test_brightness_hud" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
                 </LinearLayout>
-            </com.example.togglegrayscale.MaxHeightScrollView>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- Quick Brightness Slider sub-panel -->
@@ -370,7 +370,7 @@
                 android:text="Configurar Slider de Brillo Rápido:" android:textColor="#AAAAAA" android:textSize="13sp"
                 android:layout_marginBottom="6dp" android:paddingStart="4dp" />
 
-            <com.example.togglegrayscale.MaxHeightScrollView
+            <com.nitsutech.omnitv.MaxHeightScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fadeScrollbars="false"
@@ -389,7 +389,7 @@
                     <TextView android:id="@+id/btn_slider_timeout" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#CCCCCC" android:textSize="14sp" android:gravity="center_vertical" android:paddingStart="12dp" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
 
                 </LinearLayout>
-            </com.example.togglegrayscale.MaxHeightScrollView>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- Blue light level sub-panel with slider (SeekBar) -->
@@ -476,7 +476,7 @@
                 android:text="Configurar Reloj en Pantalla:" android:textColor="#AAAAAA" android:textSize="13sp"
                 android:layout_marginBottom="6dp" android:paddingStart="4dp" />
 
-            <com.example.togglegrayscale.MaxHeightScrollView
+            <com.nitsutech.omnitv.MaxHeightScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fadeScrollbars="false"
@@ -534,7 +534,7 @@
 
                     <TextView android:id="@+id/btn_apply_clock" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" />
                 </LinearLayout>
-            </com.example.togglegrayscale.MaxHeightScrollView>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- Still Watching config sub-panel -->
@@ -546,7 +546,7 @@
                 android:text="Configurar ¿Sigues viendo? (Inactividad):" android:textColor="#AAAAAA" android:textSize="13sp"
                 android:layout_marginBottom="6dp" android:paddingStart="4dp" />
             
-            <com.example.togglegrayscale.MaxHeightScrollView
+            <com.nitsutech.omnitv.MaxHeightScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fadeScrollbars="false"
@@ -648,7 +648,7 @@
 
                     <TextView android:id="@+id/btn_apply_still_watching" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginTop="4dp" />
                 </LinearLayout>
-            </com.example.togglegrayscale.MaxHeightScrollView>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- Night Schedule config sub-panel -->
@@ -771,7 +771,7 @@
                 android:text="⏳  Configurar Espera Consciente (Acceso):" android:textColor="#AAAAAA" android:textSize="13sp"
                 android:layout_marginBottom="6dp" android:paddingStart="4dp" />
 
-            <com.example.togglegrayscale.MaxHeightScrollView
+            <com.nitsutech.omnitv.MaxHeightScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fadeScrollbars="false"
@@ -889,7 +889,7 @@
                     <TextView android:id="@+id/btn_test_mindful_delay" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="👁️  Probar Cartel de Espera (10s)" android:textColor="#FFB74D" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginTop="6dp" android:layout_marginBottom="4dp" />
                     <TextView android:id="@+id/btn_apply_mindful_delay" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="✓  Listo" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
                 </LinearLayout>
-            </com.example.togglegrayscale.MaxHeightScrollView>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- SUBPANEL: Configuración de Traducción de Pantalla (CTS) -->
@@ -914,7 +914,7 @@
                 android:layout_marginBottom="6dp"
                 android:paddingStart="4dp" />
 
-            <com.example.togglegrayscale.MaxHeightScrollView
+            <com.nitsutech.omnitv.MaxHeightScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fadeScrollbars="false"
@@ -960,7 +960,7 @@
                     <TextView android:id="@+id/btn_test_translate" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="👁️  Probar Traductor en Pantalla" android:textColor="#81D4FA" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginTop="6dp" android:layout_marginBottom="4dp" />
                     <TextView android:id="@+id/btn_apply_translate" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="✓  Listo" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginBottom="4dp" />
                 </LinearLayout>
-            </com.example.togglegrayscale.MaxHeightScrollView>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- SUBPANEL: Combinaciones de Teclas (Zero-Delay) -->
@@ -985,7 +985,7 @@
                 android:layout_marginBottom="6dp"
                 android:paddingStart="4dp" />
 
-            <com.example.togglegrayscale.MaxHeightScrollView
+            <com.nitsutech.omnitv.MaxHeightScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fadeScrollbars="false"
@@ -1011,7 +1011,7 @@
                     <!-- Guardar -->
                     <TextView android:id="@+id/btn_apply_combos" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/card_background" android:text="✓  Listo" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:gravity="center" android:focusable="true" android:clickable="true" android:layout_marginTop="6dp" android:layout_marginBottom="4dp" />
                 </LinearLayout>
-            </com.example.togglegrayscale.MaxHeightScrollView>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
 
         <!-- SUBPANEL: Doblaje al Vuelo (VOT) -->
@@ -1036,7 +1036,7 @@
                 android:layout_marginBottom="6dp"
                 android:paddingStart="4dp" />
 
-            <com.example.togglegrayscale.MaxHeightScrollView
+            <com.nitsutech.omnitv.MaxHeightScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fadeScrollbars="false"
@@ -1229,7 +1229,7 @@
                         android:clickable="true"
                         android:layout_marginBottom="4dp" />
                 </LinearLayout>
-            </com.example.togglegrayscale.MaxHeightScrollView>
+            </com.nitsutech.omnitv.MaxHeightScrollView>
         </LinearLayout>
     </LinearLayout>
 

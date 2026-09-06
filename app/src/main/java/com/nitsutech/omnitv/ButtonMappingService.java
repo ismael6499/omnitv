@@ -1,4 +1,4 @@
-package com.example.togglegrayscale;
+package com.nitsutech.omnitv;
 
 import android.accessibilityservice.AccessibilityService;
 import android.app.ActivityManager;
@@ -688,7 +688,7 @@ public class ButtonMappingService extends AccessibilityService {
 
     private boolean isExcludedPackage(String pkg) {
         if (pkg == null) return true;
-        return pkg.equals("com.example.togglegrayscale")
+        return pkg.equals("com.nitsutech.omnitv")
                 || pkg.equals("com.google.android.tvlauncher")
                 || pkg.equals("com.google.android.apps.tv.launcherx")
                 || pkg.equals("com.android.launcher")
@@ -731,11 +731,11 @@ public class ButtonMappingService extends AccessibilityService {
             setDetectedVideoFps(fpsTitle);
             Log.d(TAG, "Detected " + detectedVideoFps + " FPS from video title: " + title);
         } else if (pkg != null && (pkg.contains("smarttube") || pkg.contains("youtube"))) {
-            com.example.togglegrayscale.vot.YouTubeCaptionFetcher.fetchVideoFpsAsync(title, artist);
+            com.nitsutech.omnitv.vot.YouTubeCaptionFetcher.fetchVideoFpsAsync(title, artist);
         }
         
         try {
-            com.example.togglegrayscale.vot.VotManager.getInstance(this).onVideoChanged(pkg, title, artist, duration);
+            com.nitsutech.omnitv.vot.VotManager.getInstance(this).onVideoChanged(pkg, title, artist, duration);
         } catch (Exception e) {
             Log.e(TAG, "Error notifying VotManager of video change", e);
         }
@@ -792,7 +792,7 @@ public class ButtonMappingService extends AccessibilityService {
         lastPlaybackPositionSetTime = SystemClock.elapsedRealtime();
 
         try {
-            com.example.togglegrayscale.vot.VotManager.getInstance(this).onPlaybackStateChanged(pkg, state, position);
+            com.nitsutech.omnitv.vot.VotManager.getInstance(this).onPlaybackStateChanged(pkg, state, position);
         } catch (Exception e) {
             Log.e(TAG, "Error notifying VotManager of playback state change", e);
         }
@@ -1110,7 +1110,7 @@ public class ButtonMappingService extends AccessibilityService {
         try {
             IntentFilter filter = new IntentFilter();
             filter.addAction(Intent.ACTION_SCREEN_ON);
-            filter.addAction("com.example.togglegrayscale.ACTION_TRANSLATE_SCREEN");
+            filter.addAction("com.nitsutech.omnitv.ACTION_TRANSLATE_SCREEN");
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(screenStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
             } else {
@@ -1125,7 +1125,7 @@ public class ButtonMappingService extends AccessibilityService {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent == null || intent.getAction() == null) return;
-            if ("com.example.togglegrayscale.ACTION_TRANSLATE_SCREEN".equals(intent.getAction())) {
+            if ("com.nitsutech.omnitv.ACTION_TRANSLATE_SCREEN".equals(intent.getAction())) {
                 triggerScreenTranslation();
                 return;
             }
@@ -1403,7 +1403,7 @@ public class ButtonMappingService extends AccessibilityService {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         boolean cur = op.getBoolean("vot_enabled", false);
         boolean next = !cur;
-        com.example.togglegrayscale.vot.VotManager.getInstance(this).setEnabled(next);
+        com.nitsutech.omnitv.vot.VotManager.getInstance(this).setEnabled(next);
         Toast.makeText(this, next ? "🎙️ Doblaje VOT Activado" : "🎙️ Doblaje VOT Desactivado", Toast.LENGTH_SHORT).show();
     }
 
@@ -1466,7 +1466,7 @@ public class ButtonMappingService extends AccessibilityService {
     private void handleForegroundPackageChanged(String pkg) {
         if (pkg == null) return;
         // Never clear sessions or trigger mindful delay for our own menu or system overlays
-        if (pkg.equals("com.example.togglegrayscale") || pkg.equals("com.android.systemui") || pkg.equals("com.google.android.inputmethod.latin")) {
+        if (pkg.equals("com.nitsutech.omnitv") || pkg.equals("com.android.systemui") || pkg.equals("com.google.android.inputmethod.latin")) {
             return;
         }
 
@@ -4140,7 +4140,7 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void showFrameStepHud() {
         if (lastSeenMediaTitle != null && !lastSeenMediaTitle.isEmpty()) {
-            com.example.togglegrayscale.vot.YouTubeCaptionFetcher.fetchVideoFpsAsync(lastSeenMediaTitle, null);
+            com.nitsutech.omnitv.vot.YouTubeCaptionFetcher.fetchVideoFpsAsync(lastSeenMediaTitle, null);
         }
         handler.post(new Runnable() {
             @Override
