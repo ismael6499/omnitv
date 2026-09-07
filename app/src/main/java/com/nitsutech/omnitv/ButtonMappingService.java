@@ -2459,7 +2459,10 @@ public class ButtonMappingService extends AccessibilityService {
             @Override
             public void run() {
                 SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-                prefs.edit().putInt("dimmer_brightness_pct", pct).apply();
+                prefs.edit()
+                        .putInt("dimmer_brightness_pct", pct)
+                        .putFloat("dimmer_brightness_pct_float", (float) pct)
+                        .apply();
                 if (isDimmerActive && dimmerOverlayView != null) {
                     int alphaVal = (int) ((100 - pct) * 2.55);
                     dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
@@ -2479,7 +2482,10 @@ public class ButtonMappingService extends AccessibilityService {
                 int next = cur + delta;
                 if (next < 0) next = 0;
                 if (next > 100) next = 100;
-                prefs.edit().putInt("dimmer_brightness_pct", next).apply();
+                prefs.edit()
+                        .putInt("dimmer_brightness_pct", next)
+                        .putFloat("dimmer_brightness_pct_float", (float) next)
+                        .apply();
                 Log.d(TAG, "Adjusted brightness to: " + next + "%");
                 if (isDimmerActive && dimmerOverlayView != null) {
                     int alphaVal = (int) ((100 - next) * 2.55);
@@ -2543,7 +2549,10 @@ public class ButtonMappingService extends AccessibilityService {
                 int nextIdx = (closestIdx + 1) % levels.length;
                 int next = levels[nextIdx];
                 
-                prefs.edit().putInt("dimmer_brightness_pct", next).apply();
+                prefs.edit()
+                        .putInt("dimmer_brightness_pct", next)
+                        .putFloat("dimmer_brightness_pct_float", (float) next)
+                        .apply();
                 Log.d(TAG, "Cycled brightness from " + cur + "% to " + next + "%");
                 if (isDimmerActive && dimmerOverlayView != null) {
                     int alphaVal = (int) ((100 - next) * 2.55);
@@ -2589,7 +2598,10 @@ public class ButtonMappingService extends AccessibilityService {
                 int nextIdx = (closestIdx - 1 + levels.length) % levels.length;
                 int next = levels[nextIdx];
 
-                prefs.edit().putInt("dimmer_brightness_pct", next).apply();
+                prefs.edit()
+                        .putInt("dimmer_brightness_pct", next)
+                        .putFloat("dimmer_brightness_pct_float", (float) next)
+                        .apply();
                 Log.d(TAG, "Cycled brightness reverse from " + cur + "% to " + next + "%");
                 if (isDimmerActive && dimmerOverlayView != null) {
                     int alphaVal = (int) ((100 - next) * 2.55);
@@ -3200,6 +3212,7 @@ public class ButtonMappingService extends AccessibilityService {
                             prefs.edit()
                                     .putString("dimmer_day_auto_reset_date", todayStr)
                                     .putInt("dimmer_brightness_pct", firstLevel)
+                                    .putFloat("dimmer_brightness_pct_float", (float) firstLevel)
                                     .apply();
 
                             if (isDimmerActive && dimmerOverlayView != null) {
@@ -3207,7 +3220,10 @@ public class ButtonMappingService extends AccessibilityService {
                                 dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
                             }
                         } else {
-                            prefs.edit().putString("dimmer_day_auto_reset_date", todayStr).apply();
+                            prefs.edit()
+                                    .putString("dimmer_day_auto_reset_date", todayStr)
+                                    .putFloat("dimmer_brightness_pct_float", (float) firstLevel)
+                                    .apply();
                         }
                     }
                 }
@@ -4301,8 +4317,17 @@ public class ButtonMappingService extends AccessibilityService {
                     stopSliderHoldRepeat();
                     stopSliderInactivityTimer();
 
+                    checkDaytimeDimmerReset();
+
                     SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-                    currentSliderBrightness = prefs.getFloat("dimmer_brightness_pct_float", (float) prefs.getInt("dimmer_brightness_pct", 50));
+                    int curInt = prefs.getInt("dimmer_brightness_pct", 50);
+                    float curFloat = prefs.getFloat("dimmer_brightness_pct_float", (float) curInt);
+                    if (Math.round(curFloat) != curInt) {
+                        currentSliderBrightness = (float) curInt;
+                        prefs.edit().putFloat("dimmer_brightness_pct_float", currentSliderBrightness).apply();
+                    } else {
+                        currentSliderBrightness = curFloat;
+                    }
                     if (currentSliderBrightness < 1.0f) currentSliderBrightness = 1.0f;
                     if (currentSliderBrightness > 100.0f) currentSliderBrightness = 100.0f;
 

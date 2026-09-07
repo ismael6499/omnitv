@@ -1645,7 +1645,10 @@ public class QuickMenuOverlay {
                     Bundle b = new Bundle();
                     b.putInt("pct", progress);
                     sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
-                    getOverlayPrefs().edit().putInt("dimmer_brightness_pct", progress).apply();
+                    getOverlayPrefs().edit()
+                            .putInt("dimmer_brightness_pct", progress)
+                            .putFloat("dimmer_brightness_pct_float", (float) progress)
+                            .apply();
                     updateMenuInternalFilters();
                 }
                 @Override public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -4253,7 +4256,10 @@ public class QuickMenuOverlay {
             }
             int nextIdx = (closestIdx + 1) % levels.length;
             int next = levels[nextIdx];
-            prefs.edit().putInt("dimmer_brightness_pct", next).apply();
+            prefs.edit()
+                    .putInt("dimmer_brightness_pct", next)
+                    .putFloat("dimmer_brightness_pct_float", (float) next)
+                    .apply();
 
             Bundle b = new Bundle();
             b.putInt("pct", next);
@@ -4472,7 +4478,10 @@ public class QuickMenuOverlay {
                         Bundle b = new Bundle();
                         b.putInt("pct", currentVal);
                         sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
-                        getOverlayPrefs().edit().putInt("dimmer_brightness_pct", currentVal).apply();
+                        getOverlayPrefs().edit()
+                                .putInt("dimmer_brightness_pct", currentVal)
+                                .putFloat("dimmer_brightness_pct_float", (float) currentVal)
+                                .apply();
                         if (sliderBrightness != null) {
                             sliderBrightness.setProgress(currentVal);
                         }
