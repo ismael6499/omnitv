@@ -1345,22 +1345,18 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case 9: // Filtro Luz Azul
                 toggleBlueLight();
-                Toast.makeText(this, isBlueLightActive ? "🌙 Filtro Luz Azul: Activado" : "🌙 Filtro Luz Azul: Desactivado", Toast.LENGTH_SHORT).show();
                 break;
             case 10: // Reloj en Pantalla
                 toggleClock();
-                Toast.makeText(this, isClockActive ? "🕒 Reloj en Pantalla: Activado" : "🕒 Reloj en Pantalla: Desactivado", Toast.LENGTH_SHORT).show();
                 break;
             case 11: // Dimmer de Pantalla
                 toggleDimmer();
-                Toast.makeText(this, isDimmerActive ? "🔅 Dimmer de Pantalla: Activado" : "🔅 Dimmer de Pantalla: Desactivado", Toast.LENGTH_SHORT).show();
                 break;
             case 12: // Modo Cine
                 SharedPreferences opCine = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                 boolean nextCine = !opCine.getBoolean(KEY_CINE_MODE, false);
                 opCine.edit().putBoolean(KEY_CINE_MODE, nextCine).apply();
                 toggleCineMode();
-                Toast.makeText(this, nextCine ? "🎬 Modo Cine: Activado" : "🎬 Modo Cine: Desactivado", Toast.LENGTH_SHORT).show();
                 break;
             case 13: // Info del Sistema
                 showSystemInfoOverlay();
