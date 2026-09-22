@@ -21,6 +21,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.util.DisplayMetrics;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -95,7 +96,7 @@ public class AiSummaryOverlay {
     // Language state
     private String uiLanguage = "es";
     private String chatLanguage = "es";
-    private boolean visionTargetLangIsEnglish = true;
+    private boolean visionTargetLangIsEnglish = false;
     private View currentListeningCard;
     private TextView textListeningStatus;
     private SpeechRecognizer speechRecognizer;
@@ -181,6 +182,18 @@ public class AiSummaryOverlay {
             mainHandler.removeCallbacks(videoPollRunnable);
             mainHandler.postDelayed(videoPollRunnable, 1500);
             Log.d(TAG, "AiSummaryOverlay displayed successfully");
+
+            overlayView.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (overlayView != null) {
+                        View btnSummary = overlayView.findViewById(R.id.btn_pill_summary);
+                        if (btnSummary != null) {
+                            btnSummary.requestFocus();
+                        }
+                    }
+                }
+            });
 
             if (isLensOverlayShowing()) {
                 renderLensBadgesIntoContainer(lensOverlayWindowView, activeLensBoxes, context);
@@ -395,6 +408,7 @@ public class AiSummaryOverlay {
         }
 
         if (btnVisionTargetLang != null) {
+            btnVisionTargetLang.setText(visionTargetLangIsEnglish ? "🌐 Destino: EN" : "🌐 Destino: ES");
             btnVisionTargetLang.setOnClickListener(v -> {
                 visionTargetLangIsEnglish = !visionTargetLangIsEnglish;
                 btnVisionTargetLang.setText(visionTargetLangIsEnglish ? "🌐 Destino: EN" : "🌐 Destino: ES");
@@ -406,22 +420,16 @@ public class AiSummaryOverlay {
                 if (panelAiVisionOptions != null) panelAiVisionOptions.setVisibility(View.GONE);
                 boolean isEn = "en".equalsIgnoreCase(uiLanguage);
                 String targetName = visionTargetLangIsEnglish ? "English" : "Español";
-                String nonTargetDesc = visionTargetLangIsEnglish
-                        ? "text in foreign languages (such as Spanish, Korean, Japanese, French, German, Chinese, etc.)"
-                        : "texto que NO esté en español (como inglés, coreano, japonés, francés, etc.)";
                 String prompt = "Target language for translation: " + targetName + ".\n"
-                        + "Analyze this TV screen frame and identify only " + nonTargetDesc + " visible in video thumbnails, signs, graphics, titles, or subtitles.\n"
-                        + "Translate detected text into " + targetName + " accurately.\n"
-                        + "CRITICAL FILTERING & EXCLUSION RULES:\n"
-                        + "1. ONLY detect and translate text that is in a DIFFERENT language than " + targetName + ". If text is already in " + targetName + ", DO NOT detect or output it!\n"
-                        + "2. STRICTLY EXCLUDE and DO NOT output bounding boxes for:\n"
-                        + "   - Text already written in " + targetName + ".\n"
-                        + "   - Timestamps, clocks, video durations, resolutions (e.g. 03:10, 23:05, 18:27, 4K, 1080p).\n"
-                        + "   - System UI elements, WiFi, Bluetooth, battery, or notifications (e.g. 'wireless debugging').\n"
-                        + "   - View counts or dates (e.g. '301K views', '1 year ago').\n"
-                        + "3. The translated text MUST be an actual translation in " + targetName + ", never repeat the original text.\n"
-                        + "4. Group related words on the same line into a single bounding box.\n"
-                        + "Present a clear, structured table/list readable on a TV screen with: Location, Original Text, and Translated Text.\n"
+                        + "You are a professional visual screen translator (like Google Lens for TV).\n"
+                        + "Scan this TV screen frame and detect ALL text visible in video titles, video thumbnails, channel names, descriptions, cards, banners, signs, graphics, and subtitles.\n"
+                        + "Translate any detected text that is not in " + targetName + " into natural, accurate " + targetName + ".\n"
+                        + "CRITICAL INSTRUCTIONS:\n"
+                        + "1. Detect and translate ALL foreign text, especially video titles and thumbnail text/cards across the screen.\n"
+                        + "2. If a video title, thumbnail card, sign, or caption is in English (or any other non-" + targetName + " language), ALWAYS translate it into " + targetName + ".\n"
+                        + "3. Only omit standalone timestamps (e.g. 12:34) and system clocks.\n"
+                        + "4. Group related words on the same line or title into a single bounding box.\n"
+                        + "Present a clear, structured list for TV with: Original Text and Translated Text.\n"
                         + "Then, you MUST output the exact delimiter:\n"
                         + AiSummaryEngine.DELIMITER_LENS_BOXES + "\n"
                         + "followed by one line per detected text in format:\n"
@@ -669,17 +677,33 @@ public class AiSummaryOverlay {
                     else if (isViewInside(current, actionPills)) {
                         if (actionPills instanceof ViewGroup) {
                             ViewGroup pillsGroup = (ViewGroup) actionPills;
-                            int currentIdx = pillsGroup.indexOfChild(current);
-                            View nextFocusable = null;
-                            for (int i = currentIdx + 1; i < pillsGroup.getChildCount(); i++) {
-                                View child = pillsGroup.getChildAt(i);
-                                if (child.getVisibility() == View.VISIBLE && child.isFocusable()) {
-                                    nextFocusable = child;
+                            View directChild = current;
+                            while (directChild != null && directChild.getParent() != pillsGroup) {
+                                if (directChild.getParent() instanceof View) {
+                                    directChild = (View) directChild.getParent();
+                                } else {
+                                    directChild = null;
                                     break;
+                                }
+                            }
+                            int currentIdx = directChild != null ? pillsGroup.indexOfChild(directChild) : -1;
+                            View nextFocusable = null;
+                            if (currentIdx >= 0) {
+                                for (int i = currentIdx + 1; i < pillsGroup.getChildCount(); i++) {
+                                    View child = pillsGroup.getChildAt(i);
+                                    if (child != null && child.getVisibility() == View.VISIBLE && child.isFocusable()) {
+                                        nextFocusable = child;
+                                        break;
+                                    }
                                 }
                             }
                             if (nextFocusable != null) {
                                 nextFocusable.requestFocus();
+                                if (actionPills.getParent() instanceof HorizontalScrollView) {
+                                    HorizontalScrollView hsv = (HorizontalScrollView) actionPills.getParent();
+                                    int left = nextFocusable.getLeft();
+                                    hsv.smoothScrollTo(Math.max(0, left - 20), 0);
+                                }
                                 return true;
                             }
                         }
@@ -699,6 +723,12 @@ public class AiSummaryOverlay {
                         if (layoutSuggestedSection != null && layoutSuggestedSection.getVisibility() == View.VISIBLE && btnSuggested1 != null) {
                             btnSuggested1.requestFocus();
                             centerViewInScrollView(btnSuggested1);
+                            return true;
+                        }
+                    }
+                    else if (panelAiVisionOptions != null && isViewInside(current, panelAiVisionOptions)) {
+                        if (current == btnVisionOptTranslate && btnVisionTargetLang != null) {
+                            btnVisionTargetLang.requestFocus();
                             return true;
                         }
                     }
@@ -732,27 +762,50 @@ public class AiSummaryOverlay {
                     else if (isViewInside(current, actionPills)) {
                         if (actionPills instanceof ViewGroup) {
                             ViewGroup pillsGroup = (ViewGroup) actionPills;
-                            int currentIdx = pillsGroup.indexOfChild(current);
-                            View prevFocusable = null;
-                            for (int i = currentIdx - 1; i >= 0; i--) {
-                                View child = pillsGroup.getChildAt(i);
-                                if (child.getVisibility() == View.VISIBLE && child.isFocusable()) {
-                                    prevFocusable = child;
+                            View directChild = current;
+                            while (directChild != null && directChild.getParent() != pillsGroup) {
+                                if (directChild.getParent() instanceof View) {
+                                    directChild = (View) directChild.getParent();
+                                } else {
+                                    directChild = null;
                                     break;
+                                }
+                            }
+                            int currentIdx = directChild != null ? pillsGroup.indexOfChild(directChild) : -1;
+                            View prevFocusable = null;
+                            if (currentIdx > 0) {
+                                for (int i = currentIdx - 1; i >= 0; i--) {
+                                    View child = pillsGroup.getChildAt(i);
+                                    if (child != null && child.getVisibility() == View.VISIBLE && child.isFocusable()) {
+                                        prevFocusable = child;
+                                        break;
+                                    }
                                 }
                             }
                             if (prevFocusable != null) {
                                 prevFocusable.requestFocus();
+                                if (actionPills.getParent() instanceof HorizontalScrollView) {
+                                    HorizontalScrollView hsv = (HorizontalScrollView) actionPills.getParent();
+                                    int left = prevFocusable.getLeft();
+                                    hsv.smoothScrollTo(Math.max(0, left - 20), 0);
+                                }
                                 return true;
                             }
+                            // ONLY when there are no more buttons to the left in this row (currentIdx == 0),
+                            // jump up to Header Bar!
+                            if (currentIdx == 0) {
+                                View target = btnAiMic != null && btnAiMic.getVisibility() == View.VISIBLE ? btnAiMic : overlayView.findViewById(R.id.btn_ai_close);
+                                if (target != null) {
+                                    target.requestFocus();
+                                    return true;
+                                }
+                            }
                         }
-                        // No more buttons to the left in Action Pills row -> jump up to Header Bar!
-                        View target = overlayView.findViewById(R.id.btn_ai_close);
-                        if (target == null || target.getVisibility() != View.VISIBLE) {
-                            target = btnAiMic;
-                        }
-                        if (target != null) {
-                            target.requestFocus();
+                        return true;
+                    }
+                    else if (panelAiVisionOptions != null && isViewInside(current, panelAiVisionOptions)) {
+                        if (current == btnVisionTargetLang && btnVisionOptTranslate != null) {
+                            btnVisionOptTranslate.requestFocus();
                             return true;
                         }
                     }
@@ -798,6 +851,12 @@ public class AiSummaryOverlay {
                             return true;
                         }
                     } else if (isViewInside(current, actionPills)) {
+                        if (panelAiVisionOptions != null && panelAiVisionOptions.getVisibility() == View.VISIBLE) {
+                            if (btnVisionOptTranslate != null) {
+                                btnVisionOptTranslate.requestFocus();
+                                return true;
+                            }
+                        }
                         if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
                             View firstCard = containerAiChips.getChildAt(0);
                             firstCard.requestFocus();
@@ -812,7 +871,12 @@ public class AiSummaryOverlay {
                 }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (current != null) {
-                    if (isViewInside(current, actionPills)) {
+                    if (panelAiVisionOptions != null && isViewInside(current, panelAiVisionOptions)) {
+                        if (btnPillVisionScan != null) {
+                            btnPillVisionScan.requestFocus();
+                            return true;
+                        }
+                    } else if (isViewInside(current, actionPills)) {
                         View target = btnAiMic != null ? btnAiMic : overlayView.findViewById(R.id.btn_ai_close);
                         if (target != null) {
                             target.requestFocus();
@@ -879,13 +943,18 @@ public class AiSummaryOverlay {
         return false;
     }
 
-    private void updateInternalFilters(Context context) {
+    public void updateInternalFilters(Context context) {
         if (overlayView == null || context == null) return;
         SharedPreferences prefs = context.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE);
-        boolean isDimmerActive = prefs.getBoolean("is_dimmer_active", false);
-        int dimmerPct = prefs.getInt("dimmer_brightness_pct", 100);
-        boolean isBlueLightActive = prefs.getBoolean("is_blue_light_active", false);
-        int blueLightPct = prefs.getInt("blue_light_pct", 0);
+        boolean isDimmerActive = prefs.getBoolean("dimmer", false)
+                || prefs.getBoolean("night_dimmer", false)
+                || (ButtonMappingService.instance != null && ButtonMappingService.instance.isDimmerActive());
+        int dimmerPct = prefs.getInt("dimmer_brightness_pct", 50);
+        boolean isBlueLightActive = prefs.getBoolean("blue_light", false)
+                || prefs.getBoolean("night_blue_light", false)
+                || (ButtonMappingService.instance != null && ButtonMappingService.instance.isBlueLightActive());
+        int blueLightPct = prefs.getInt("blue_light_pct", 50);
+        if (blueLightPct == 0) blueLightPct = 50;
 
         if (aiMenuDimmerFilter != null) {
             if (isDimmerActive && dimmerPct < 100) {
@@ -1247,6 +1316,8 @@ public class AiSummaryOverlay {
     private void renderLensBadgesIntoContainer(FrameLayout container, List<AiSummaryEngine.LensBoxItem> boxes, Context ctx) {
         if (container == null || boxes == null || boxes.isEmpty() || ctx == null) return;
         container.removeAllViews();
+        container.setClipChildren(false);
+        container.setClipToPadding(false);
         renderedLensBadgeViews.clear();
         selectedLensBadgeIndex = -1;
 
@@ -1308,25 +1379,32 @@ public class AiSummaryOverlay {
             renderedLensBadgeViews.add(badge);
             container.addView(badge);
         }
+
+        if (!renderedLensBadgeViews.isEmpty()) {
+            selectLensBadge(0, ctx);
+        }
     }
 
     private void updateBadgeVisualState(View badge, boolean isSelected, DisplayMetrics dm) {
         if (badge == null || dm == null) return;
         GradientDrawable bg = new GradientDrawable();
         if (isSelected) {
-            bg.setColor(0xFF181824);
+            bg.setColor(0xFF0A0C14);
             bg.setCornerRadius(8 * dm.density);
-            bg.setStroke((int) (2.5f * dm.density), 0xFFFFFFFF);
+            bg.setStroke((int) (3f * dm.density), 0xFFFFFFFF);
             badge.setBackground(bg);
-            badge.setScaleX(1.08f);
-            badge.setScaleY(1.08f);
-            badge.setElevation(30f);
+            badge.setScaleX(1.15f);
+            badge.setScaleY(1.15f);
+            badge.setElevation(200f * dm.density);
+            badge.setTranslationZ(100f * dm.density);
             if (badge instanceof ViewGroup) {
                 ViewGroup vg = (ViewGroup) badge;
                 for (int c = 0; c < vg.getChildCount(); c++) {
                     View child = vg.getChildAt(c);
                     if (child instanceof TextView) {
-                        ((TextView) child).setTextColor(0xFFFFFFFF);
+                        TextView tv = (TextView) child;
+                        tv.setTextColor(0xFFFFFFFF);
+                        tv.setShadowLayer(4f, 0, 2f, 0xFF000000);
                     }
                 }
             }
@@ -1337,13 +1415,16 @@ public class AiSummaryOverlay {
             badge.setBackground(bg);
             badge.setScaleX(1.0f);
             badge.setScaleY(1.0f);
-            badge.setElevation(2f);
+            badge.setElevation(4f * dm.density);
+            badge.setTranslationZ(0f);
             if (badge instanceof ViewGroup) {
                 ViewGroup vg = (ViewGroup) badge;
                 for (int c = 0; c < vg.getChildCount(); c++) {
                     View child = vg.getChildAt(c);
                     if (child instanceof TextView) {
-                        ((TextView) child).setTextColor(0xFFE0E0E0);
+                        TextView tv = (TextView) child;
+                        tv.setTextColor(0xFFE0E0E0);
+                        tv.setShadowLayer(0, 0, 0, 0);
                     }
                 }
             }
@@ -1367,6 +1448,7 @@ public class AiSummaryOverlay {
 
         selected.bringToFront();
         if (lensOverlayWindowView != null) {
+            lensOverlayWindowView.bringChildToFront(selected);
             lensOverlayWindowView.requestLayout();
             lensOverlayWindowView.invalidate();
         }

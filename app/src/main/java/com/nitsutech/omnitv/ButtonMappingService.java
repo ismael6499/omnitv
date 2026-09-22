@@ -2230,6 +2230,9 @@ public class ButtonMappingService extends AccessibilityService {
                     }
                     blueLightShowRetries = 0; // Reset retries on success
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_BLUE_LIGHT, true).apply();
+                    if (com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isShowing()) {
+                        com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().updateInternalFilters(ButtonMappingService.this);
+                    }
                     Log.d(TAG, "Blue light overlay shown pct: " + pct + " (alpha=" + alpha + ")");
                 } catch (Exception e) {
                     isBlueLightActive = false;
@@ -2267,6 +2270,9 @@ public class ButtonMappingService extends AccessibilityService {
                     WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
                     if (wm != null) wm.removeView(v);
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_BLUE_LIGHT, false).apply();
+                    if (com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isShowing()) {
+                        com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().updateInternalFilters(ButtonMappingService.this);
+                    }
                 } catch (Exception e) { Log.e(TAG, "Error hiding blue light overlay", e); }
             }
         });
@@ -2444,6 +2450,9 @@ public class ButtonMappingService extends AccessibilityService {
                     wm.addView(dimmerOverlayView, overlayMatchParams());
                     dimmerShowRetries = 0; // Reset retries on success
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_DIMMER, true).apply();
+                    if (com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isShowing()) {
+                        com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().updateInternalFilters(ButtonMappingService.this);
+                    }
                     Log.d(TAG, "Dimmer overlay shown at " + brightnessPct + "% brightness");
                 } catch (Exception e) {
                     isDimmerActive = false;
@@ -2475,6 +2484,9 @@ public class ButtonMappingService extends AccessibilityService {
                 if (isDimmerActive && dimmerOverlayView != null) {
                     int alphaVal = (int) ((100 - pct) * 2.55);
                     dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+                    if (com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isShowing()) {
+                        com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().updateInternalFilters(ButtonMappingService.this);
+                    }
                 } else if (!isDimmerActive) {
                     showDimmerOverlay();
                 }
@@ -2499,6 +2511,9 @@ public class ButtonMappingService extends AccessibilityService {
                 if (isDimmerActive && dimmerOverlayView != null) {
                     int alphaVal = (int) ((100 - next) * 2.55);
                     dimmerOverlayView.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+                    if (com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isShowing()) {
+                        com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().updateInternalFilters(ButtonMappingService.this);
+                    }
                 } else {
                     showDimmerOverlay();
                 }
@@ -2813,9 +2828,20 @@ public class ButtonMappingService extends AccessibilityService {
                     WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
                     if (wm != null) wm.removeView(v);
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putBoolean(KEY_DIMMER, false).apply();
+                    if (com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isShowing()) {
+                        com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().updateInternalFilters(ButtonMappingService.this);
+                    }
                 } catch (Exception e) { Log.e(TAG, "Error hiding dimmer overlay", e); }
             }
         });
+    }
+
+    public boolean isDimmerActive() {
+        return isDimmerActive;
+    }
+
+    public boolean isBlueLightActive() {
+        return isBlueLightActive;
     }
 
     // ── ¿Sigues viendo? (Inactividad) ───────────────────────────────────────
