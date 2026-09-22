@@ -9,18 +9,191 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 
 public class ScheduledSleepReceiver extends BroadcastReceiver {
     private static final String TAG = "ScheduledSleepReceiver";
     public static final String ACTION_TRIGGER_SCHEDULED_SLEEP = "com.nitsutech.omnitv.ACTION_TRIGGER_SCHEDULED_SLEEP";
     public static final String ACTION_TRIGGER_SCHEDULED_SLEEP_LEGACY = "com.example.togglegrayscale.ACTION_TRIGGER_SCHEDULED_SLEEP";
     public static final String PREFS_NAME = "overlay_prefs";
+
+    public static class SleepAlarm {
+        public String id;
+        public int hour;
+        public int minute;
+        public String days; // "1,2,3,4,5,6,7" (1=Monday .. 7=Sunday)
+        public boolean enabled;
+        public String skipDate; // "yyyy-MM-dd" or empty
+
+        public SleepAlarm() {}
+
+        public SleepAlarm(String id, int hour, int minute, String days, boolean enabled) {
+            this.id = id != null ? id : UUID.randomUUID().toString();
+            this.hour = hour;
+            this.minute = minute;
+            this.days = days != null ? days : "1,2,3,4,5,6,7";
+            this.enabled = enabled;
+            this.skipDate = "";
+        }
+
+        public JSONObject toJson() {
+            JSONObject obj = new JSONObject();
+            try {
+                obj.put("id", id);
+                obj.put("hour", hour);
+                obj.put("minute", minute);
+                obj.put("days", days != null ? days : "1,2,3,4,5,6,7");
+                obj.put("enabled", enabled);
+                obj.put("skipDate", skipDate != null ? skipDate : "");
+            } catch (Exception ignored) {}
+            return obj;
+        }
+
+        public static SleepAlarm fromJson(JSONObject obj) {
+            if (obj == null) return null;
+            SleepAlarm a = new SleepAlarm();
+            a.id = obj.optString("id", UUID.randomUUID().toString());
+            a.hour = obj.optInt("hour", 23);
+            a.minute = obj.optInt("minute", 30);
+            a.days = obj.optString("days", "1,2,3,4,5,6,7");
+            a.enabled = obj.optBoolean("enabled", true);
+            a.skipDate = obj.optString("skipDate", "");
+            return a;
+        }
+    }
+
+    public static synchronized List<SleepAlarm> loadAlarms(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        List<SleepAlarm> list = new ArrayList<>();
+        String jsonStr = prefs.getString("scheduled_sleep_alarms_json", "");
+        if (jsonStr != null && !jsonStr.trim().isEmpty()) {
+            try {
+                JSONArray arr = new JSONArray(jsonStr);
+                for (int i = 0; i < arr.length(); i++) {
+                    SleepAlarm a = SleepAlarm.fromJson(arr.getJSONObject(i));
+                    if (a != null) list.add(a);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error parsing scheduled_sleep_alarms_json", e);
+            }
+        }
+
+        // Automatic migration from single legacy alarm
+        if (list.isEmpty()) {
+            boolean legacyEnabled = prefs.getBoolean("scheduled_sleep_enabled", false);
+            int legacyHour = prefs.getInt("scheduled_sleep_hour", 23);
+            int legacyMin = prefs.getInt("scheduled_sleep_minute", 30);
+            String legacyDays = prefs.getString("scheduled_sleep_days", "1,2,3,4,5,6,7");
+            String legacySkip = prefs.getString("scheduled_sleep_skip_date", "");
+
+            SleepAlarm a1 = new SleepAlarm("alarm_1", legacyHour, legacyMin, legacyDays, legacyEnabled);
+            a1.skipDate = legacySkip;
+            list.add(a1);
+            saveAlarms(context, list);
+        }
+        return list;
+    }
+
+    public static synchronized void saveAlarms(Context context, List<SleepAlarm> list) {
+        if (context == null || list == null) return;
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        JSONArray arr = new JSONArray();
+        boolean hasAnyActive = false;
+        for (SleepAlarm a : list) {
+            arr.put(a.toJson());
+            if (a.enabled) hasAnyActive = true;
+        }
+        SharedPreferences.Editor ed = prefs.edit();
+        ed.putString("scheduled_sleep_alarms_json", arr.toString());
+        ed.putBoolean("scheduled_sleep_enabled", hasAnyActive);
+        if (!list.isEmpty()) {
+            SleepAlarm first = list.get(0);
+            ed.putInt("scheduled_sleep_hour", first.hour);
+            ed.putInt("scheduled_sleep_minute", first.minute);
+            ed.putString("scheduled_sleep_days", first.days);
+            ed.putString("scheduled_sleep_skip_date", first.skipDate != null ? first.skipDate : "");
+        }
+        ed.apply();
+    }
+
+    public static class UpcomingAlarmResult {
+        public final SleepAlarm alarm;
+        public final Calendar calendar;
+
+        public UpcomingAlarmResult(SleepAlarm alarm, Calendar calendar) {
+            this.alarm = alarm;
+            this.calendar = calendar;
+        }
+    }
+
+    public static Calendar getNextAlarmCal(SleepAlarm alarm, boolean forceTomorrow) {
+        if (alarm == null) return null;
+        Set<Integer> activeDays = new HashSet<>();
+        for (String d : (alarm.days != null ? alarm.days : "1,2,3,4,5,6,7").split(",")) {
+            try { activeDays.add(Integer.parseInt(d.trim())); } catch (Exception ignored) {}
+        }
+        if (activeDays.isEmpty()) {
+            for (int i = 1; i <= 7; i++) activeDays.add(i);
+        }
+
+        Calendar now = Calendar.getInstance();
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        cal.set(Calendar.HOUR_OF_DAY, alarm.hour);
+        cal.set(Calendar.MINUTE, alarm.minute);
+
+        if (!forceTomorrow && now.get(Calendar.HOUR_OF_DAY) == alarm.hour && now.get(Calendar.MINUTE) == alarm.minute) {
+            return cal;
+        }
+
+        if (forceTomorrow || cal.getTimeInMillis() <= System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+
+        for (int i = 0; i < 7; i++) {
+            int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK);
+            int isoDay = dayOfWeek == Calendar.SUNDAY ? 7 : dayOfWeek - 1;
+            if (activeDays.contains(isoDay)) {
+                break;
+            }
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+        return cal;
+    }
+
+    public static UpcomingAlarmResult getNextEarliestAlarm(Context context, boolean forceTomorrow) {
+        List<SleepAlarm> alarms = loadAlarms(context);
+        SleepAlarm earliestAlarm = null;
+        Calendar earliestCal = null;
+
+        for (SleepAlarm a : alarms) {
+            if (!a.enabled) continue;
+            Calendar cal = getNextAlarmCal(a, forceTomorrow);
+            if (cal != null) {
+                if (earliestCal == null || cal.getTimeInMillis() < earliestCal.getTimeInMillis()) {
+                    earliestCal = cal;
+                    earliestAlarm = a;
+                }
+            }
+        }
+
+        if (earliestAlarm != null && earliestCal != null) {
+            return new UpcomingAlarmResult(earliestAlarm, earliestCal);
+        }
+        return null;
+    }
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -37,36 +210,55 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
                 || ACTION_TRIGGER_SCHEDULED_SLEEP_LEGACY.equals(action)) {
 
             SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-            boolean enabled = prefs.getBoolean("scheduled_sleep_enabled", false);
 
-            if ((ACTION_TRIGGER_SCHEDULED_SLEEP.equals(action) || ACTION_TRIGGER_SCHEDULED_SLEEP_LEGACY.equals(action)) && enabled) {
+            if (ACTION_TRIGGER_SCHEDULED_SLEEP.equals(action) || ACTION_TRIGGER_SCHEDULED_SLEEP_LEGACY.equals(action)) {
                 String todayStr = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
                 String currentStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(new Date());
-                String skipStr = prefs.getString("scheduled_sleep_skip_date", "");
                 String lastExecStamp = prefs.getString("scheduled_sleep_last_executed_stamp", "");
 
-                if (todayStr.equals(skipStr)) {
-                    Log.d(TAG, "Scheduled sleep skipped for today: " + todayStr);
-                    prefs.edit().remove("scheduled_sleep_skip_date").apply();
-                } else if (currentStamp.equals(lastExecStamp)) {
+                if (currentStamp.equals(lastExecStamp)) {
                     Log.d(TAG, "Scheduled sleep already executed for stamp (" + currentStamp + "). Skipping duplicate execution.");
                 } else {
-                    Calendar cal = Calendar.getInstance();
-                    int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK);
+                    Calendar now = Calendar.getInstance();
+                    int currentHour = now.get(Calendar.HOUR_OF_DAY);
+                    int currentMinute = now.get(Calendar.MINUTE);
+                    int dayOfWeek = now.get(Calendar.DAY_OF_WEEK);
                     int isoDay = dayOfWeek == Calendar.SUNDAY ? 7 : dayOfWeek - 1;
-                    String daysStr = prefs.getString("scheduled_sleep_days", "1,2,3,4,5,6,7");
-                    boolean dayActive = false;
-                    for (String d : daysStr.split(",")) {
-                        try {
-                            if (Integer.parseInt(d.trim()) == isoDay) {
-                                dayActive = true;
-                                break;
-                            }
-                        } catch (Exception ignored) {}
+
+                    List<SleepAlarm> alarms = loadAlarms(context);
+                    boolean shouldTrigger = false;
+
+                    for (SleepAlarm a : alarms) {
+                        if (!a.enabled) continue;
+                        boolean timeMatches = (a.hour == currentHour && a.minute == currentMinute);
+                        if (!timeMatches) continue;
+
+                        if (todayStr.equals(a.skipDate)) {
+                            Log.d(TAG, "Alarm " + a.hour + ":" + a.minute + " skipped for today: " + todayStr);
+                            a.skipDate = "";
+                            saveAlarms(context, alarms);
+                            continue;
+                        }
+
+                        String globalSkip = prefs.getString("scheduled_sleep_skip_date", "");
+                        if (todayStr.equals(globalSkip)) {
+                            Log.d(TAG, "Scheduled sleep globally skipped for today: " + todayStr);
+                            prefs.edit().remove("scheduled_sleep_skip_date").apply();
+                            continue;
+                        }
+
+                        Set<Integer> activeDays = new HashSet<>();
+                        for (String d : (a.days != null ? a.days : "").split(",")) {
+                            try { activeDays.add(Integer.parseInt(d.trim())); } catch (Exception ignored) {}
+                        }
+                        if (activeDays.contains(isoDay)) {
+                            shouldTrigger = true;
+                            break;
+                        }
                     }
 
-                    if (dayActive) {
-                        Log.d(TAG, "Executing scheduled sleep action!");
+                    if (shouldTrigger) {
+                        Log.d(TAG, "Executing scheduled sleep action for current minute!");
                         prefs.edit().putString("scheduled_sleep_last_executed_stamp", currentStamp).apply();
                         Intent serviceIntent = new Intent(context, ButtonMappingService.class);
                         serviceIntent.setAction("ACTION_SCHEDULED_POWER_OFF");
@@ -75,58 +267,61 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
                 }
             }
 
-            // Reschedule the next alarm occurrence for tomorrow/next active day
+            // Always reschedule next alarm occurrence
             scheduleNextAlarm(context, true);
         }
     }
 
     public static Calendar getNextUpcomingAlarmCal(Context context, boolean forceTomorrow) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        int targetHour = prefs.getInt("scheduled_sleep_hour", 23);
-        int targetMin = prefs.getInt("scheduled_sleep_minute", 30);
-        String daysStr = prefs.getString("scheduled_sleep_days", "1,2,3,4,5,6,7");
-        Set<Integer> activeDays = new HashSet<>();
-        for (String d : daysStr.split(",")) {
-            try { activeDays.add(Integer.parseInt(d.trim())); } catch (Exception ignored) {}
+        UpcomingAlarmResult next = getNextEarliestAlarm(context, forceTomorrow);
+        if (next != null) {
+            return next.calendar;
         }
-
-        Calendar now = Calendar.getInstance();
-        Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        cal.set(Calendar.HOUR_OF_DAY, targetHour);
-        cal.set(Calendar.MINUTE, targetMin);
-
-        // Check if target is instant test trigger for current minute
-        if (!forceTomorrow && now.get(Calendar.HOUR_OF_DAY) == targetHour && now.get(Calendar.MINUTE) == targetMin) {
-            return cal;
-        }
-
-        if (forceTomorrow || cal.getTimeInMillis() <= System.currentTimeMillis()) {
-            cal.add(Calendar.DAY_OF_YEAR, 1);
-        }
-
-        // Loop forward up to 7 days until finding an active day
-        for (int i = 0; i < 7; i++) {
-            int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK);
-            int isoDay = dayOfWeek == Calendar.SUNDAY ? 7 : dayOfWeek - 1;
-            if (activeDays.contains(isoDay)) {
-                break;
-            }
-            cal.add(Calendar.DAY_OF_YEAR, 1);
-        }
-
-        return cal;
+        Calendar fallback = Calendar.getInstance();
+        fallback.add(Calendar.DAY_OF_YEAR, 1);
+        return fallback;
     }
 
     public static String getNextAlarmDateStr(Context context) {
-        Calendar cal = getNextUpcomingAlarmCal(context, false);
-        return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.getTime());
+        UpcomingAlarmResult next = getNextEarliestAlarm(context, false);
+        if (next != null && next.calendar != null) {
+            return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(next.calendar.getTime());
+        }
+        return "";
     }
 
     public static String getNextAlarmDisplayDateStr(Context context) {
-        Calendar cal = getNextUpcomingAlarmCal(context, false);
-        return new SimpleDateFormat("dd/MM", Locale.US).format(cal.getTime());
+        UpcomingAlarmResult next = getNextEarliestAlarm(context, false);
+        if (next != null && next.calendar != null) {
+            return new SimpleDateFormat("dd/MM", Locale.US).format(next.calendar.getTime());
+        }
+        return "";
+    }
+
+    public static String getActiveAlarmsSummary(Context context) {
+        List<SleepAlarm> alarms = loadAlarms(context);
+        List<String> times = new ArrayList<>();
+        List<SleepAlarm> sorted = new ArrayList<>(alarms);
+        java.util.Collections.sort(sorted, new java.util.Comparator<SleepAlarm>() {
+            @Override
+            public int compare(SleepAlarm o1, SleepAlarm o2) {
+                return Integer.compare(o1.hour * 60 + o1.minute, o2.hour * 60 + o2.minute);
+            }
+        });
+        for (SleepAlarm a : sorted) {
+            if (a.enabled) {
+                times.add(String.format(Locale.US, "%02d:%02d", a.hour, a.minute));
+            }
+        }
+        if (times.isEmpty()) {
+            return "OFF";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < times.size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(times.get(i));
+        }
+        return sb.toString();
     }
 
     public static void scheduleNextAlarm(Context context) {
@@ -134,10 +329,7 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
     }
 
     public static void scheduleNextAlarm(Context context, boolean forceTomorrow) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        boolean enabled = prefs.getBoolean("scheduled_sleep_enabled", false);
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-
         Intent intent = new Intent(context, ScheduledSleepReceiver.class);
         intent.setAction(ACTION_TRIGGER_SCHEDULED_SLEEP);
         PendingIntent pi = PendingIntent.getBroadcast(
@@ -147,27 +339,23 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
                 PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
         );
 
-        if (!enabled || am == null) {
+        UpcomingAlarmResult next = getNextEarliestAlarm(context, forceTomorrow);
+        if (next == null || am == null) {
             if (am != null) am.cancel(pi);
-            Log.d(TAG, "Scheduled sleep alarm cancelled because enabled=false.");
+            Log.d(TAG, "No enabled scheduled sleep alarms found. Alarm cancelled.");
             return;
         }
 
-        int targetHour = prefs.getInt("scheduled_sleep_hour", 23);
-        int targetMin = prefs.getInt("scheduled_sleep_minute", 30);
         Calendar now = Calendar.getInstance();
-
         long triggerAt;
-        if (!forceTomorrow && now.get(Calendar.HOUR_OF_DAY) == targetHour && now.get(Calendar.MINUTE) == targetMin) {
+        if (!forceTomorrow && now.get(Calendar.HOUR_OF_DAY) == next.alarm.hour && now.get(Calendar.MINUTE) == next.alarm.minute) {
             triggerAt = System.currentTimeMillis() + 3000;
         } else {
-            Calendar cal = getNextUpcomingAlarmCal(context, forceTomorrow);
-            triggerAt = cal.getTimeInMillis();
+            triggerAt = next.calendar.getTimeInMillis();
         }
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                // setAlarmClock guarantees high-priority exact CPU wakeup from Doze/Sleep mode
                 AlarmManager.AlarmClockInfo clockInfo = new AlarmManager.AlarmClockInfo(triggerAt, pi);
                 am.setAlarmClock(clockInfo, pi);
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -175,7 +363,7 @@ public class ScheduledSleepReceiver extends BroadcastReceiver {
             } else {
                 am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi);
             }
-            Log.d(TAG, "Next scheduled sleep alarm set for: " + new Date(triggerAt));
+            Log.d(TAG, "Next scheduled sleep alarm set for: " + new Date(triggerAt) + " (" + String.format(Locale.US, "%02d:%02d", next.alarm.hour, next.alarm.minute) + ")");
         } catch (Exception e) {
             Log.e(TAG, "Error setting alarm manager", e);
         }

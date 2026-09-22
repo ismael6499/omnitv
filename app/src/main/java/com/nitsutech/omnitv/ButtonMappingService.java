@@ -1246,6 +1246,7 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             }
             case "ACTION_REORDER_OVERLAYS": reorderOverlaysOnTop(); break;
+            case "ACTION_OPEN_QUICK_MENU": openQuickMenu(); break;
             case "ACTION_UPDATE_SCHEDULED_SLEEP": ScheduledSleepReceiver.scheduleNextAlarm(this); break;
             case "ACTION_SCHEDULED_POWER_OFF":
                 SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
