@@ -24,6 +24,7 @@
 
         <!-- Top Header Bar -->
         <LinearLayout
+            android:id="@+id/container_ai_header_bar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -34,10 +35,40 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="✨ OmniTV AI • Asistente de Video"
+                android:text="✨ OmniTV AI"
                 android:textColor="#8AB4F8"
-                android:textSize="17sp"
+                android:textSize="16sp"
                 android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btn_ai_play_pause"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/pill_youtube_tv"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:layout_marginEnd="6dp"
+                android:gravity="center"
+                android:text="⏸️"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:focusable="true"
+                android:clickable="true" />
+
+            <TextView
+                android:id="@+id/btn_ai_chat_lang"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/pill_youtube_tv"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:layout_marginEnd="6dp"
+                android:gravity="center"
+                android:text="🌐 ES"
+                android:textColor="#CCCCCC"
+                android:textSize="12sp"
+                android:focusable="true"
+                android:clickable="true" />
 
             <TextView
                 android:id="@+id/btn_ai_mic"
@@ -46,7 +77,7 @@
                 android:background="@drawable/pill_youtube_tv"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="6dp"
                 android:gravity="center"
                 android:text="🎙️ Hablar"
                 android:textColor="#8AB4F8"
@@ -60,11 +91,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
                 android:background="@drawable/pill_youtube_tv"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:layout_marginEnd="8dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:layout_marginEnd="6dp"
                 android:gravity="center"
-                android:text="🔄 Nuevo chat"
+                android:text="🔄 Nuevo"
                 android:textColor="#AAAAAA"
                 android:textSize="12sp"
                 android:focusable="true"
@@ -76,8 +107,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
                 android:background="@drawable/pill_youtube_tv"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
                 android:gravity="center"
                 android:text="✕ Cerrar"
                 android:textColor="#DDDDDD"
@@ -117,19 +148,20 @@
             android:layout_marginBottom="12dp">
 
             <LinearLayout
+                android:id="@+id/container_action_pills"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
                 <TextView
-                    android:id="@+id/btn_pill_voice"
+                    android:id="@+id/btn_pill_vision_scan"
                     android:layout_width="wrap_content"
                     android:layout_height="36dp"
                     android:background="@drawable/pill_youtube_tv"
                     android:paddingStart="14dp"
                     android:paddingEnd="14dp"
                     android:gravity="center"
-                    android:text="🎙️ Preguntar con voz"
+                    android:text="📸 Analizar Pantalla"
                     android:textColor="#8AB4F8"
                     android:textSize="13sp"
                     android:textStyle="bold"
@@ -201,6 +233,121 @@
                     android:clickable="true" />
             </LinearLayout>
         </HorizontalScrollView>
+
+        <!-- Vision / Screen Analysis Subpanel (Toggled via btn_pill_vision_scan) -->
+        <LinearLayout
+            android:id="@+id/panel_ai_vision_options"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background"
+            android:padding="12dp"
+            android:layout_marginBottom="10dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/txt_vision_header"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="📸 Analizar Pantalla con IA"
+                    android:textColor="#8AB4F8"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btn_vision_close"
+                    android:layout_width="wrap_content"
+                    android:layout_height="28dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:gravity="center"
+                    android:text="✕ Cerrar"
+                    android:textColor="#CCCCCC"
+                    android:textSize="11sp"
+                    android:focusable="true"
+                    android:clickable="true" />
+            </LinearLayout>
+
+            <!-- Option 1: Translate Text with Lens + Target Language Toggle -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:id="@+id/btn_vision_opt_translate"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:gravity="center_vertical|start"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:text="🔤 Traducir Texto (Lens IA)"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:clickable="true" />
+
+                <TextView
+                    android:id="@+id/btn_vision_target_lang"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:layout_marginStart="6dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:gravity="center"
+                    android:text="🌐 Destino: EN"
+                    android:textColor="#81D4FA"
+                    android:textSize="12sp"
+                    android:focusable="true"
+                    android:clickable="true" />
+            </LinearLayout>
+
+            <!-- Option 2: Analyze Objects -->
+            <TextView
+                android:id="@+id/btn_vision_opt_objects"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/pill_youtube_tv"
+                android:gravity="center_vertical|start"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="🎯 Analizar Objetos y Elementos"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="6dp"
+                android:focusable="true"
+                android:clickable="true" />
+
+            <!-- Option 3: Places or People -->
+            <TextView
+                android:id="@+id/btn_vision_opt_places"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/pill_youtube_tv"
+                android:gravity="center_vertical|start"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="📍 Identificar Lugar o Personas"
+                android:textColor="#CCCCCC"
+                android:textSize="13sp"
+                android:focusable="true"
+                android:clickable="true" />
+        </LinearLayout>
 
         <!-- Main Content Area: ScrollView with Chips and Follow-up Questions -->
         <ScrollView
@@ -365,4 +512,23 @@
             android:textSize="11sp" />
 
     </LinearLayout>
+
+    <!-- Internal filter views to match system Dimmer and Blue Light from Frame 0 without flashes -->
+    <View
+        android:id="@+id/ai_menu_blue_light_filter"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:elevation="98dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/ai_menu_dimmer_filter"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:elevation="99dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
 </FrameLayout>

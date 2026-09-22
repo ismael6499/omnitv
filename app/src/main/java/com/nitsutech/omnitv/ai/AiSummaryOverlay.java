@@ -2,7 +2,10 @@ package com.nitsutech.omnitv.ai;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -13,6 +16,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
+import android.util.DisplayMetrics;
+import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -63,7 +71,29 @@ public class AiSummaryOverlay {
     private View currentThinkingView;
     private TextView btnAiReset;
     private TextView btnAiMic;
-    private TextView btnPillVoice;
+    private TextView btnAiPlayPause;
+    private TextView btnAiChatLang;
+    private TextView btnPillVisionScan;
+
+    // Vision Panel views
+    private LinearLayout panelAiVisionOptions;
+    private TextView txtVisionHeader;
+    private TextView btnVisionOptTranslate;
+    private TextView btnVisionTargetLang;
+    private TextView btnVisionOptObjects;
+    private TextView btnVisionOptPlaces;
+    private TextView btnVisionClose;
+    private FrameLayout lensOverlayWindowView = null;
+    private List<AiSummaryEngine.LensBoxItem> activeLensBoxes = new ArrayList<>();
+
+    // Internal Filters
+    private View aiMenuDimmerFilter;
+    private View aiMenuBlueLightFilter;
+
+    // Language state
+    private String uiLanguage = "es";
+    private String chatLanguage = "es";
+    private boolean visionTargetLangIsEnglish = true;
     private View currentListeningCard;
     private TextView textListeningStatus;
     private SpeechRecognizer speechRecognizer;
@@ -76,12 +106,18 @@ public class AiSummaryOverlay {
         final String text;
         final List<AiSummaryEngine.AiPointItem> items;
         final List<String> suggestedQuestions;
+        final List<AiSummaryEngine.LensBoxItem> lensBoxes;
 
-        ChatTurn(boolean isUser, String text, List<AiSummaryEngine.AiPointItem> items, List<String> suggestedQuestions) {
+        ChatTurn(boolean isUser, String text, List<AiSummaryEngine.AiPointItem> items, List<String> suggestedQuestions, List<AiSummaryEngine.LensBoxItem> lensBoxes) {
             this.isUser = isUser;
             this.text = text;
             this.items = items;
             this.suggestedQuestions = suggestedQuestions;
+            this.lensBoxes = lensBoxes != null ? lensBoxes : Collections.emptyList();
+        }
+
+        ChatTurn(boolean isUser, String text, List<AiSummaryEngine.AiPointItem> items, List<String> suggestedQuestions) {
+            this(isUser, text, items, suggestedQuestions, null);
         }
     }
 
@@ -95,8 +131,13 @@ public class AiSummaryOverlay {
     private String currentVideoTitle = "";
     private String currentVideoId = "";
     private String currentTranscript = "";
+    private String currentTrackLang = "";
     private final ExecutorService fetcherExecutor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Handler mHoldHandler = new Handler(Looper.getMainLooper());
+    private int mHoldingKeyCode = -1;
+    private int mHoldTickCount = 0;
+    private Runnable mHoldRunnable;
 
     public static synchronized AiSummaryOverlay getInstance() {
         if (instance == null) {
@@ -126,6 +167,9 @@ public class AiSummaryOverlay {
         );
 
         bindViews(context);
+        updateInternalFilters(context);
+        updatePlayPauseButtonState();
+        applyUiLanguage(context);
         setupKeyListeners();
         detectVideoAndLoadTranscript(context);
 
@@ -135,13 +179,18 @@ public class AiSummaryOverlay {
             mainHandler.removeCallbacks(videoPollRunnable);
             mainHandler.postDelayed(videoPollRunnable, 1500);
             Log.d(TAG, "AiSummaryOverlay displayed successfully");
+
+            if (isLensOverlayShowing()) {
+                renderLensBadgesIntoContainer(lensOverlayWindowView, activeLensBoxes, context);
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error adding AiSummaryOverlay to WindowManager", e);
         }
     }
 
-    public synchronized void hide() {
+    public synchronized void hideOnlyDrawer() {
         if (!isShowing || overlayView == null || windowManager == null) return;
+        stopHoldRepeat();
         mainHandler.removeCallbacks(videoPollRunnable);
         stopVoiceInput();
         if (speechRecognizer != null) {
@@ -160,9 +209,100 @@ public class AiSummaryOverlay {
         currentThinkingView = null;
         currentListeningCard = null;
         textListeningStatus = null;
-        // Keep conversationHistory, recordedTurns, lastVideoTitle, and lastTranscript
-        // so if the user re-opens the assistant on the same video, the conversation continues!
-        Log.d(TAG, "AiSummaryOverlay hidden (conversation state retained for: " + lastVideoTitle + ")");
+
+        // Re-render lens badges without the 540dp drawer offset so they expand full-screen
+        if (isLensOverlayShowing() && ButtonMappingService.instance != null) {
+            renderLensBadgesIntoContainer(lensOverlayWindowView, activeLensBoxes, ButtonMappingService.instance);
+        }
+        Log.d(TAG, "AiSummaryOverlay drawer closed, lens overlay kept on screen");
+    }
+
+    public synchronized void hide() {
+        hideOnlyDrawer();
+        hideLensOverlay();
+    }
+
+    public void handleBackPress(Context context) {
+        if (isListening) {
+            stopVoiceInput();
+            return;
+        }
+        if (panelAiVisionOptions != null && panelAiVisionOptions.getVisibility() == View.VISIBLE) {
+            panelAiVisionOptions.setVisibility(View.GONE);
+            if (btnPillVisionScan != null) btnPillVisionScan.requestFocus();
+            return;
+        }
+        if (isLensOverlayShowing()) {
+            // Case 1: Close assistant menu, keep Lens overlay active on screen!
+            hideOnlyDrawer();
+            boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+            Toast.makeText(context, isEn ? "🔤 Press Back to return to AI menu" : "🔤 Presiona Atrás para volver al menú de IA", Toast.LENGTH_SHORT).show();
+        } else {
+            // Case 3: Close assistant menu and return to video
+            hide();
+        }
+    }
+
+    public boolean isLensOverlayShowing() {
+        return lensOverlayWindowView != null && lensOverlayWindowView.isAttachedToWindow() && lensOverlayWindowView.getVisibility() == View.VISIBLE;
+    }
+
+    public synchronized void showLensOverlay(List<AiSummaryEngine.LensBoxItem> boxes, Context context) {
+        if (context == null || boxes == null || boxes.isEmpty()) return;
+        activeLensBoxes = new ArrayList<>(boxes);
+
+        if (windowManager == null) {
+            windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        }
+
+        if (lensOverlayWindowView == null) {
+            lensOverlayWindowView = new FrameLayout(context);
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    PixelFormat.TRANSLUCENT
+            );
+            renderLensBadgesIntoContainer(lensOverlayWindowView, activeLensBoxes, context);
+            try {
+                windowManager.addView(lensOverlayWindowView, lp);
+                Log.d(TAG, "lensOverlayWindowView added to WindowManager (" + activeLensBoxes.size() + " badges)");
+            } catch (Exception e) {
+                Log.e(TAG, "Error adding lensOverlayWindowView", e);
+            }
+        } else {
+            lensOverlayWindowView.removeAllViews();
+            renderLensBadgesIntoContainer(lensOverlayWindowView, activeLensBoxes, context);
+            lensOverlayWindowView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public synchronized void hideLensOverlay() {
+        if (lensOverlayWindowView != null && windowManager != null) {
+            try {
+                if (lensOverlayWindowView.isAttachedToWindow()) {
+                    windowManager.removeView(lensOverlayWindowView);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error removing lensOverlayWindowView", e);
+            }
+            lensOverlayWindowView = null;
+            Log.d(TAG, "lensOverlayWindowView removed from WindowManager");
+        }
+    }
+
+    public synchronized void toggleLensOverlay(List<AiSummaryEngine.LensBoxItem> boxes, Context context) {
+        if (isLensOverlayShowing()) {
+            hideLensOverlay();
+            boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+            Toast.makeText(context, isEn ? "👁️ Screen translations hidden" : "👁️ Traducciones en pantalla ocultas", Toast.LENGTH_SHORT).show();
+        } else {
+            List<AiSummaryEngine.LensBoxItem> target = (boxes != null && !boxes.isEmpty()) ? boxes : activeLensBoxes;
+            showLensOverlay(target, context);
+            boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+            Toast.makeText(context, isEn ? "👁️ Screen translations active" : "👁️ Traducciones en pantalla activadas", Toast.LENGTH_SHORT).show();
+        }
     }
 
     public boolean isShowing() {
@@ -197,9 +337,136 @@ public class AiSummaryOverlay {
             btnAiMic.setOnClickListener(v -> toggleVoiceInput(context));
         }
 
-        btnPillVoice = overlayView.findViewById(R.id.btn_pill_voice);
-        if (btnPillVoice != null) {
-            btnPillVoice.setOnClickListener(v -> toggleVoiceInput(context));
+        btnAiPlayPause = overlayView.findViewById(R.id.btn_ai_play_pause);
+        if (btnAiPlayPause != null) {
+            btnAiPlayPause.setOnClickListener(v -> {
+                boolean nowPlaying = MediaNotificationListener.togglePlayPause(context);
+                btnAiPlayPause.setText(nowPlaying ? "⏸️" : "▶️");
+            });
+        }
+
+        btnAiChatLang = overlayView.findViewById(R.id.btn_ai_chat_lang);
+        if (btnAiChatLang != null) {
+            btnAiChatLang.setOnClickListener(v -> {
+                String nextLang = "es".equalsIgnoreCase(chatLanguage) ? "en" : "es";
+                setChatLanguage(nextLang);
+                Toast.makeText(context, "🌐 " + ("es".equalsIgnoreCase(nextLang) ? "Idioma del chat: Español" : "Chat language: English"), Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // Vision Subpanel Views
+        panelAiVisionOptions = overlayView.findViewById(R.id.panel_ai_vision_options);
+        txtVisionHeader = overlayView.findViewById(R.id.txt_vision_header);
+        btnVisionOptTranslate = overlayView.findViewById(R.id.btn_vision_opt_translate);
+        btnVisionTargetLang = overlayView.findViewById(R.id.btn_vision_target_lang);
+        btnVisionOptObjects = overlayView.findViewById(R.id.btn_vision_opt_objects);
+        btnVisionOptPlaces = overlayView.findViewById(R.id.btn_vision_opt_places);
+        btnVisionClose = overlayView.findViewById(R.id.btn_vision_close);
+
+        aiMenuDimmerFilter = overlayView.findViewById(R.id.ai_menu_dimmer_filter);
+        aiMenuBlueLightFilter = overlayView.findViewById(R.id.ai_menu_blue_light_filter);
+
+        btnPillVisionScan = overlayView.findViewById(R.id.btn_pill_vision_scan);
+        if (btnPillVisionScan != null) {
+            btnPillVisionScan.setOnClickListener(v -> {
+                if (panelAiVisionOptions != null) {
+                    boolean isVis = panelAiVisionOptions.getVisibility() == View.VISIBLE;
+                    panelAiVisionOptions.setVisibility(isVis ? View.GONE : View.VISIBLE);
+                    if (!isVis && btnVisionOptTranslate != null) {
+                        btnVisionOptTranslate.requestFocus();
+                    }
+                }
+            });
+        }
+
+        if (btnVisionClose != null) {
+            btnVisionClose.setOnClickListener(v -> {
+                if (panelAiVisionOptions != null) {
+                    panelAiVisionOptions.setVisibility(View.GONE);
+                }
+                if (btnPillVisionScan != null) {
+                    btnPillVisionScan.requestFocus();
+                }
+            });
+        }
+
+        if (btnVisionTargetLang != null) {
+            btnVisionTargetLang.setOnClickListener(v -> {
+                visionTargetLangIsEnglish = !visionTargetLangIsEnglish;
+                btnVisionTargetLang.setText(visionTargetLangIsEnglish ? "🌐 Destino: EN" : "🌐 Destino: ES");
+            });
+        }
+
+        if (btnVisionOptTranslate != null) {
+            btnVisionOptTranslate.setOnClickListener(v -> {
+                if (panelAiVisionOptions != null) panelAiVisionOptions.setVisibility(View.GONE);
+                boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+                String targetName = visionTargetLangIsEnglish ? "English" : "Español";
+                String nonTargetDesc = visionTargetLangIsEnglish
+                        ? "text in foreign languages (such as Spanish, Korean, Japanese, French, German, Chinese, etc.)"
+                        : "texto que NO esté en español (como inglés, coreano, japonés, francés, etc.)";
+                String prompt = "Target language for translation: " + targetName + ".\n"
+                        + "Analyze this TV screen frame and identify only " + nonTargetDesc + " visible in video thumbnails, signs, graphics, titles, or subtitles.\n"
+                        + "Translate detected text into " + targetName + " accurately.\n"
+                        + "CRITICAL FILTERING & EXCLUSION RULES:\n"
+                        + "1. ONLY detect and translate text that is in a DIFFERENT language than " + targetName + ". If text is already in " + targetName + ", DO NOT detect or output it!\n"
+                        + "2. STRICTLY EXCLUDE and DO NOT output bounding boxes for:\n"
+                        + "   - Text already written in " + targetName + ".\n"
+                        + "   - Timestamps, clocks, video durations, resolutions (e.g. 03:10, 23:05, 18:27, 4K, 1080p).\n"
+                        + "   - System UI elements, WiFi, Bluetooth, battery, or notifications (e.g. 'wireless debugging').\n"
+                        + "   - View counts or dates (e.g. '301K views', '1 year ago').\n"
+                        + "3. The translated text MUST be an actual translation in " + targetName + ", never repeat the original text.\n"
+                        + "4. Group related words on the same line into a single bounding box.\n"
+                        + "Present a clear, structured table/list readable on a TV screen with: Location, Original Text, and Translated Text.\n"
+                        + "Then, you MUST output the exact delimiter:\n"
+                        + AiSummaryEngine.DELIMITER_LENS_BOXES + "\n"
+                        + "followed by one line per detected text in format:\n"
+                        + "[ymin,xmin,ymax,xmax] | Original: <text> | Translated: <text> | Location: <location>\n"
+                        + "where ymin, xmin, ymax, xmax are normalized integers from 0 to 1000 representing the exact bounding box on screen.\n"
+                        + AiSummaryEngine.DELIMITER_QUESTIONS + "\n"
+                        + "1. [Follow-up question 1]\n"
+                        + "2. [Follow-up question 2]\n"
+                        + "3. [Follow-up question 3]";
+
+                captureScreenAndExecuteVision(context, prompt, isEn ? "Translate Screen (Lens)" : "Traducir Pantalla (Lens)");
+            });
+        }
+
+        if (btnVisionOptObjects != null) {
+            btnVisionOptObjects.setOnClickListener(v -> {
+                if (panelAiVisionOptions != null) panelAiVisionOptions.setVisibility(View.GONE);
+                boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+                String langName = chatLanguage.equals("es") ? "español" : "English";
+                String prompt = "Analyze this TV screen capture. Identify 3 to 6 key objects, items, devices, vehicles, products, or characters visible in the scene.\n"
+                        + "Provide a brief description of each object in " + langName + " structured for a TV screen.\n"
+                        + "Then you MUST output the exact line:\n"
+                        + AiSummaryEngine.DELIMITER_OBJECTS + "\n"
+                        + "followed by the names of the detected objects, one per line:\n"
+                        + "- Object 1\n"
+                        + "- Object 2\n"
+                        + AiSummaryEngine.DELIMITER_QUESTIONS + "\n"
+                        + "1. [Follow-up question 1]\n"
+                        + "2. [Follow-up question 2]\n"
+                        + "3. [Follow-up question 3]";
+
+                captureScreenAndExecuteVision(context, prompt, isEn ? "Analyze Objects" : "Analizar Objetos");
+            });
+        }
+
+        if (btnVisionOptPlaces != null) {
+            btnVisionOptPlaces.setOnClickListener(v -> {
+                if (panelAiVisionOptions != null) panelAiVisionOptions.setVisibility(View.GONE);
+                boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+                String langName = chatLanguage.equals("es") ? "español" : "English";
+                String prompt = "Analyze this TV screen capture. Identify the location, setting, landmark, city, country, or any famous people, celebrities, or public figures visible in the scene.\n"
+                        + "Provide details and context in " + langName + " structured for a TV screen.\n"
+                        + AiSummaryEngine.DELIMITER_QUESTIONS + "\n"
+                        + "1. [Follow-up question 1]\n"
+                        + "2. [Follow-up question 2]\n"
+                        + "3. [Follow-up question 3]";
+
+                captureScreenAndExecuteVision(context, prompt, isEn ? "Identify Places / People" : "Identificar Lugar / Personas");
+            });
         }
 
         View root = overlayView.findViewById(R.id.ai_overlay_root);
@@ -254,12 +521,66 @@ public class AiSummaryOverlay {
         overlayView.setOnKeyListener((v, keyCode, event) -> {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (keyCode == KeyEvent.KEYCODE_BACK) {
-                    hide();
+                    handleBackPress(overlayView != null ? overlayView.getContext() : ButtonMappingService.instance);
                     return true;
                 }
             }
             return false;
         });
+    }
+
+    private void startHoldRepeat(final int keyCode) {
+        stopHoldRepeat();
+        mHoldingKeyCode = keyCode;
+        mHoldTickCount = 0;
+
+        mHoldRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isShowing || mHoldingKeyCode != keyCode || overlayView == null) return;
+                mHoldTickCount++;
+
+                handleDpadNavigation(keyCode);
+
+                int nextDelay;
+                if (mHoldTickCount > 20) {
+                    nextDelay = 20;
+                } else if (mHoldTickCount > 10) {
+                    nextDelay = 35;
+                } else if (mHoldTickCount > 4) {
+                    nextDelay = 50;
+                } else {
+                    nextDelay = 75;
+                }
+                mHoldHandler.postDelayed(this, nextDelay);
+            }
+        };
+        mHoldHandler.postDelayed(mHoldRunnable, 180);
+    }
+
+    private void stopHoldRepeat() {
+        mHoldingKeyCode = -1;
+        mHoldTickCount = 0;
+        if (mHoldRunnable != null) {
+            mHoldHandler.removeCallbacks(mHoldRunnable);
+            mHoldRunnable = null;
+        }
+    }
+
+    private void handleDpadNavigation(int keyCode) {
+        if (!isShowing || overlayView == null) return;
+        View current = overlayView.findFocus();
+        int direction = (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) ? View.FOCUS_DOWN : View.FOCUS_UP;
+        if (current != null) {
+            View next = current.focusSearch(direction);
+            if (next != null && next != current) {
+                next.requestFocus();
+                centerViewInScrollView(next);
+            } else if (scrollContent != null) {
+                int scrollDelta = (int) (120 * overlayView.getResources().getDisplayMetrics().density);
+                scrollContent.smoothScrollBy(0, keyCode == KeyEvent.KEYCODE_DPAD_DOWN ? scrollDelta : -scrollDelta);
+            }
+        }
     }
 
     public boolean onKeyEvent(KeyEvent event) {
@@ -277,11 +598,7 @@ public class AiSummaryOverlay {
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (action == KeyEvent.ACTION_DOWN) {
-                if (isListening) {
-                    stopVoiceInput();
-                    return true;
-                }
-                hide();
+                handleBackPress(overlayView != null ? overlayView.getContext() : ButtonMappingService.instance);
             }
             return true;
         }
@@ -296,10 +613,154 @@ public class AiSummaryOverlay {
             }
         }
 
+        // Hold repeat for UP/DOWN keys
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                if (event.getRepeatCount() == 0) {
+                    startHoldRepeat(keyCode);
+                }
+            } else if (action == KeyEvent.ACTION_UP) {
+                stopHoldRepeat();
+            }
+        }
+
+        if (action == KeyEvent.ACTION_DOWN) {
+            View current = overlayView.findFocus();
+            View headerBar = overlayView.findViewById(R.id.container_ai_header_bar);
+            View actionPills = overlayView.findViewById(R.id.container_action_pills);
+
+            // DPAD_RIGHT: Forward section progression (Header -> Pills -> Chat -> Suggested)
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (current != null) {
+                    // In Header Bar: If at close button (end of header), jump to Action Pills!
+                    if (isViewInside(current, headerBar)) {
+                        if (current.getId() == R.id.btn_ai_close) {
+                            View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
+                            if (target != null) {
+                                target.requestFocus();
+                                return true;
+                            }
+                        }
+                    }
+                    // In Action Pills: If at moments pill (end of pills) or pressing right, jump down to Chat conversation!
+                    else if (isViewInside(current, actionPills)) {
+                        if (current.getId() == R.id.btn_pill_moments) {
+                            if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
+                                View firstCard = containerAiChips.getChildAt(0);
+                                firstCard.requestFocus();
+                                centerViewInScrollView(firstCard);
+                                return true;
+                            } else if (btnSuggested1 != null && btnSuggested1.getVisibility() == View.VISIBLE) {
+                                btnSuggested1.requestFocus();
+                                centerViewInScrollView(btnSuggested1);
+                                return true;
+                            }
+                        }
+                    }
+                    // In Chat Conversation: Jump down to Suggested Questions!
+                    else if (isViewInside(current, containerAiChips)) {
+                        if (layoutSuggestedSection != null && layoutSuggestedSection.getVisibility() == View.VISIBLE && btnSuggested1 != null) {
+                            btnSuggested1.requestFocus();
+                            centerViewInScrollView(btnSuggested1);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // DPAD_LEFT: Backward section progression (Suggested -> Chat -> Action Pills -> Header)
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (current != null) {
+                    // In Suggested Questions: Jump backward to last chat card!
+                    if (isViewInside(current, containerSuggested)) {
+                        if (current == btnSuggested1) {
+                            if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
+                                View lastCard = containerAiChips.getChildAt(containerAiChips.getChildCount() - 1);
+                                lastCard.requestFocus();
+                                centerViewInScrollView(lastCard);
+                                return true;
+                            } else {
+                                View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
+                                if (target != null) {
+                                    target.requestFocus();
+                                    scrollContent.smoothScrollTo(0, 0);
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    // Anywhere in Chat Content: 1 click jumps straight up to Action Pills!
+                    else if (isViewInside(current, scrollContent)) {
+                        View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
+                        if (target != null) {
+                            target.requestFocus();
+                            scrollContent.smoothScrollTo(0, 0);
+                            return true;
+                        }
+                    }
+                    // In Action Pills: If at the first pill, jump up to Header Bar!
+                    else if (isViewInside(current, actionPills)) {
+                        if (current == btnPillVisionScan || current.getId() == R.id.btn_pill_summary) {
+                            View target = btnAiMic != null ? btnAiMic : overlayView.findViewById(R.id.btn_ai_close);
+                            if (target != null) {
+                                target.requestFocus();
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Vertical DPAD navigation between main containers
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (current != null) {
+                    if (isViewInside(current, headerBar)) {
+                        View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
+                        if (target != null) {
+                            target.requestFocus();
+                            return true;
+                        }
+                    } else if (isViewInside(current, actionPills)) {
+                        if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
+                            View firstCard = containerAiChips.getChildAt(0);
+                            firstCard.requestFocus();
+                            centerViewInScrollView(firstCard);
+                            return true;
+                        } else if (btnSuggested1 != null && btnSuggested1.getVisibility() == View.VISIBLE) {
+                            btnSuggested1.requestFocus();
+                            centerViewInScrollView(btnSuggested1);
+                            return true;
+                        }
+                    }
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (current != null) {
+                    if (isViewInside(current, actionPills)) {
+                        View target = btnAiMic != null ? btnAiMic : overlayView.findViewById(R.id.btn_ai_close);
+                        if (target != null) {
+                            target.requestFocus();
+                            return true;
+                        }
+                    } else if (isViewInside(current, scrollContent)) {
+                        View upNeighbor = current.focusSearch(View.FOCUS_UP);
+                        if (upNeighbor == null || !isViewInside(upNeighbor, scrollContent)) {
+                            View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
+                            if (target != null) {
+                                target.requestFocus();
+                                scrollContent.smoothScrollTo(0, 0);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         boolean handled = overlayView.dispatchKeyEvent(event);
         if (handled) return true;
 
         if (action == KeyEvent.ACTION_DOWN) {
+            View current = overlayView.findFocus();
             int direction = -1;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) direction = View.FOCUS_DOWN;
             else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) direction = View.FOCUS_UP;
@@ -307,11 +768,11 @@ public class AiSummaryOverlay {
             else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) direction = View.FOCUS_RIGHT;
 
             if (direction != -1) {
-                View current = overlayView.findFocus();
                 if (current != null) {
                     View next = current.focusSearch(direction);
                     if (next != null && next != current) {
                         next.requestFocus();
+                        centerViewInScrollView(next);
                         return true;
                     }
                 } else {
@@ -325,6 +786,419 @@ public class AiSummaryOverlay {
         }
 
         return true;
+    }
+
+    private boolean isViewInside(View child, View parent) {
+        if (child == null || parent == null) return false;
+        View p = child;
+        while (p != null) {
+            if (p == parent) return true;
+            if (p.getParent() instanceof View) {
+                p = (View) p.getParent();
+            } else {
+                break;
+            }
+        }
+        return false;
+    }
+
+    private void updateInternalFilters(Context context) {
+        if (overlayView == null || context == null) return;
+        SharedPreferences prefs = context.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE);
+        boolean isDimmerActive = prefs.getBoolean("is_dimmer_active", false);
+        int dimmerPct = prefs.getInt("dimmer_brightness_pct", 100);
+        boolean isBlueLightActive = prefs.getBoolean("is_blue_light_active", false);
+        int blueLightPct = prefs.getInt("blue_light_pct", 0);
+
+        if (aiMenuDimmerFilter != null) {
+            if (isDimmerActive && dimmerPct < 100) {
+                int alphaVal = (int) ((100 - dimmerPct) * 2.55);
+                aiMenuDimmerFilter.setBackgroundColor(Color.argb(alphaVal, 0, 0, 0));
+                aiMenuDimmerFilter.setVisibility(View.VISIBLE);
+            } else {
+                aiMenuDimmerFilter.setVisibility(View.GONE);
+            }
+        }
+
+        if (aiMenuBlueLightFilter != null) {
+            if (isBlueLightActive && blueLightPct > 0) {
+                int alpha = (int) ((blueLightPct / 1000.0f) * 150);
+                aiMenuBlueLightFilter.setBackgroundColor(Color.argb(alpha, 240, 120, 0));
+                aiMenuBlueLightFilter.setVisibility(View.VISIBLE);
+            } else {
+                aiMenuBlueLightFilter.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    private void updatePlayPauseButtonState() {
+        if (btnAiPlayPause != null) {
+            boolean isPlaying = MediaNotificationListener.isMediaPlaying();
+            btnAiPlayPause.setText(isPlaying ? "⏸️" : "▶️");
+        }
+    }
+
+    private void applyUiLanguage(Context context) {
+        if (context == null || overlayView == null) return;
+        SharedPreferences prefs = context.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE);
+        uiLanguage = prefs.getString("ai_ui_language", "es");
+        boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+
+        if (textAiWelcome != null) {
+            textAiWelcome.setText(isEn
+                    ? "👋 Hello! I am your TV Assistant.\nSelect an action or ask anything by voice."
+                    : "👋 ¡Hola! Soy tu Asistente para TV.\nSelecciona una acción o pregunta con tu voz.");
+        }
+
+        View btnSummary = overlayView.findViewById(R.id.btn_pill_summary);
+        if (btnSummary instanceof Button) {
+            ((Button) btnSummary).setText(isEn ? "📝 Summarize Video" : "📝 Resumir Video");
+        }
+        View btnKeyPoints = overlayView.findViewById(R.id.btn_pill_key_points);
+        if (btnKeyPoints instanceof Button) {
+            ((Button) btnKeyPoints).setText(isEn ? "💡 Key Points" : "💡 Puntos Clave");
+        }
+        View btnConclusions = overlayView.findViewById(R.id.btn_pill_conclusions);
+        if (btnConclusions instanceof Button) {
+            ((Button) btnConclusions).setText(isEn ? "🎯 Conclusions" : "🎯 Conclusiones");
+        }
+        View btnMoments = overlayView.findViewById(R.id.btn_pill_moments);
+        if (btnMoments instanceof Button) {
+            ((Button) btnMoments).setText(isEn ? "⏱️ Key Moments" : "⏱️ Momentos Clave");
+        }
+        if (btnPillVisionScan != null) {
+            btnPillVisionScan.setText(isEn ? "👁️ Analyze Screen (Lens)" : "👁️ Analizar Pantalla (Lens)");
+        }
+
+        if (txtVisionHeader != null) {
+            txtVisionHeader.setText(isEn ? "🔍 Visual Analysis & Lens" : "🔍 Análisis Visual y Lens");
+        }
+        if (btnVisionOptTranslate != null) {
+            btnVisionOptTranslate.setText(isEn ? "🔤 Translate Text (Lens)" : "🔤 Detectar y Traducir Texto");
+        }
+        if (btnVisionTargetLang != null) {
+            btnVisionTargetLang.setText(isEn
+                    ? (visionTargetLangIsEnglish ? "🌐 Target: EN" : "🌐 Target: ES")
+                    : (visionTargetLangIsEnglish ? "🌐 Destino: EN" : "🌐 Destino: ES"));
+        }
+        if (btnVisionOptObjects != null) {
+            btnVisionOptObjects.setText(isEn ? "🎯 Analyze Objects" : "🎯 Analizar Objetos");
+        }
+        if (btnVisionOptPlaces != null) {
+            btnVisionOptPlaces.setText(isEn ? "📍 Identify Places / People" : "📍 Identificar Lugar o Personas");
+        }
+        if (btnVisionClose != null) {
+            btnVisionClose.setText(isEn ? "✕ Cancel" : "✕ Cancelar");
+        }
+
+        if (btnAiReset != null) {
+            btnAiReset.setText(isEn ? "🔄 New chat" : "🔄 Nuevo chat");
+        }
+        if (btnAiMic != null) {
+            btnAiMic.setText(isListening
+                    ? (isEn ? "🔴 Listening..." : "🔴 Escuchando...")
+                    : (isEn ? "🎙️ Talk" : "🎙️ Hablar"));
+        }
+    }
+
+    private String detectLanguage(String trackLang, String transcript, String title) {
+        if (trackLang != null) {
+            String tl = trackLang.trim().toLowerCase();
+            if (tl.startsWith("es")) return "es";
+            if (!tl.isEmpty() && !tl.equals("auto") && !tl.equals("unknown")) return "en";
+        }
+        String sample = "";
+        if (transcript != null && transcript.length() > 50) {
+            sample = transcript.substring(0, Math.min(transcript.length(), 600)).toLowerCase();
+        } else if (title != null) {
+            sample = title.toLowerCase();
+        }
+        if (!sample.isEmpty()) {
+            int esCount = 0;
+            String[] esWords = {" de ", " la ", " el ", " en ", " y ", " que ", " los ", " del ", " las ", " por ", " un ", " para ", " con ", " no ", " una "};
+            for (String w : esWords) {
+                if (sample.contains(w)) esCount++;
+            }
+            if (esCount >= 2) return "es";
+        }
+        return "en";
+    }
+
+    private void setChatLanguage(String lang) {
+        if (lang == null || (!lang.equalsIgnoreCase("es") && !lang.equalsIgnoreCase("en"))) {
+            lang = "es";
+        }
+        this.chatLanguage = lang.toLowerCase();
+        if (btnAiChatLang != null) {
+            btnAiChatLang.setText("es".equalsIgnoreCase(this.chatLanguage) ? "🌐 ES" : "🌐 EN");
+        }
+    }
+
+    private void captureScreenAndExecuteVision(Context context, String prompt, String actionName) {
+        if (overlayView == null) return;
+        ButtonMappingService service = ButtonMappingService.instance;
+        if (service == null) {
+            Toast.makeText(context, "Servicio de accesibilidad no disponible", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Hide overlay temporarily to capture the true screen content behind it
+        overlayView.setVisibility(View.INVISIBLE);
+        mainHandler.postDelayed(() -> {
+            service.captureScreenForVision(new ButtonMappingService.ScreenCaptureCallback() {
+                @Override
+                public void onCaptured(Bitmap bitmap) {
+                    mainHandler.post(() -> {
+                        if (overlayView != null) overlayView.setVisibility(View.VISIBLE);
+                        if (bitmap != null) {
+                            executeVisionPrompt(context, bitmap, prompt, actionName);
+                        } else {
+                            Toast.makeText(context, "No se pudo obtener captura de pantalla", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    mainHandler.post(() -> {
+                        if (overlayView != null) overlayView.setVisibility(View.VISIBLE);
+                        Toast.makeText(context, "Error de captura: " + error, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        }, 120);
+    }
+
+    private void executeVisionPrompt(Context context, Bitmap screenshot, String prompt, String actionName) {
+        if (context == null || screenshot == null) return;
+
+        float density = context.getResources().getDisplayMetrics().density;
+        int p14 = (int) (14 * density);
+        int mb10 = (int) (10 * density);
+
+        if (textAiWelcome != null) textAiWelcome.setVisibility(View.GONE);
+        addUserQuestionCard(context, actionName);
+        recordedTurns.add(new ChatTurn(true, actionName, null, null));
+
+        if (layoutSuggestedSection != null) {
+            layoutSuggestedSection.setVisibility(View.GONE);
+        }
+
+        // Inline thinking indicator
+        if (containerAiChips != null) {
+            if (currentThinkingView != null) {
+                containerAiChips.removeView(currentThinkingView);
+            }
+            LinearLayout thinkingCard = new LinearLayout(context);
+            thinkingCard.setOrientation(LinearLayout.HORIZONTAL);
+            thinkingCard.setGravity(Gravity.CENTER_VERTICAL);
+            thinkingCard.setBackgroundResource(R.drawable.card_chip_content);
+            thinkingCard.setPadding(p14, p14, p14, p14);
+            LinearLayout.LayoutParams tParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            tParams.bottomMargin = mb10;
+            thinkingCard.setLayoutParams(tParams);
+
+            ProgressBar miniProgress = new ProgressBar(context);
+            miniProgress.setIndeterminate(true);
+            int pSize = (int) (22 * density);
+            LinearLayout.LayoutParams progParams = new LinearLayout.LayoutParams(pSize, pSize);
+            progParams.rightMargin = (int) (12 * density);
+            miniProgress.setLayoutParams(progParams);
+
+            TextView tvThinking = new TextView(context);
+            boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+            tvThinking.setText(isEn ? "✨ Analyzing screen..." : "✨ Analizando pantalla...");
+            tvThinking.setTextColor(0xFFCCCCCC);
+            tvThinking.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+
+            thinkingCard.addView(miniProgress);
+            thinkingCard.addView(tvThinking);
+            containerAiChips.addView(thinkingCard);
+            currentThinkingView = thinkingCard;
+
+            scrollContent.post(() -> centerViewInScrollView(thinkingCard));
+        }
+
+        AiSummaryEngine.getInstance().askAiVision(context, screenshot, prompt, chatLanguage, new AiSummaryEngine.VisionCallback() {
+            @Override
+            public void onSuccess(AiSummaryEngine.VisionResult result) {
+                if (!isShowing) return;
+
+                if (currentThinkingView != null && containerAiChips != null) {
+                    containerAiChips.removeView(currentThinkingView);
+                    currentThinkingView = null;
+                }
+
+                conversationHistory.add(new AiSummaryEngine.ChatMessage("user", actionName));
+                conversationHistory.add(new AiSummaryEngine.ChatMessage("assistant", result.rawAnswer));
+                recordedTurns.add(new ChatTurn(false, result.rawAnswer, null, result.suggestedQuestions, result.lensBoxes));
+                lastSuggestedQuestions = new ArrayList<>(result.suggestedQuestions != null ? result.suggestedQuestions : Collections.emptyList());
+
+                if (btnAiReset != null) btnAiReset.setVisibility(View.VISIBLE);
+                saveConversationToPrefs(context);
+
+                appendChips(context, null, result.rawAnswer, true, result.lensBoxes);
+
+                if (result.lensBoxes != null && !result.lensBoxes.isEmpty()) {
+                    showLensOverlay(result.lensBoxes, context);
+                }
+
+                if (result.detectedObjects != null && !result.detectedObjects.isEmpty()) {
+                    appendObjectExplorePills(context, result.detectedObjects);
+                }
+
+                renderSuggestedQuestions(context, result.suggestedQuestions);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (!isShowing) return;
+
+                if (currentThinkingView != null && containerAiChips != null) {
+                    containerAiChips.removeView(currentThinkingView);
+                    currentThinkingView = null;
+                }
+
+                if (containerAiChips != null) {
+                    LinearLayout errCard = new LinearLayout(context);
+                    errCard.setOrientation(LinearLayout.VERTICAL);
+                    errCard.setBackgroundResource(R.drawable.card_chip_content);
+                    errCard.setPadding(p14, p14, p14, p14);
+                    TextView tvErr = new TextView(context);
+                    tvErr.setText("❌ " + errorMessage);
+                    tvErr.setTextColor(0xFFFF6B6B);
+                    tvErr.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+                    errCard.addView(tvErr);
+                    containerAiChips.addView(errCard);
+                    scrollContent.post(() -> centerViewInScrollView(errCard));
+                }
+            }
+        });
+    }
+
+    private void renderLensBadgesIntoContainer(FrameLayout container, List<AiSummaryEngine.LensBoxItem> boxes, Context ctx) {
+        if (container == null || boxes == null || boxes.isEmpty() || ctx == null) return;
+        container.removeAllViews();
+
+        DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
+        int screenW = dm.widthPixels;
+        int screenH = dm.heightPixels;
+        int drawerPx = (int) (540 * dm.density);
+        int maxBadgeW = (int) (220 * dm.density);
+
+        List<Rect> renderedRects = new ArrayList<>();
+
+        for (AiSummaryEngine.LensBoxItem box : boxes) {
+            if (box.translatedText == null || box.translatedText.trim().isEmpty()) continue;
+
+            int topPx = Math.round((box.ymin / 1000.0f) * screenH);
+            int leftPx = Math.round((box.xmin / 1000.0f) * screenW);
+            int boxWidth = Math.round(((box.xmax - box.xmin) / 1000.0f) * screenW);
+
+            // Safe clamping to physical display boundaries
+            leftPx = Math.max((int) (10 * dm.density), Math.min(leftPx, screenW - (int) (160 * dm.density)));
+            topPx = Math.max((int) (10 * dm.density), Math.min(topPx, screenH - (int) (48 * dm.density)));
+
+            // Mild collision check: prevent overlapping badges on screen
+            boolean collides = false;
+            for (Rect r : renderedRects) {
+                if (Math.abs(r.left - leftPx) < (int) (50 * dm.density) && Math.abs(r.top - topPx) < (int) (26 * dm.density)) {
+                    collides = true;
+                    break;
+                }
+            }
+            if (collides) continue;
+            renderedRects.add(new Rect(leftPx, topPx, leftPx + Math.max(boxWidth, (int) (100 * dm.density)), topPx + (int) (36 * dm.density)));
+
+            LinearLayout badge = new LinearLayout(ctx);
+            badge.setOrientation(LinearLayout.VERTICAL);
+            badge.setGravity(Gravity.CENTER_VERTICAL);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(0xEE1E1E2E);
+            bg.setCornerRadius(6 * dm.density);
+            bg.setStroke((int) (1.5f * dm.density), 0xFF8AB4F8);
+            badge.setBackground(bg);
+            int padH = (int) (8 * dm.density);
+            int padV = (int) (3 * dm.density);
+            badge.setPadding(padH, padV, padH, padV);
+
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+            );
+            lp.leftMargin = leftPx;
+            lp.topMargin = topPx;
+            badge.setLayoutParams(lp);
+
+            if (boxWidth > (int) (40 * dm.density)) {
+                badge.setMinimumWidth(Math.min(boxWidth, (int) (400 * dm.density)));
+            }
+
+            TextView tvTrans = new TextView(ctx);
+            tvTrans.setText(box.translatedText);
+            tvTrans.setTextColor(0xFFFFFFFF);
+            tvTrans.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f);
+            tvTrans.setTypeface(tvTrans.getTypeface(), Typeface.BOLD);
+            badge.addView(tvTrans);
+
+            container.addView(badge);
+        }
+    }
+
+    private void appendObjectExplorePills(Context context, List<String> objects) {
+        if (containerAiChips == null || objects == null || objects.isEmpty()) return;
+        float density = context.getResources().getDisplayMetrics().density;
+        int mb6 = (int) (6 * density);
+        int p8 = (int) (8 * density);
+        int p12 = (int) (12 * density);
+        boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        rowLp.topMargin = mb6;
+        rowLp.bottomMargin = mb6;
+        row.setLayoutParams(rowLp);
+
+        TextView label = new TextView(context);
+        label.setText(isEn ? "🎯 Explore detected objects:" : "🎯 Explorar objetos detectados:");
+        label.setTextColor(0xFFAAAAAA);
+        label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
+        label.setPadding(0, 0, 0, (int) (4 * density));
+        row.addView(label);
+
+        for (String obj : objects) {
+            Button pill = new Button(context);
+            pill.setText("🔍 " + (isEn ? "Learn more about: " : "Saber más de: ") + obj);
+            pill.setTextColor(0xFFFFFFFF);
+            pill.setBackgroundResource(R.drawable.pill_youtube_tv);
+            pill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
+            pill.setFocusable(true);
+            pill.setPadding(p12, p8, p12, p8);
+            LinearLayout.LayoutParams pillLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            pillLp.bottomMargin = (int) (4 * density);
+            pill.setLayoutParams(pillLp);
+
+            pill.setOnClickListener(v -> {
+                String q = isEn
+                        ? "Tell me more details, context, and facts about: " + obj
+                        : "Cuéntame más detalles, historia y contexto sobre: " + obj;
+                executePrompt(context, q, false);
+            });
+            row.addView(pill);
+        }
+
+        containerAiChips.addView(row);
+        scrollContent.post(() -> centerViewInScrollView(row));
     }
 
     public void onVideoChanged(String newTitle, String newMediaId) {
@@ -466,8 +1340,12 @@ public class AiSummaryOverlay {
         if (textAiWelcome != null) textAiWelcome.setVisibility(View.VISIBLE);
         if (layoutSuggestedSection != null) layoutSuggestedSection.setVisibility(View.GONE);
         if (btnAiReset != null) btnAiReset.setVisibility(View.GONE);
+        hideLensOverlay();
+        String defaultLang = detectLanguage(currentTrackLang, currentTranscript, currentVideoTitle);
+        setChatLanguage(defaultLang);
         saveConversationToPrefs(context);
-        Toast.makeText(context, "🔄 Conversación reiniciada", Toast.LENGTH_SHORT).show();
+        boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+        Toast.makeText(context, isEn ? "🔄 Conversation reset" : "🔄 Conversación reiniciada", Toast.LENGTH_SHORT).show();
     }
 
     private void saveConversationToPrefs(Context context) {
@@ -489,6 +1367,21 @@ public class AiSummaryOverlay {
                         itemsArr.put(itemObj);
                     }
                     obj.put("items", itemsArr);
+                }
+                if (turn.lensBoxes != null && !turn.lensBoxes.isEmpty()) {
+                    JSONArray lbArr = new JSONArray();
+                    for (AiSummaryEngine.LensBoxItem lb : turn.lensBoxes) {
+                        JSONObject lbObj = new JSONObject();
+                        lbObj.put("ymin", lb.ymin);
+                        lbObj.put("xmin", lb.xmin);
+                        lbObj.put("ymax", lb.ymax);
+                        lbObj.put("xmax", lb.xmax);
+                        lbObj.put("originalText", lb.originalText != null ? lb.originalText : "");
+                        lbObj.put("translatedText", lb.translatedText != null ? lb.translatedText : "");
+                        lbObj.put("location", lb.locationHint != null ? lb.locationHint : "");
+                        lbArr.put(lbObj);
+                    }
+                    obj.put("lensBoxes", lbArr);
                 }
                 if (turn.suggestedQuestions != null && !turn.suggestedQuestions.isEmpty()) {
                     JSONArray qArr = new JSONArray();
@@ -557,6 +1450,22 @@ public class AiSummaryOverlay {
                     }
                 }
 
+                List<AiSummaryEngine.LensBoxItem> lensBoxes = new ArrayList<>();
+                if (obj.has("lensBoxes")) {
+                    JSONArray lbArr = obj.getJSONArray("lensBoxes");
+                    for (int j = 0; j < lbArr.length(); j++) {
+                        JSONObject lbObj = lbArr.getJSONObject(j);
+                        int ymin = lbObj.optInt("ymin", 0);
+                        int xmin = lbObj.optInt("xmin", 0);
+                        int ymax = lbObj.optInt("ymax", 0);
+                        int xmax = lbObj.optInt("xmax", 0);
+                        String orig = lbObj.optString("originalText", "");
+                        String trans = lbObj.optString("translatedText", "");
+                        String loc = lbObj.optString("location", "");
+                        lensBoxes.add(new AiSummaryEngine.LensBoxItem(ymin, xmin, ymax, xmax, orig, trans, loc));
+                    }
+                }
+
                 List<String> suggested = new ArrayList<>();
                 if (obj.has("suggestedQuestions")) {
                     JSONArray qArr = obj.getJSONArray("suggestedQuestions");
@@ -565,7 +1474,7 @@ public class AiSummaryOverlay {
                     }
                 }
 
-                recordedTurns.add(new ChatTurn(isUser, text, items, suggested));
+                recordedTurns.add(new ChatTurn(isUser, text, items, suggested, lensBoxes));
                 conversationHistory.add(new AiSummaryEngine.ChatMessage(isUser ? "user" : "assistant", text));
             }
 
@@ -625,6 +1534,7 @@ public class AiSummaryOverlay {
 
         // Different video: clean slate
         Log.d(TAG, "New video detected (" + detectedTitle + " [id: " + detectedId + "]): resetting previous AI conversation history");
+        hideLensOverlay();
         lastVideoTitle = detectedTitle;
         lastVideoId = detectedId;
         lastTranscript = "";
@@ -640,6 +1550,7 @@ public class AiSummaryOverlay {
 
         fetcherExecutor.execute(() -> {
             String transcript = "";
+            String trackLang = "";
             try {
                 // First check if VotManager already has a track for this video
                 VotTrack cachedTrack = com.nitsutech.omnitv.vot.VotManager.getInstance(context).getCurrentTrack();
@@ -651,6 +1562,9 @@ public class AiSummaryOverlay {
                         }
                     }
                     transcript = sb.toString().trim();
+                    if (cachedTrack.languageCode != null) {
+                        trackLang = cachedTrack.languageCode;
+                    }
                     if (isValidVideoId(cachedTrack.videoId)) {
                         currentVideoId = cachedTrack.videoId;
                         lastVideoId = cachedTrack.videoId;
@@ -663,11 +1577,19 @@ public class AiSummaryOverlay {
                         currentVideoId = videoId;
                         lastVideoId = videoId;
                         VotTrack track = YouTubeCaptionFetcher.fetchTrack(videoId, "es");
-                        if (track == null) {
+                        if (track != null) {
+                            trackLang = "es";
+                        } else {
                             track = YouTubeCaptionFetcher.fetchTrack(videoId, "en");
+                            if (track != null) {
+                                trackLang = "en";
+                            }
                         }
                         if (track == null) {
                             track = YouTubeCaptionFetcher.fetchTrack(videoId, "auto");
+                            if (track != null && track.languageCode != null) {
+                                trackLang = track.languageCode;
+                            }
                         }
                         if (track != null && track.cues != null && !track.cues.isEmpty()) {
                             StringBuilder sb = new StringBuilder();
@@ -685,16 +1607,24 @@ public class AiSummaryOverlay {
             }
 
             final String finalTranscript = transcript;
+            final String finalTrackLang = trackLang;
             mainHandler.post(() -> {
                 if (!isShowing) return;
                 currentTranscript = finalTranscript;
                 lastTranscript = finalTranscript;
+                currentTrackLang = finalTrackLang;
                 saveConversationToPrefs(context);
+
+                // Auto-detect default chat language for this new video
+                String detectedChatLang = detectLanguage(finalTrackLang, finalTranscript, currentVideoTitle);
+                setChatLanguage(detectedChatLang);
+
+                boolean isEn = "en".equalsIgnoreCase(uiLanguage);
                 if (!finalTranscript.isEmpty()) {
                     int wordCount = finalTranscript.split("\\s+").length;
-                    textStatus.setText("✨ " + providerName + " • Transcripción cargada (" + wordCount + " palabras)");
+                    textStatus.setText("✨ " + providerName + " • " + (isEn ? "Transcript loaded (" : "Transcripción cargada (") + wordCount + (isEn ? " words)" : " palabras)"));
                 } else {
-                    textStatus.setText("✨ " + providerName + " • Listo (analizando por título)");
+                    textStatus.setText("✨ " + providerName + " • " + (isEn ? "Ready (analyzing by title)" : "Listo (analizando por título)"));
                 }
             });
         });
@@ -709,7 +1639,7 @@ public class AiSummaryOverlay {
             if (turn.isUser) {
                 addUserQuestionCard(context, turn.text);
             } else {
-                appendChips(context, turn.items, turn.text, false);
+                appendChips(context, turn.items, turn.text, false, turn.lensBoxes);
             }
         }
 
@@ -812,7 +1742,8 @@ public class AiSummaryOverlay {
             miniProgress.setLayoutParams(progParams);
 
             TextView tvThinking = new TextView(context);
-            tvThinking.setText("✨ Analizando video...");
+            boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+            tvThinking.setText(isEn ? "✨ Analyzing video..." : "✨ Analizando video...");
             tvThinking.setTextColor(0xFFCCCCCC);
             tvThinking.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
 
@@ -825,7 +1756,7 @@ public class AiSummaryOverlay {
         }
 
         AiSummaryEngine.getInstance().queryAi(context, currentVideoTitle, currentTranscript,
-                new ArrayList<>(conversationHistory), cleanQuestion, new AiSummaryEngine.AiCallback() {
+                new ArrayList<>(conversationHistory), cleanQuestion, chatLanguage, new AiSummaryEngine.AiCallback() {
                     @Override
                     public void onSuccess(String rawAnswer, List<AiSummaryEngine.AiPointItem> items, List<String> suggestedQuestions) {
                         if (!isShowing) return;
@@ -875,6 +1806,10 @@ public class AiSummaryOverlay {
     }
 
     private void appendChips(Context context, List<AiSummaryEngine.AiPointItem> items, String fallbackRawAnswer, boolean autoFocusFirst) {
+        appendChips(context, items, fallbackRawAnswer, autoFocusFirst, null);
+    }
+
+    private void appendChips(Context context, List<AiSummaryEngine.AiPointItem> items, String fallbackRawAnswer, boolean autoFocusFirst, List<AiSummaryEngine.LensBoxItem> lensBoxes) {
         if (containerAiChips == null) return;
         if (textAiWelcome != null) textAiWelcome.setVisibility(View.GONE);
 
@@ -894,6 +1829,7 @@ public class AiSummaryOverlay {
         int p3 = (int) (3 * density);
         int mb10 = (int) (10 * density);
         int mb6 = (int) (6 * density);
+        boolean hasLens = lensBoxes != null && !lensBoxes.isEmpty();
 
         View firstNewCard = null;
 
@@ -913,6 +1849,34 @@ public class AiSummaryOverlay {
             );
             cardParams.bottomMargin = mb10;
             card.setLayoutParams(cardParams);
+
+            if (hasLens && i == 0) {
+                // Interactive Lens header banner
+                LinearLayout lensHeader = new LinearLayout(context);
+                lensHeader.setOrientation(LinearLayout.HORIZONTAL);
+                lensHeader.setGravity(Gravity.CENTER_VERTICAL);
+                lensHeader.setBackgroundResource(R.drawable.badge_timestamp);
+                lensHeader.setPadding(p8, p3, p8, p3);
+                LinearLayout.LayoutParams lensParams = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                lensParams.bottomMargin = mb6;
+                lensHeader.setLayoutParams(lensParams);
+
+                boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+                TextView tvLensBadge = new TextView(context);
+                tvLensBadge.setText(isEn
+                        ? "👁️ Lens: " + lensBoxes.size() + " translations (OK to toggle)"
+                        : "👁️ Lens: " + lensBoxes.size() + " traducciones (OK para activar/ocultar)");
+                tvLensBadge.setTextColor(0xFF8AB4F8);
+                tvLensBadge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f);
+                tvLensBadge.setTypeface(tvLensBadge.getTypeface(), Typeface.BOLD);
+                lensHeader.addView(tvLensBadge);
+                card.addView(lensHeader);
+
+                card.setOnClickListener(v -> toggleLensOverlay(lensBoxes, context));
+            }
 
             if (item.hasTimestamp) {
                 // Top header row with timestamp badge
@@ -956,7 +1920,7 @@ public class AiSummaryOverlay {
                 });
             } else {
                 TextView tvText = new TextView(context);
-                tvText.setText("•  " + item.text);
+                tvText.setText(hasLens ? item.text : "•  " + item.text);
                 tvText.setTextColor(0xFFEEEEEE);
                 tvText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f);
                 tvText.setLineSpacing(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 3, context.getResources().getDisplayMetrics()), 1.0f);
@@ -1217,21 +2181,13 @@ public class AiSummaryOverlay {
 
     private void updateMicButtonState(boolean listening) {
         if (btnAiMic != null) {
+            boolean isEn = "en".equalsIgnoreCase(uiLanguage);
             if (listening) {
-                btnAiMic.setText("🔴 Escuchando...");
+                btnAiMic.setText(isEn ? "🔴 Listening..." : "🔴 Escuchando...");
                 btnAiMic.setTextColor(0xFFFF6B6B);
             } else {
-                btnAiMic.setText("🎙️ Hablar");
+                btnAiMic.setText(isEn ? "🎙️ Talk" : "🎙️ Hablar");
                 btnAiMic.setTextColor(0xFF8AB4F8);
-            }
-        }
-        if (btnPillVoice != null) {
-            if (listening) {
-                btnPillVoice.setText("🔴 Escuchando...");
-                btnPillVoice.setTextColor(0xFFFF6B6B);
-            } else {
-                btnPillVoice.setText("🎙️ Preguntar con voz");
-                btnPillVoice.setTextColor(0xFF8AB4F8);
             }
         }
     }

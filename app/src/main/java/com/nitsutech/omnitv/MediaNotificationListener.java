@@ -208,6 +208,66 @@ public class MediaNotificationListener extends NotificationListenerService {
         }
     }
 
+    public static boolean isMediaPlaying() {
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getPlaybackState() != null) {
+                            if (mc.getPlaybackState().getState() == PlaybackState.STATE_PLAYING) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    public static boolean togglePlayPause(Context context) {
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null && !controllers.isEmpty()) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getPlaybackState() != null && mc.getTransportControls() != null) {
+                            int state = mc.getPlaybackState().getState();
+                            if (state == PlaybackState.STATE_PLAYING) {
+                                Log.d(TAG, "Toggling play/pause: pausing " + mc.getPackageName());
+                                mc.getTransportControls().pause();
+                                return false;
+                            } else {
+                                Log.d(TAG, "Toggling play/pause: playing " + mc.getPackageName());
+                                mc.getTransportControls().play();
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error toggling media via MediaController", e);
+        }
+        try {
+            if (context != null) {
+                android.media.AudioManager am = (android.media.AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) {
+                    long now = android.os.SystemClock.uptimeMillis();
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, 0));
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, 0));
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Fallback play/pause failed", e);
+        }
+        return false;
+    }
+
     public static boolean seekActiveMediaBy(long deltaMs) {
         try {
             if (instance != null && instance.mediaSessionManager != null) {

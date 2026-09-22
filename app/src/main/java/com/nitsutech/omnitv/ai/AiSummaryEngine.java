@@ -2,14 +2,17 @@ package com.nitsutech.omnitv.ai;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Base64;
 import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -131,10 +134,12 @@ public class AiSummaryEngine {
     }
 
     public static final String DELIMITER_QUESTIONS = "---SUGGESTED_QUESTIONS---";
+    public static final String DELIMITER_LENS_BOXES = "---LENS_BOXES---";
+    public static final String DELIMITER_OBJECTS = "---DETECTED_OBJECTS---";
 
     private static final String SYSTEM_PROMPT =
             "Eres el asistente de inteligencia artificial de YouTube integrado en OmniTV para Smart TVs.\n"
-            + "Tu objetivo es ayudar al usuario a comprender, resumir y explorar videos de YouTube de manera visual, clara y estructurada.\n\n"
+            + "Tu objetivo es ayudar al usuario a comprender, resumir y explorar videos de YouTube y pantallas de TV de manera visual, clara y estructurada.\n\n"
             + "PAUTAS DE RESPUESTA:\n"
             + "1. Responde SIEMPRE en español conciso, claro y directo.\n"
             + "2. Estructura la información en puntos o tarjetas breves (1 o 2 oraciones por punto). No uses párrafos largos de texto corrido.\n"
@@ -142,13 +147,37 @@ public class AiSummaryEngine {
             + "   [01:23] Título o momento: explicación breve de lo que ocurre.\n"
             + "   [04:50] Otro punto relevante: detalle conciso.\n"
             + "   Si la transcripción no tiene marcas de tiempo, inicia cada punto con viñeta simple.\n"
-            + "4. Al final de CADA una de tus respuestas, agrega OBLIGATORIAMENTE la línea exacta '" + DELIMITER_QUESTIONS + "' y justo debajo EXACTAMENTE 3 preguntas de seguimiento atractivas y relevantes para que el usuario pueda seguir explorando el video con su control remoto, una por línea numerada:\n"
+            + "4. Al final de CADA una de tus respuestas, agrega OBLIGATORIAMENTE la línea exacta '" + DELIMITER_QUESTIONS + "' y justo debajo EXACTAMENTE 3 preguntas de seguimiento atractivas y relevantes para que el usuario pueda seguir explorando con su control remoto, una por línea numerada:\n"
             + "1. [Pregunta corta 1]\n"
             + "2. [Pregunta corta 2]\n"
             + "3. [Pregunta corta 3]\n\n"
             + "REGLA ESTRICTA DE NO REPETICIÓN:\n"
             + "- NUNCA repitas preguntas, temas o aspectos que el usuario ya haya preguntado o que ya hayas respondido en turnos anteriores de la conversación.\n"
-            + "- Formula SIEMPRE 3 preguntas COMPLETAMENTE NUEVAS, frescas e intrigantes sobre aspectos aún no explorados del video (detalles específicos, curiosidades, explicaciones técnicas, implicaciones futuras, etc.).";
+            + "- Formula SIEMPRE 3 preguntas COMPLETAMENTE NUEVAS, frescas e intrigantes sobre aspectos aún no explorados del video o la escena.";
+
+    public static String getSystemPrompt(String chatLang) {
+        boolean isEnglish = "en".equalsIgnoreCase(chatLang);
+        if (isEnglish) {
+            return "You are the YouTube & TV AI assistant integrated into OmniTV for Smart TVs.\n"
+                    + "Your goal is to help the user understand, summarize, and explore YouTube videos and TV screens in a visual, clear, and structured way.\n\n"
+                    + "RESPONSE GUIDELINES:\n"
+                    + "1. ALWAYS respond in clear, concise, and direct ENGLISH.\n"
+                    + "2. Structure information into short bullet points or cards (1 or 2 sentences per point). Do not use long walls of text.\n"
+                    + "3. TIMESTAMPS: When the user asks for 'Key Points', 'Moments', or chronological summaries, start each key point with its exact timestamp in brackets, e.g.:\n"
+                    + "   [01:23] Title or moment: brief explanation.\n"
+                    + "   [04:50] Another relevant point: concise detail.\n"
+                    + "   If the transcript does not have timestamps, start each point with a simple bullet.\n"
+                    + "4. At the very end of EVERY response, MUST include the exact line '" + DELIMITER_QUESTIONS + "' and right below EXACTLY 3 engaging follow-up questions for the user to explore with their TV remote, one per numbered line:\n"
+                    + "1. [Short question 1]\n"
+                    + "2. [Short question 2]\n"
+                    + "3. [Short question 3]\n\n"
+                    + "STRICT NON-REPETITION RULE:\n"
+                    + "- NEVER repeat questions, topics, or aspects previously asked or answered in earlier turns.\n"
+                    + "- Formulate 3 completely new, fresh questions about unexplored aspects.";
+        } else {
+            return SYSTEM_PROMPT;
+        }
+    }
 
     public static class ChatMessage {
         public final String role; // "user" or "model" / "assistant"
@@ -179,6 +208,45 @@ public class AiSummaryEngine {
         void onError(String errorMessage);
     }
 
+    public static class LensBoxItem {
+        public final int ymin;
+        public final int xmin;
+        public final int ymax;
+        public final int xmax;
+        public final String originalText;
+        public final String translatedText;
+        public final String locationHint;
+
+        public LensBoxItem(int ymin, int xmin, int ymax, int xmax, String originalText, String translatedText, String locationHint) {
+            this.ymin = ymin;
+            this.xmin = xmin;
+            this.ymax = ymax;
+            this.xmax = xmax;
+            this.originalText = originalText != null ? originalText.trim() : "";
+            this.translatedText = translatedText != null ? translatedText.trim() : "";
+            this.locationHint = locationHint != null ? locationHint.trim() : "";
+        }
+    }
+
+    public static class VisionResult {
+        public final String rawAnswer;
+        public final List<String> detectedObjects;
+        public final List<LensBoxItem> lensBoxes;
+        public final List<String> suggestedQuestions;
+
+        public VisionResult(String rawAnswer, List<String> detectedObjects, List<LensBoxItem> lensBoxes, List<String> suggestedQuestions) {
+            this.rawAnswer = rawAnswer != null ? rawAnswer.trim() : "";
+            this.detectedObjects = detectedObjects != null ? detectedObjects : new ArrayList<>();
+            this.lensBoxes = lensBoxes != null ? lensBoxes : new ArrayList<>();
+            this.suggestedQuestions = suggestedQuestions != null ? suggestedQuestions : new ArrayList<>();
+        }
+    }
+
+    public interface VisionCallback {
+        void onSuccess(VisionResult result);
+        void onError(String errorMessage);
+    }
+
     private static AiSummaryEngine instance;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -193,15 +261,21 @@ public class AiSummaryEngine {
     public void queryAi(Context context, String videoTitle, String transcript,
                         List<ChatMessage> conversationHistory, String currentQuestion,
                         AiCallback callback) {
+        queryAi(context, videoTitle, transcript, conversationHistory, currentQuestion, "es", callback);
+    }
+
+    public void queryAi(Context context, String videoTitle, String transcript,
+                        List<ChatMessage> conversationHistory, String currentQuestion,
+                        String chatLang, AiCallback callback) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         int provider = prefs.getInt(KEY_AI_PROVIDER, 0); // Default: Gemini Direct
 
         executor.execute(() -> {
             try {
                 if (provider == 0) {
-                    callGeminiDirect(prefs, videoTitle, transcript, conversationHistory, currentQuestion, callback);
+                    callGeminiDirect(prefs, videoTitle, transcript, conversationHistory, currentQuestion, chatLang, callback);
                 } else {
-                    callOpenRouter(prefs, videoTitle, transcript, conversationHistory, currentQuestion, callback);
+                    callOpenRouter(prefs, videoTitle, transcript, conversationHistory, currentQuestion, chatLang, callback);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error executing AI query", e);
@@ -212,7 +286,7 @@ public class AiSummaryEngine {
 
     private void callGeminiDirect(SharedPreferences prefs, String videoTitle, String transcript,
                                   List<ChatMessage> history, String currentQuestion,
-                                  AiCallback callback) {
+                                  String chatLang, AiCallback callback) {
         String apiKey = prefs.getString(KEY_GEMINI_KEY, "").trim();
         if (apiKey.isEmpty()) {
             postError(callback, "⚠️ Clave de Gemini no configurada.\nConfigúrala en el menú o vía ADB.");
@@ -249,7 +323,7 @@ public class AiSummaryEngine {
             JSONObject systemInstruction = new JSONObject();
             JSONArray sysParts = new JSONArray();
             JSONObject sysPart = new JSONObject();
-            sysPart.put("text", SYSTEM_PROMPT);
+            sysPart.put("text", getSystemPrompt(chatLang));
             sysParts.put(sysPart);
             systemInstruction.put("parts", sysParts);
             body.put("systemInstruction", systemInstruction);
@@ -373,7 +447,7 @@ public class AiSummaryEngine {
 
     private void callOpenRouter(SharedPreferences prefs, String videoTitle, String transcript,
                                 List<ChatMessage> history, String currentQuestion,
-                                AiCallback callback) {
+                                String chatLang, AiCallback callback) {
         String apiKey = prefs.getString(KEY_OPENROUTER_KEY, "").trim();
         if (apiKey.isEmpty()) {
             postError(callback, "⚠️ Clave de OpenRouter no configurada.\nConfigúrala en el menú o vía ADB.");
@@ -403,7 +477,7 @@ public class AiSummaryEngine {
             // System prompt
             JSONObject sysMsg = new JSONObject();
             sysMsg.put("role", "system");
-            sysMsg.put("content", SYSTEM_PROMPT);
+            sysMsg.put("content", getSystemPrompt(chatLang));
             messages.put(sysMsg);
 
             // First turn: inject video context
@@ -628,5 +702,446 @@ public class AiSummaryEngine {
 
     private void postError(AiCallback callback, String errorMsg) {
         mainHandler.post(() -> callback.onError(errorMsg));
+    }
+
+    public void askAiVision(Context context, Bitmap screenshot, String prompt, String chatLang, VisionCallback callback) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        int provider = prefs.getInt(KEY_AI_PROVIDER, 0);
+
+        executor.execute(() -> {
+            try {
+                if (provider == 0) {
+                    callGeminiVision(prefs, screenshot, prompt, chatLang, callback);
+                } else {
+                    callOpenRouterVision(prefs, screenshot, prompt, chatLang, callback);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error executing AI vision request", e);
+                mainHandler.post(() -> callback.onError("Error de visión: " + e.getMessage()));
+            }
+        });
+    }
+
+    private void callGeminiVision(SharedPreferences prefs, Bitmap screenshot, String prompt, String chatLang, VisionCallback callback) {
+        String apiKey = prefs.getString(KEY_GEMINI_KEY, "").trim();
+        if (apiKey.isEmpty()) {
+            mainHandler.post(() -> callback.onError("⚠️ Clave de Gemini no configurada.\nConfigúrala en el menú o vía ADB."));
+            return;
+        }
+
+        String model = prefs.getString(KEY_GEMINI_MODEL, DEFAULT_GEMINI_MODEL).trim();
+        if (model.isEmpty()) model = DEFAULT_GEMINI_MODEL;
+
+        try {
+            String base64Data = bitmapToBase64Jpeg(screenshot);
+            if (base64Data.isEmpty()) {
+                mainHandler.post(() -> callback.onError("Error al codificar captura de pantalla."));
+                return;
+            }
+
+            String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+            URL url = new URL(endpoint);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setConnectTimeout(25000);
+            conn.setReadTimeout(60000);
+            conn.setDoOutput(true);
+
+            JSONObject body = new JSONObject();
+
+            JSONObject genConfig = new JSONObject();
+            genConfig.put("temperature", 0.4);
+            genConfig.put("maxOutputTokens", 2048);
+            if (model.equals("gemini-2.5-flash") || model.equals("gemini-2.5-pro")) {
+                JSONObject thinkingConfig = new JSONObject();
+                thinkingConfig.put("thinkingBudget", 0);
+                genConfig.put("thinkingConfig", thinkingConfig);
+            }
+            body.put("generationConfig", genConfig);
+
+            JSONObject systemInstruction = new JSONObject();
+            JSONArray sysParts = new JSONArray();
+            JSONObject sysPart = new JSONObject();
+            sysPart.put("text", getSystemPrompt(chatLang));
+            sysParts.put(sysPart);
+            systemInstruction.put("parts", sysParts);
+            body.put("systemInstruction", systemInstruction);
+
+            JSONArray contents = new JSONArray();
+            JSONObject turn = new JSONObject();
+            turn.put("role", "user");
+            JSONArray parts = new JSONArray();
+
+            JSONObject textPart = new JSONObject();
+            textPart.put("text", prompt);
+            parts.put(textPart);
+
+            JSONObject imgPart = new JSONObject();
+            JSONObject inlineData = new JSONObject();
+            inlineData.put("mimeType", "image/jpeg");
+            inlineData.put("data", base64Data);
+            imgPart.put("inlineData", inlineData);
+            parts.put(imgPart);
+
+            turn.put("parts", parts);
+            contents.put(turn);
+            body.put("contents", contents);
+
+            byte[] jsonBytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            conn.setFixedLengthStreamingMode(jsonBytes.length);
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(jsonBytes);
+                os.flush();
+            }
+
+            int responseCode = conn.getResponseCode();
+            InputStream is = (responseCode >= 200 && responseCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+            BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            br.close();
+
+            if (responseCode != 200) {
+                Log.e(TAG, "Gemini Vision error: " + responseCode + " - " + sb.toString());
+                String errMessage = parseGeminiError(sb.toString(), responseCode);
+                mainHandler.post(() -> callback.onError(errMessage));
+                return;
+            }
+
+            JSONObject resJson = new JSONObject(sb.toString());
+            JSONArray candidates = resJson.optJSONArray("candidates");
+            if (candidates != null && candidates.length() > 0) {
+                JSONObject first = candidates.getJSONObject(0);
+                JSONObject contentObj = first.optJSONObject("content");
+                if (contentObj != null) {
+                    JSONArray partsArr = contentObj.optJSONArray("parts");
+                    if (partsArr != null && partsArr.length() > 0) {
+                        String fullText = partsArr.getJSONObject(0).optString("text", "");
+                        parseVisionResponse(fullText, callback);
+                        return;
+                    }
+                }
+            }
+
+            mainHandler.post(() -> callback.onError("Gemini no devolvió respuesta para la imagen."));
+        } catch (Exception e) {
+            Log.e(TAG, "Exception in callGeminiVision", e);
+            mainHandler.post(() -> callback.onError("Error al conectar con Gemini Visión: " + e.getMessage()));
+        }
+    }
+
+    private void callOpenRouterVision(SharedPreferences prefs, Bitmap screenshot, String prompt, String chatLang, VisionCallback callback) {
+        String apiKey = prefs.getString(KEY_OPENROUTER_KEY, "").trim();
+        if (apiKey.isEmpty()) {
+            mainHandler.post(() -> callback.onError("⚠️ Clave de OpenRouter no configurada.\nConfigúrala en el menú o vía ADB."));
+            return;
+        }
+
+        String model = prefs.getString(KEY_OPENROUTER_MODEL, DEFAULT_OPENROUTER_MODEL).trim();
+        if (model.isEmpty()) model = DEFAULT_OPENROUTER_MODEL;
+
+        try {
+            String base64Data = bitmapToBase64Jpeg(screenshot);
+            if (base64Data.isEmpty()) {
+                mainHandler.post(() -> callback.onError("Error al codificar captura de pantalla."));
+                return;
+            }
+
+            URL url = new URL("https://openrouter.ai/api/v1/chat/completions");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+            conn.setRequestProperty("HTTP-Referer", "https://github.com/ismael6499/omnitv");
+            conn.setRequestProperty("X-Title", "OmniTV AI Vision");
+            conn.setConnectTimeout(25000);
+            conn.setReadTimeout(60000);
+            conn.setDoOutput(true);
+
+            JSONObject body = new JSONObject();
+            body.put("model", model);
+
+            JSONArray messages = new JSONArray();
+
+            JSONObject sysMsg = new JSONObject();
+            sysMsg.put("role", "system");
+            sysMsg.put("content", getSystemPrompt(chatLang));
+            messages.put(sysMsg);
+
+            JSONObject userMsg = new JSONObject();
+            userMsg.put("role", "user");
+            JSONArray contentArr = new JSONArray();
+
+            JSONObject textObj = new JSONObject();
+            textObj.put("type", "text");
+            textObj.put("text", prompt);
+            contentArr.put(textObj);
+
+            JSONObject imgObj = new JSONObject();
+            imgObj.put("type", "image_url");
+            JSONObject imgUrlObj = new JSONObject();
+            imgUrlObj.put("url", "data:image/jpeg;base64," + base64Data);
+            imgObj.put("image_url", imgUrlObj);
+            contentArr.put(imgObj);
+
+            userMsg.put("content", contentArr);
+            messages.put(userMsg);
+            body.put("messages", messages);
+
+            byte[] jsonBytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            conn.setFixedLengthStreamingMode(jsonBytes.length);
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(jsonBytes);
+                os.flush();
+            }
+
+            int responseCode = conn.getResponseCode();
+            InputStream is = (responseCode >= 200 && responseCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+            BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            br.close();
+
+            if (responseCode != 200) {
+                Log.e(TAG, "OpenRouter Vision error: " + responseCode + " - " + sb.toString());
+                mainHandler.post(() -> callback.onError("Error OpenRouter Visión (" + responseCode + "): " + sb.toString()));
+                return;
+            }
+
+            JSONObject resJson = new JSONObject(sb.toString());
+            JSONArray choices = resJson.optJSONArray("choices");
+            if (choices != null && choices.length() > 0) {
+                JSONObject msg = choices.getJSONObject(0).optJSONObject("message");
+                if (msg != null) {
+                    String fullText = msg.optString("content", "");
+                    parseVisionResponse(fullText, callback);
+                    return;
+                }
+            }
+
+            mainHandler.post(() -> callback.onError("OpenRouter no devolvió contenido para la imagen."));
+        } catch (Exception e) {
+            Log.e(TAG, "Exception in callOpenRouterVision", e);
+            mainHandler.post(() -> callback.onError("Error al conectar con OpenRouter Visión: " + e.getMessage()));
+        }
+    }
+
+    private void parseVisionResponse(String rawText, VisionCallback callback) {
+        String answer = rawText != null ? rawText.trim() : "";
+        List<String> questions = new ArrayList<>();
+        List<LensBoxItem> lensBoxes = new ArrayList<>();
+        List<String> objects = new ArrayList<>();
+
+        // 1. Extract suggested questions if present
+        if (answer.contains(DELIMITER_QUESTIONS)) {
+            int idx = answer.indexOf(DELIMITER_QUESTIONS);
+            String qBlock = answer.substring(idx + DELIMITER_QUESTIONS.length()).trim();
+            answer = answer.substring(0, idx).trim();
+
+            String[] lines = qBlock.split("\n");
+            for (String l : lines) {
+                String clean = l.trim().replaceAll("^[0-9]+[.)-]\\s*", "").trim();
+                if (!clean.isEmpty()) {
+                    questions.add(clean);
+                }
+            }
+        }
+
+        // 2. Extract Lens boxes if present
+        if (answer.contains(DELIMITER_LENS_BOXES)) {
+            int idx = answer.indexOf(DELIMITER_LENS_BOXES);
+            String boxBlock = answer.substring(idx + DELIMITER_LENS_BOXES.length()).trim();
+            answer = answer.substring(0, idx).trim();
+
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\[(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\]");
+            String[] lines = boxBlock.split("\n");
+            for (String l : lines) {
+                l = l.trim();
+                if (l.isEmpty()) continue;
+                java.util.regex.Matcher m = p.matcher(l);
+                if (m.find()) {
+                    try {
+                        int ymin = Integer.parseInt(m.group(1));
+                        int xmin = Integer.parseInt(m.group(2));
+                        int ymax = Integer.parseInt(m.group(3));
+                        int xmax = Integer.parseInt(m.group(4));
+
+                        String orig = "";
+                        String trans = "";
+                        String loc = "";
+
+                        String[] parts = l.split("\\|");
+                        for (String part : parts) {
+                            part = part.trim();
+                            if (part.toLowerCase().startsWith("original:")) {
+                                orig = part.substring(9).trim();
+                            } else if (part.toLowerCase().startsWith("translated:")) {
+                                trans = part.substring(11).trim();
+                            } else if (part.toLowerCase().startsWith("location:")) {
+                                loc = part.substring(9).trim();
+                            }
+                        }
+
+                        if (!trans.isEmpty()) {
+                            // Filter 1: Ignore if translation is identical to original (already in target language)
+                            String normOrig = orig.toLowerCase().replaceAll("[^a-z0-9]", "");
+                            String normTrans = trans.toLowerCase().replaceAll("[^a-z0-9]", "");
+                            if (!normOrig.isEmpty() && normOrig.equals(normTrans)) {
+                                continue;
+                            }
+
+                            // Filter 2: Ignore timestamps (e.g. 03:10, 23:05, 18:27) or pure numbers/stats
+                            if (orig.matches("^\\d{1,2}:\\d{2}(:\\d{2})?$") || trans.matches("^\\d{1,2}:\\d{2}(:\\d{2})?$")) {
+                                continue;
+                            }
+                            if (orig.matches("^[0-9\\s.,kKmMbBpP%+-]+$") || trans.matches("^[0-9\\s.,kKmMbBpP%+-]+$")) {
+                                continue;
+                            }
+
+                            // Filter 3: Ignore Android system UI notifications (e.g. wireless debugging, battery)
+                            String lowerOrig = orig.toLowerCase();
+                            String lowerTrans = trans.toLowerCase();
+                            if (lowerOrig.contains("wireless debugging") || lowerTrans.contains("wireless debugging")
+                                    || lowerOrig.contains("press & hold") || lowerTrans.contains("press & hold")) {
+                                continue;
+                            }
+
+                            lensBoxes.add(new LensBoxItem(ymin, xmin, ymax, xmax, orig, trans, loc));
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+
+        // 3. Extract detected objects if present
+        if (answer.contains(DELIMITER_OBJECTS)) {
+            int idx = answer.indexOf(DELIMITER_OBJECTS);
+            String objBlock = answer.substring(idx + DELIMITER_OBJECTS.length()).trim();
+            answer = answer.substring(0, idx).trim();
+
+            String[] lines = objBlock.split("\n");
+            for (String l : lines) {
+                String clean = l.trim().replaceAll("^[-*•0-9.)]+\\s*", "").trim();
+                if (!clean.isEmpty()) {
+                    objects.add(clean);
+                }
+            }
+        }
+
+        if (questions.isEmpty()) {
+            questions.add("¿Qué más detalles puedes explicar de esta imagen?");
+            questions.add("¿Cuál es el contexto o significado principal?");
+            questions.add("¿Qué recomendaciones o conclusiones ofrece?");
+        }
+
+        List<LensBoxItem> cleanBoxes = deduplicateLensBoxes(lensBoxes);
+        VisionResult result = new VisionResult(answer, objects, cleanBoxes, questions);
+        mainHandler.post(() -> callback.onSuccess(result));
+    }
+
+    private static List<LensBoxItem> deduplicateLensBoxes(List<LensBoxItem> rawBoxes) {
+        if (rawBoxes == null || rawBoxes.size() <= 1) return rawBoxes != null ? rawBoxes : new ArrayList<>();
+        List<LensBoxItem> clean = new ArrayList<>();
+
+        for (LensBoxItem candidate : rawBoxes) {
+            String candOrig = candidate.originalText != null ? candidate.originalText.trim() : "";
+            String candTrans = candidate.translatedText != null ? candidate.translatedText.trim() : "";
+            if (candOrig.isEmpty() && candTrans.isEmpty()) continue;
+
+            String candOrigNorm = candOrig.toLowerCase().replaceAll("[^a-z0-9]", "");
+            String candTransNorm = candTrans.toLowerCase().replaceAll("[^a-z0-9]", "");
+
+            int cY1 = (candidate.ymin + candidate.ymax) / 2;
+            int cX1 = (candidate.xmin + candidate.xmax) / 2;
+
+            boolean isDuplicate = false;
+
+            for (int i = 0; i < clean.size(); i++) {
+                LensBoxItem existing = clean.get(i);
+                String existOrig = existing.originalText != null ? existing.originalText.trim() : "";
+                String existTrans = existing.translatedText != null ? existing.translatedText.trim() : "";
+
+                String existOrigNorm = existOrig.toLowerCase().replaceAll("[^a-z0-9]", "");
+                String existTransNorm = existTrans.toLowerCase().replaceAll("[^a-z0-9]", "");
+
+                int cY2 = (existing.ymin + existing.ymax) / 2;
+                int cX2 = (existing.xmin + existing.xmax) / 2;
+
+                int dy = Math.abs(cY1 - cY2);
+                int dx = Math.abs(cX1 - cX2);
+
+                boolean sameOrig = !candOrigNorm.isEmpty() && !existOrigNorm.isEmpty()
+                        && (candOrigNorm.equals(existOrigNorm) || candOrigNorm.contains(existOrigNorm) || existOrigNorm.contains(candOrigNorm));
+                boolean sameTrans = !candTransNorm.isEmpty() && !existTransNorm.isEmpty()
+                        && (candTransNorm.equals(existTransNorm) || candTransNorm.contains(existTransNorm) || existTransNorm.contains(candTransNorm));
+
+                int interYmin = Math.max(candidate.ymin, existing.ymin);
+                int interXmin = Math.max(candidate.xmin, existing.xmin);
+                int interYmax = Math.min(candidate.ymax, existing.ymax);
+                int interXmax = Math.min(candidate.xmax, existing.xmax);
+
+                boolean overlaps = (interYmin < interYmax) && (interXmin < interXmax);
+                boolean spatiallyClose = (dy < 70 && dx < 140);
+
+                if ((sameOrig || sameTrans) && (spatiallyClose || overlaps)) {
+                    if (candTrans.length() > existTrans.length()) {
+                        clean.set(i, candidate);
+                    }
+                    isDuplicate = true;
+                    break;
+                } else if (overlaps && dy < 45 && dx < 60) {
+                    if (candTrans.length() > existTrans.length()) {
+                        clean.set(i, candidate);
+                    }
+                    isDuplicate = true;
+                    break;
+                }
+            }
+
+            if (!isDuplicate) {
+                clean.add(candidate);
+            }
+        }
+        return clean;
+    }
+
+    private static String bitmapToBase64Jpeg(Bitmap bitmap) {
+        if (bitmap == null) return "";
+        try {
+            int origW = bitmap.getWidth();
+            int origH = bitmap.getHeight();
+            int targetW = 1280;
+            int targetH = 720;
+            if (origW > 0 && origH > 0) {
+                float ratio = Math.min((float) targetW / origW, (float) targetH / origH);
+                if (ratio < 1.0f) {
+                    targetW = Math.round(origW * ratio);
+                    targetH = Math.round(origH * ratio);
+                } else {
+                    targetW = origW;
+                    targetH = origH;
+                }
+            }
+            Bitmap scaled = (targetW != origW || targetH != origH)
+                    ? Bitmap.createScaledBitmap(bitmap, targetW, targetH, true)
+                    : bitmap;
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            scaled.compress(Bitmap.CompressFormat.JPEG, 80, baos);
+            if (scaled != bitmap) {
+                scaled.recycle();
+            }
+            byte[] bytes = baos.toByteArray();
+            return Base64.encodeToString(bytes, Base64.NO_WRAP);
+        } catch (Exception e) {
+            Log.e(TAG, "Error encoding bitmap to Base64", e);
+            return "";
+        }
     }
 }

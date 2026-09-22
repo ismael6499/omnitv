@@ -3883,12 +3883,22 @@ public class ButtonMappingService extends AccessibilityService {
                 return true;
             }
             if (keyCode == KeyEvent.KEYCODE_BACK) {
-                isDismissingAiSummaryKey = true;
-                com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().hide();
+                if (action == KeyEvent.ACTION_DOWN) {
+                    isDismissingAiSummaryKey = true;
+                    com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().handleBackPress(this);
+                }
                 return true;
             }
             boolean handled = com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().onKeyEvent(event);
             if (handled) return true;
+        } else if (com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isLensOverlayShowing()) {
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().hideLensOverlay();
+                    com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().show(this);
+                }
+                return true;
+            }
         }
 
         return super.onKeyEvent(event);
@@ -4848,6 +4858,49 @@ public class ButtonMappingService extends AccessibilityService {
 
         QuickMenuOverlay.getInstance().dismiss();
         captureAndTranslateScreen();
+    }
+
+    public interface ScreenCaptureCallback {
+        void onCaptured(Bitmap bitmap);
+        void onError(String error);
+    }
+
+    public void captureScreenForVision(final ScreenCaptureCallback callback) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            if (callback != null) callback.onError("Android 11+ requerido para captura");
+            return;
+        }
+        try {
+            takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new TakeScreenshotCallback() {
+                @Override
+                public void onSuccess(ScreenshotResult result) {
+                    try {
+                        HardwareBuffer hardwareBuffer = result.getHardwareBuffer();
+                        Bitmap rawBitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, result.getColorSpace());
+                        hardwareBuffer.close();
+                        if (rawBitmap == null) {
+                            if (callback != null) callback.onError("Error al obtener mapa de bits");
+                            return;
+                        }
+                        Bitmap bitmap = rawBitmap.copy(Bitmap.Config.ARGB_8888, true);
+                        rawBitmap.recycle();
+                        if (callback != null) callback.onCaptured(bitmap);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error procesando captura para visión", e);
+                        if (callback != null) callback.onError(e.getMessage());
+                    }
+                }
+
+                @Override
+                public void onFailure(int errorCode) {
+                    Log.e(TAG, "takeScreenshot falló para visión: " + errorCode);
+                    if (callback != null) callback.onError("Error de captura (" + errorCode + ")");
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Error iniciando takeScreenshot para visión", e);
+            if (callback != null) callback.onError(e.getMessage());
+        }
     }
 
     private void captureAndTranslateScreen() {

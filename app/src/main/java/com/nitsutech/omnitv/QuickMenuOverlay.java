@@ -283,6 +283,7 @@ public class QuickMenuOverlay {
     private TextView btnAiLaunchNow;
     private TextView btnAiProviderToggle;
     private TextView btnAiModelToggle;
+    private TextView btnAiUiLangToggle;
     private TextView btnAiApiKeyConfig;
     private TextView btnAiApiHelp;
     private TextView btnAiApply;
@@ -739,6 +740,7 @@ public class QuickMenuOverlay {
         btnAiLaunchNow               = rootView.findViewById(R.id.btn_ai_launch_now);
         btnAiProviderToggle          = rootView.findViewById(R.id.btn_ai_provider_toggle);
         btnAiModelToggle             = rootView.findViewById(R.id.btn_ai_model_toggle);
+        btnAiUiLangToggle            = rootView.findViewById(R.id.btn_ai_ui_lang_toggle);
         btnAiApiKeyConfig            = rootView.findViewById(R.id.btn_ai_api_key_config);
         btnAiApiHelp                 = rootView.findViewById(R.id.btn_ai_api_help);
         btnAiApply                   = rootView.findViewById(R.id.btn_ai_apply);
@@ -1424,6 +1426,10 @@ public class QuickMenuOverlay {
         }
         if (current == btnAiModelToggle) {
             cycleAiModel(delta);
+            return true;
+        }
+        if (current == btnAiUiLangToggle) {
+            cycleAiUiLang(delta);
             return true;
         }
         if (current == btnAiApiKeyConfig) {
@@ -2880,6 +2886,13 @@ public class QuickMenuOverlay {
                 }
             });
         }
+        if (btnAiUiLangToggle != null) {
+            btnAiUiLangToggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleAiUiLang(1);
+                }
+            });
+        }
         if (btnAiApiKeyConfig != null) {
             btnAiApiKeyConfig.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -3221,6 +3234,16 @@ public class QuickMenuOverlay {
         }
     }
 
+    private void cycleAiUiLang(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        String cur = op.getString("ai_ui_language", "es");
+        String next = "es".equalsIgnoreCase(cur) ? "en" : "es";
+        op.edit().putString("ai_ui_language", next).apply();
+        String label = "es".equalsIgnoreCase(next) ? "Español" : "English";
+        android.widget.Toast.makeText(context, "🌐 Idioma Interfaz IA: " + label, android.widget.Toast.LENGTH_SHORT).show();
+        updateAiSummaryConfigPanel();
+    }
+
     private void updateAiSummaryConfigPanel() {
         SharedPreferences op = getOverlayPrefs();
         int provider = op.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
@@ -3241,6 +3264,12 @@ public class QuickMenuOverlay {
                 String curModel = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL, AI_OPENROUTER_MODELS[0]);
                 btnAiModelToggle.setText("   Modelo OpenRouter:  " + curModel + "  (◄ / ►)");
             }
+        }
+
+        if (btnAiUiLangToggle != null) {
+            String lang = op.getString("ai_ui_language", "es");
+            String langLabel = "es".equalsIgnoreCase(lang) ? "Español" : "English";
+            btnAiUiLangToggle.setText("   Idioma Interfaz:  " + langLabel + "  (◄ / ►)");
         }
 
         if (btnAiApiKeyConfig != null) {

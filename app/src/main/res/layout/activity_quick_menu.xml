@@ -1311,6 +1311,21 @@
                         android:clickable="true"
                         android:layout_marginBottom="4dp" />
 
+                    <!-- Idioma de Interfaz del Asistente -->
+                    <TextView
+                        android:id="@+id/btn_ai_ui_lang_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="   Idioma Interfaz:  Español  (◄ / ►)"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
                     <!-- Configurar Clave API -->
                     <TextView
                         android:id="@+id/btn_ai_api_key_config"
