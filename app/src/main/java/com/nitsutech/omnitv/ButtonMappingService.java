@@ -2087,11 +2087,20 @@ public class ButtonMappingService extends AccessibilityService {
     private void openGoogleHome() {
         try {
             Intent intent = new Intent("com.google.android.libraries.tv.smarthome.intent.action.OPEN_SMART_HOME");
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.setComponent(new ComponentName("com.google.android.apps.tv.dreamx", "com.google.android.libraries.tv.smarthome.core.SmartHomeMainActivity"));
+            intent.setPackage("com.google.android.apps.tv.dreamx");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             startActivity(intent);
-            Log.d(TAG, "Successfully opened Google Home Panel");
+            Log.d(TAG, "Successfully opened Google Home Panel via direct Component");
         } catch (Exception e) {
-            Log.e(TAG, "Failed to open Google Home Panel", e);
+            Log.w(TAG, "Failed direct component for Google Home, falling back to action intent", e);
+            try {
+                Intent fallback = new Intent("com.google.android.libraries.tv.smarthome.intent.action.OPEN_SMART_HOME");
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(fallback);
+            } catch (Exception e2) {
+                Log.e(TAG, "Failed to open Google Home Panel", e2);
+            }
         }
     }
 
@@ -4872,37 +4881,75 @@ public class ButtonMappingService extends AccessibilityService {
             if (callback != null) callback.onError("Android 11+ requerido para captura");
             return;
         }
-        try {
-            takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new TakeScreenshotCallback() {
-                @Override
-                public void onSuccess(ScreenshotResult result) {
-                    try {
-                        HardwareBuffer hardwareBuffer = result.getHardwareBuffer();
-                        Bitmap rawBitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, result.getColorSpace());
-                        hardwareBuffer.close();
-                        if (rawBitmap == null) {
-                            if (callback != null) callback.onError("Error al obtener mapa de bits");
-                            return;
-                        }
-                        Bitmap bitmap = rawBitmap.copy(Bitmap.Config.ARGB_8888, true);
-                        rawBitmap.recycle();
-                        if (callback != null) callback.onCaptured(bitmap);
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error procesando captura para visión", e);
-                        if (callback != null) callback.onError(e.getMessage());
-                    }
-                }
 
-                @Override
-                public void onFailure(int errorCode) {
-                    Log.e(TAG, "takeScreenshot falló para visión: " + errorCode);
-                    if (callback != null) callback.onError("Error de captura (" + errorCode + ")");
+        // Temporarily hide all dark filters, dimmer, blue light, clocks, and HUDs so they are not captured
+        final boolean wasDimmerVisible = (isDimmerActive && dimmerOverlayView != null && dimmerOverlayView.getVisibility() == View.VISIBLE);
+        final boolean wasBlueLightVisible = (isBlueLightActive && blueLightOverlayView != null && blueLightOverlayView.getVisibility() == View.VISIBLE);
+        final boolean wasBlackScreenVisible = (isBlackScreenActive && blackOverlayView != null && blackOverlayView.getVisibility() == View.VISIBLE);
+        final boolean wasClockVisible = (isClockActive && clockOverlayView != null && clockOverlayView.getVisibility() == View.VISIBLE);
+        final boolean wasHudVisible = (brightnessHudOverlayView != null && brightnessHudOverlayView.getVisibility() == View.VISIBLE);
+        final boolean wasOledSaverVisible = (oledSaverOverlayView != null && oledSaverOverlayView.getVisibility() == View.VISIBLE);
+
+        if (dimmerOverlayView != null) dimmerOverlayView.setVisibility(View.INVISIBLE);
+        if (blueLightOverlayView != null) blueLightOverlayView.setVisibility(View.INVISIBLE);
+        if (blackOverlayView != null) blackOverlayView.setVisibility(View.INVISIBLE);
+        if (clockOverlayView != null) clockOverlayView.setVisibility(View.INVISIBLE);
+        if (brightnessHudOverlayView != null) brightnessHudOverlayView.setVisibility(View.INVISIBLE);
+        if (oledSaverOverlayView != null) oledSaverOverlayView.setVisibility(View.INVISIBLE);
+
+        final Runnable restoreOverlays = new Runnable() {
+            @Override
+            public void run() {
+                if (wasDimmerVisible && dimmerOverlayView != null) dimmerOverlayView.setVisibility(View.VISIBLE);
+                if (wasBlueLightVisible && blueLightOverlayView != null) blueLightOverlayView.setVisibility(View.VISIBLE);
+                if (wasBlackScreenVisible && blackOverlayView != null) blackOverlayView.setVisibility(View.VISIBLE);
+                if (wasClockVisible && clockOverlayView != null) clockOverlayView.setVisibility(View.VISIBLE);
+                if (wasHudVisible && brightnessHudOverlayView != null) brightnessHudOverlayView.setVisibility(View.VISIBLE);
+                if (wasOledSaverVisible && oledSaverOverlayView != null) oledSaverOverlayView.setVisibility(View.VISIBLE);
+            }
+        };
+
+        // Delay 150ms to allow SurfaceFlinger to composite the clean frame without dark filters
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new TakeScreenshotCallback() {
+                        @Override
+                        public void onSuccess(ScreenshotResult result) {
+                            try {
+                                HardwareBuffer hardwareBuffer = result.getHardwareBuffer();
+                                Bitmap rawBitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, result.getColorSpace());
+                                hardwareBuffer.close();
+                                restoreOverlays.run();
+                                if (rawBitmap == null) {
+                                    if (callback != null) callback.onError("Error al obtener mapa de bits");
+                                    return;
+                                }
+                                Bitmap bitmap = rawBitmap.copy(Bitmap.Config.ARGB_8888, true);
+                                rawBitmap.recycle();
+                                if (callback != null) callback.onCaptured(bitmap);
+                            } catch (Exception e) {
+                                restoreOverlays.run();
+                                Log.e(TAG, "Error procesando captura para visión", e);
+                                if (callback != null) callback.onError(e.getMessage());
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(int errorCode) {
+                            restoreOverlays.run();
+                            Log.e(TAG, "takeScreenshot falló para visión: " + errorCode);
+                            if (callback != null) callback.onError("Error de captura (" + errorCode + ")");
+                        }
+                    });
+                } catch (Exception e) {
+                    restoreOverlays.run();
+                    Log.e(TAG, "Error iniciando takeScreenshot para visión", e);
+                    if (callback != null) callback.onError(e.getMessage());
                 }
-            });
-        } catch (Exception e) {
-            Log.e(TAG, "Error iniciando takeScreenshot para visión", e);
-            if (callback != null) callback.onError(e.getMessage());
-        }
+            }
+        }, 150);
     }
 
     private void captureAndTranslateScreen() {

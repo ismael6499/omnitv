@@ -443,6 +443,9 @@ public class AiSummaryOverlay {
                 String langName = chatLanguage.equals("es") ? "español" : "English";
                 String prompt = "Analyze this TV screen capture. Identify 3 to 6 key objects, items, devices, vehicles, products, or characters visible in the scene.\n"
                         + "Provide a brief description of each object in " + langName + " structured for a TV screen.\n"
+                        + "CRITICAL RULES:\n"
+                        + "- Completely IGNORE black borders, letterboxing, screen margins, status bars, and clocks.\n"
+                        + "- NEVER identify or list 'pantalla en negro', 'black screen', or time indicators as objects. Focus purely on real content and subjects.\n"
                         + "Then you MUST output the exact line:\n"
                         + AiSummaryEngine.DELIMITER_OBJECTS + "\n"
                         + "followed by the names of the detected objects, one per line:\n"
@@ -1008,6 +1011,67 @@ public class AiSummaryOverlay {
         }
     }
 
+    private interface ThumbnailCallback {
+        void onDone(Bitmap bitmap);
+    }
+
+    private boolean isBitmapMostlyBlack(Bitmap bitmap) {
+        if (bitmap == null) return true;
+        int w = bitmap.getWidth();
+        int h = bitmap.getHeight();
+        int sampleStep = 30;
+        int darkCount = 0;
+        int totalSampled = 0;
+        for (int y = h / 8; y < (h * 7) / 8; y += sampleStep) {
+            for (int x = w / 8; x < (w * 7) / 8; x += sampleStep) {
+                int pixel = bitmap.getPixel(x, y);
+                int r = (pixel >> 16) & 0xFF;
+                int g = (pixel >> 8) & 0xFF;
+                int b = pixel & 0xFF;
+                totalSampled++;
+                if (r < 25 && g < 25 && b < 25) {
+                    darkCount++;
+                }
+            }
+        }
+        return totalSampled > 0 && ((float) darkCount / totalSampled) > 0.90f;
+    }
+
+    private void fetchYouTubeThumbnailAsync(final String videoId, final ThumbnailCallback callback) {
+        fetcherExecutor.execute(() -> {
+            Bitmap result = null;
+            String[] urlPatterns = {
+                    "https://i.ytimg.com/vi/" + videoId + "/maxresdefault.jpg",
+                    "https://i.ytimg.com/vi/" + videoId + "/sddefault.jpg",
+                    "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg"
+            };
+            for (String urlStr : urlPatterns) {
+                try {
+                    java.net.URL url = new java.net.URL(urlStr);
+                    java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                    conn.setConnectTimeout(3000);
+                    conn.setReadTimeout(3000);
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+                    if (conn.getResponseCode() == 200) {
+                        java.io.InputStream in = conn.getInputStream();
+                        result = android.graphics.BitmapFactory.decodeStream(in);
+                        in.close();
+                        conn.disconnect();
+                        if (result != null && result.getWidth() > 120) {
+                            break;
+                        }
+                    } else {
+                        conn.disconnect();
+                    }
+                } catch (Exception ignored) {}
+            }
+            final Bitmap finalBitmap = result;
+            mainHandler.post(() -> {
+                if (callback != null) callback.onDone(finalBitmap);
+            });
+        });
+    }
+
     private void captureScreenAndExecuteVision(Context context, String prompt, String actionName) {
         if (overlayView == null) return;
         ButtonMappingService service = ButtonMappingService.instance;
@@ -1016,16 +1080,32 @@ public class AiSummaryOverlay {
             return;
         }
 
-        // Hide overlay temporarily to capture the true screen content behind it
+        // Hide overlay and lens overlay temporarily to capture the true screen content behind it
         overlayView.setVisibility(View.INVISIBLE);
+        if (lensOverlayWindowView != null) {
+            lensOverlayWindowView.setVisibility(View.INVISIBLE);
+        }
         mainHandler.postDelayed(() -> {
             service.captureScreenForVision(new ButtonMappingService.ScreenCaptureCallback() {
                 @Override
                 public void onCaptured(Bitmap bitmap) {
                     mainHandler.post(() -> {
                         if (overlayView != null) overlayView.setVisibility(View.VISIBLE);
+                        if (lensOverlayWindowView != null) lensOverlayWindowView.setVisibility(View.VISIBLE);
                         if (bitmap != null) {
-                            executeVisionPrompt(context, bitmap, prompt, actionName);
+                            // Check if bitmap is mostly black (due to hardware video decoder bypass on Android TV)
+                            if (isBitmapMostlyBlack(bitmap) && currentVideoId != null && !currentVideoId.trim().isEmpty()) {
+                                Log.w(TAG, "Captured screen is mostly black, attempting fallback to HD YouTube video thumbnail for ID: " + currentVideoId);
+                                fetchYouTubeThumbnailAsync(currentVideoId, thumbBitmap -> {
+                                    if (thumbBitmap != null) {
+                                        executeVisionPrompt(context, thumbBitmap, prompt, actionName);
+                                    } else {
+                                        executeVisionPrompt(context, bitmap, prompt, actionName);
+                                    }
+                                });
+                            } else {
+                                executeVisionPrompt(context, bitmap, prompt, actionName);
+                            }
                         } else {
                             Toast.makeText(context, "No se pudo obtener captura de pantalla", Toast.LENGTH_SHORT).show();
                         }
@@ -1036,7 +1116,18 @@ public class AiSummaryOverlay {
                 public void onError(String error) {
                     mainHandler.post(() -> {
                         if (overlayView != null) overlayView.setVisibility(View.VISIBLE);
-                        Toast.makeText(context, "Error de captura: " + error, Toast.LENGTH_SHORT).show();
+                        if (lensOverlayWindowView != null) lensOverlayWindowView.setVisibility(View.VISIBLE);
+                        if (currentVideoId != null && !currentVideoId.trim().isEmpty()) {
+                            fetchYouTubeThumbnailAsync(currentVideoId, thumbBitmap -> {
+                                if (thumbBitmap != null) {
+                                    executeVisionPrompt(context, thumbBitmap, prompt, actionName);
+                                } else {
+                                    Toast.makeText(context, "Error de captura: " + error, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        } else {
+                            Toast.makeText(context, "Error de captura: " + error, Toast.LENGTH_SHORT).show();
+                        }
                     });
                 }
             });
