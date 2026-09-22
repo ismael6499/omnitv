@@ -3899,6 +3899,8 @@ public class ButtonMappingService extends AccessibilityService {
                 }
                 return true;
             }
+            boolean handled = com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().handleLensOverlayKeyEvent(event);
+            if (handled) return true;
         }
 
         return super.onKeyEvent(event);

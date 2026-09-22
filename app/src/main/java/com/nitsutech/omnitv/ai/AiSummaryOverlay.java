@@ -85,6 +85,8 @@ public class AiSummaryOverlay {
     private TextView btnVisionClose;
     private FrameLayout lensOverlayWindowView = null;
     private List<AiSummaryEngine.LensBoxItem> activeLensBoxes = new ArrayList<>();
+    private final List<View> renderedLensBadgeViews = new ArrayList<>();
+    private int selectedLensBadgeIndex = -1;
 
     // Internal Filters
     private View aiMenuDimmerFilter;
@@ -279,6 +281,8 @@ public class AiSummaryOverlay {
     }
 
     public synchronized void hideLensOverlay() {
+        selectedLensBadgeIndex = -1;
+        renderedLensBadgeViews.clear();
         if (lensOverlayWindowView != null && windowManager != null) {
             try {
                 if (lensOverlayWindowView.isAttachedToWindow()) {
@@ -632,29 +636,59 @@ public class AiSummaryOverlay {
             // DPAD_RIGHT: Forward section progression (Header -> Pills -> Chat -> Suggested)
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 if (current != null) {
-                    // In Header Bar: If at close button (end of header), jump to Action Pills!
+                    // In Header Bar: navigate right inside header; if at the end of header, jump to Action Pills!
                     if (isViewInside(current, headerBar)) {
-                        if (current.getId() == R.id.btn_ai_close) {
-                            View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
-                            if (target != null) {
-                                target.requestFocus();
+                        if (headerBar instanceof ViewGroup) {
+                            ViewGroup headerGroup = (ViewGroup) headerBar;
+                            int currentIdx = headerGroup.indexOfChild(current);
+                            View nextFocusable = null;
+                            for (int i = currentIdx + 1; i < headerGroup.getChildCount(); i++) {
+                                View child = headerGroup.getChildAt(i);
+                                if (child.getVisibility() == View.VISIBLE && child.isFocusable()) {
+                                    nextFocusable = child;
+                                    break;
+                                }
+                            }
+                            if (nextFocusable != null) {
+                                nextFocusable.requestFocus();
                                 return true;
                             }
                         }
+                        View target = btnPillVisionScan != null && btnPillVisionScan.getVisibility() == View.VISIBLE
+                                ? btnPillVisionScan
+                                : overlayView.findViewById(R.id.btn_pill_summary);
+                        if (target != null) {
+                            target.requestFocus();
+                            return true;
+                        }
                     }
-                    // In Action Pills: If at moments pill (end of pills) or pressing right, jump down to Chat conversation!
+                    // In Action Pills: navigate right inside pills; if at the end of pills, jump down to Chat conversation!
                     else if (isViewInside(current, actionPills)) {
-                        if (current.getId() == R.id.btn_pill_moments) {
-                            if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
-                                View firstCard = containerAiChips.getChildAt(0);
-                                firstCard.requestFocus();
-                                centerViewInScrollView(firstCard);
-                                return true;
-                            } else if (btnSuggested1 != null && btnSuggested1.getVisibility() == View.VISIBLE) {
-                                btnSuggested1.requestFocus();
-                                centerViewInScrollView(btnSuggested1);
+                        if (actionPills instanceof ViewGroup) {
+                            ViewGroup pillsGroup = (ViewGroup) actionPills;
+                            int currentIdx = pillsGroup.indexOfChild(current);
+                            View nextFocusable = null;
+                            for (int i = currentIdx + 1; i < pillsGroup.getChildCount(); i++) {
+                                View child = pillsGroup.getChildAt(i);
+                                if (child.getVisibility() == View.VISIBLE && child.isFocusable()) {
+                                    nextFocusable = child;
+                                    break;
+                                }
+                            }
+                            if (nextFocusable != null) {
+                                nextFocusable.requestFocus();
                                 return true;
                             }
+                        }
+                        if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
+                            View firstCard = containerAiChips.getChildAt(0);
+                            firstCard.requestFocus();
+                            centerViewInScrollView(firstCard);
+                            return true;
+                        } else if (btnSuggested1 != null && btnSuggested1.getVisibility() == View.VISIBLE) {
+                            btnSuggested1.requestFocus();
+                            centerViewInScrollView(btnSuggested1);
+                            return true;
                         }
                     }
                     // In Chat Conversation: Jump down to Suggested Questions!
@@ -671,41 +705,81 @@ public class AiSummaryOverlay {
             // DPAD_LEFT: Backward section progression (Suggested -> Chat -> Action Pills -> Header)
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 if (current != null) {
-                    // In Suggested Questions: Jump backward to last chat card!
-                    if (isViewInside(current, containerSuggested)) {
-                        if (current == btnSuggested1) {
-                            if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
-                                View lastCard = containerAiChips.getChildAt(containerAiChips.getChildCount() - 1);
-                                lastCard.requestFocus();
-                                centerViewInScrollView(lastCard);
-                                return true;
-                            } else {
-                                View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
-                                if (target != null) {
-                                    target.requestFocus();
-                                    scrollContent.smoothScrollTo(0, 0);
-                                    return true;
+                    // In Header Bar: navigate left inside header
+                    if (isViewInside(current, headerBar)) {
+                        if (headerBar instanceof ViewGroup) {
+                            ViewGroup headerGroup = (ViewGroup) headerBar;
+                            int currentIdx = headerGroup.indexOfChild(current);
+                            View prevFocusable = null;
+                            for (int i = currentIdx - 1; i >= 0; i--) {
+                                View child = headerGroup.getChildAt(i);
+                                if (child.getVisibility() == View.VISIBLE && child.isFocusable()) {
+                                    prevFocusable = child;
+                                    break;
                                 }
+                            }
+                            if (prevFocusable != null) {
+                                prevFocusable.requestFocus();
+                                return true;
+                            }
+                        }
+                        return true;
+                    }
+                    // In Action Pills: navigate left inside pills row; ONLY when no more buttons to the left, jump up to Header Bar!
+                    else if (isViewInside(current, actionPills)) {
+                        if (actionPills instanceof ViewGroup) {
+                            ViewGroup pillsGroup = (ViewGroup) actionPills;
+                            int currentIdx = pillsGroup.indexOfChild(current);
+                            View prevFocusable = null;
+                            for (int i = currentIdx - 1; i >= 0; i--) {
+                                View child = pillsGroup.getChildAt(i);
+                                if (child.getVisibility() == View.VISIBLE && child.isFocusable()) {
+                                    prevFocusable = child;
+                                    break;
+                                }
+                            }
+                            if (prevFocusable != null) {
+                                prevFocusable.requestFocus();
+                                return true;
+                            }
+                        }
+                        // No more buttons to the left in Action Pills row -> jump up to Header Bar!
+                        View target = overlayView.findViewById(R.id.btn_ai_close);
+                        if (target == null || target.getVisibility() != View.VISIBLE) {
+                            target = btnAiMic;
+                        }
+                        if (target != null) {
+                            target.requestFocus();
+                            return true;
+                        }
+                    }
+                    // In Suggested Questions: Jump backward to last chat card!
+                    else if (isViewInside(current, containerSuggested)) {
+                        if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
+                            View lastCard = containerAiChips.getChildAt(containerAiChips.getChildCount() - 1);
+                            lastCard.requestFocus();
+                            centerViewInScrollView(lastCard);
+                            return true;
+                        } else {
+                            View target = btnPillVisionScan != null && btnPillVisionScan.getVisibility() == View.VISIBLE
+                                    ? btnPillVisionScan
+                                    : overlayView.findViewById(R.id.btn_pill_summary);
+                            if (target != null) {
+                                target.requestFocus();
+                                scrollContent.smoothScrollTo(0, 0);
+                                return true;
                             }
                         }
                     }
                     // Anywhere in Chat Content: 1 click jumps straight up to Action Pills!
                     else if (isViewInside(current, scrollContent)) {
-                        View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
+                        View target = btnPillVisionScan != null && btnPillVisionScan.getVisibility() == View.VISIBLE
+                                ? btnPillVisionScan
+                                : overlayView.findViewById(R.id.btn_pill_summary);
                         if (target != null) {
                             target.requestFocus();
                             scrollContent.smoothScrollTo(0, 0);
                             return true;
-                        }
-                    }
-                    // In Action Pills: If at the first pill, jump up to Header Bar!
-                    else if (isViewInside(current, actionPills)) {
-                        if (current == btnPillVisionScan || current.getId() == R.id.btn_pill_summary) {
-                            View target = btnAiMic != null ? btnAiMic : overlayView.findViewById(R.id.btn_ai_close);
-                            if (target != null) {
-                                target.requestFocus();
-                                return true;
-                            }
                         }
                     }
                 }
@@ -1082,12 +1156,12 @@ public class AiSummaryOverlay {
     private void renderLensBadgesIntoContainer(FrameLayout container, List<AiSummaryEngine.LensBoxItem> boxes, Context ctx) {
         if (container == null || boxes == null || boxes.isEmpty() || ctx == null) return;
         container.removeAllViews();
+        renderedLensBadgeViews.clear();
+        selectedLensBadgeIndex = -1;
 
         DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
         int screenW = dm.widthPixels;
         int screenH = dm.heightPixels;
-        int drawerPx = (int) (540 * dm.density);
-        int maxBadgeW = (int) (220 * dm.density);
 
         List<Rect> renderedRects = new ArrayList<>();
 
@@ -1102,25 +1176,20 @@ public class AiSummaryOverlay {
             leftPx = Math.max((int) (10 * dm.density), Math.min(leftPx, screenW - (int) (160 * dm.density)));
             topPx = Math.max((int) (10 * dm.density), Math.min(topPx, screenH - (int) (48 * dm.density)));
 
-            // Mild collision check: prevent overlapping badges on screen
+            // Skip only near-identical coordinate duplicates so adjacent translations are preserved
             boolean collides = false;
             for (Rect r : renderedRects) {
-                if (Math.abs(r.left - leftPx) < (int) (50 * dm.density) && Math.abs(r.top - topPx) < (int) (26 * dm.density)) {
+                if (Math.abs(r.left - leftPx) < (int) (8 * dm.density) && Math.abs(r.top - topPx) < (int) (8 * dm.density)) {
                     collides = true;
                     break;
                 }
             }
             if (collides) continue;
-            renderedRects.add(new Rect(leftPx, topPx, leftPx + Math.max(boxWidth, (int) (100 * dm.density)), topPx + (int) (36 * dm.density)));
+            renderedRects.add(new Rect(leftPx, topPx, leftPx + Math.max(boxWidth, (int) (60 * dm.density)), topPx + (int) (28 * dm.density)));
 
             LinearLayout badge = new LinearLayout(ctx);
             badge.setOrientation(LinearLayout.VERTICAL);
             badge.setGravity(Gravity.CENTER_VERTICAL);
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(0xEE1E1E2E);
-            bg.setCornerRadius(6 * dm.density);
-            bg.setStroke((int) (1.5f * dm.density), 0xFF8AB4F8);
-            badge.setBackground(bg);
             int padH = (int) (8 * dm.density);
             int padV = (int) (3 * dm.density);
             badge.setPadding(padH, padV, padH, padV);
@@ -1144,8 +1213,168 @@ public class AiSummaryOverlay {
             tvTrans.setTypeface(tvTrans.getTypeface(), Typeface.BOLD);
             badge.addView(tvTrans);
 
+            updateBadgeVisualState(badge, false, dm);
+            renderedLensBadgeViews.add(badge);
             container.addView(badge);
         }
+    }
+
+    private void updateBadgeVisualState(View badge, boolean isSelected, DisplayMetrics dm) {
+        if (badge == null || dm == null) return;
+        GradientDrawable bg = new GradientDrawable();
+        if (isSelected) {
+            bg.setColor(0xFF181824);
+            bg.setCornerRadius(8 * dm.density);
+            bg.setStroke((int) (2.5f * dm.density), 0xFFFFFFFF);
+            badge.setBackground(bg);
+            badge.setScaleX(1.08f);
+            badge.setScaleY(1.08f);
+            badge.setElevation(30f);
+            if (badge instanceof ViewGroup) {
+                ViewGroup vg = (ViewGroup) badge;
+                for (int c = 0; c < vg.getChildCount(); c++) {
+                    View child = vg.getChildAt(c);
+                    if (child instanceof TextView) {
+                        ((TextView) child).setTextColor(0xFFFFFFFF);
+                    }
+                }
+            }
+        } else {
+            bg.setColor(0xEE1E1E2E);
+            bg.setCornerRadius(6 * dm.density);
+            bg.setStroke((int) (1.5f * dm.density), 0xFF8AB4F8);
+            badge.setBackground(bg);
+            badge.setScaleX(1.0f);
+            badge.setScaleY(1.0f);
+            badge.setElevation(2f);
+            if (badge instanceof ViewGroup) {
+                ViewGroup vg = (ViewGroup) badge;
+                for (int c = 0; c < vg.getChildCount(); c++) {
+                    View child = vg.getChildAt(c);
+                    if (child instanceof TextView) {
+                        ((TextView) child).setTextColor(0xFFE0E0E0);
+                    }
+                }
+            }
+        }
+    }
+
+    public void selectLensBadge(int index, Context ctx) {
+        if (renderedLensBadgeViews.isEmpty() || ctx == null) return;
+        if (index < 0 || index >= renderedLensBadgeViews.size()) return;
+
+        DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
+
+        if (selectedLensBadgeIndex >= 0 && selectedLensBadgeIndex < renderedLensBadgeViews.size()) {
+            View prev = renderedLensBadgeViews.get(selectedLensBadgeIndex);
+            updateBadgeVisualState(prev, false, dm);
+        }
+
+        selectedLensBadgeIndex = index;
+        View selected = renderedLensBadgeViews.get(index);
+        updateBadgeVisualState(selected, true, dm);
+
+        selected.bringToFront();
+        if (lensOverlayWindowView != null) {
+            lensOverlayWindowView.requestLayout();
+            lensOverlayWindowView.invalidate();
+        }
+    }
+
+    public boolean handleLensOverlayKeyEvent(KeyEvent event) {
+        if (!isLensOverlayShowing() || renderedLensBadgeViews.isEmpty() || lensOverlayWindowView == null) {
+            return false;
+        }
+
+        int keyCode = event.getKeyCode();
+        int action = event.getAction();
+
+        if (keyCode != KeyEvent.KEYCODE_DPAD_UP
+                && keyCode != KeyEvent.KEYCODE_DPAD_DOWN
+                && keyCode != KeyEvent.KEYCODE_DPAD_LEFT
+                && keyCode != KeyEvent.KEYCODE_DPAD_RIGHT
+                && keyCode != KeyEvent.KEYCODE_DPAD_CENTER
+                && keyCode != KeyEvent.KEYCODE_ENTER) {
+            return false;
+        }
+
+        if (action != KeyEvent.ACTION_DOWN) {
+            return true;
+        }
+
+        Context ctx = lensOverlayWindowView.getContext();
+        int numBadges = renderedLensBadgeViews.size();
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+            return true;
+        }
+
+        if (selectedLensBadgeIndex < 0 || selectedLensBadgeIndex >= numBadges) {
+            selectLensBadge(0, ctx);
+            return true;
+        }
+
+        View currentBadge = renderedLensBadgeViews.get(selectedLensBadgeIndex);
+        int[] currLoc = new int[2];
+        currentBadge.getLocationOnScreen(currLoc);
+        int currCenterX = currLoc[0] + currentBadge.getWidth() / 2;
+        int currCenterY = currLoc[1] + currentBadge.getHeight() / 2;
+
+        int bestTargetIndex = -1;
+        float bestScore = Float.MAX_VALUE;
+
+        for (int i = 0; i < numBadges; i++) {
+            if (i == selectedLensBadgeIndex) continue;
+            View target = renderedLensBadgeViews.get(i);
+            int[] tgtLoc = new int[2];
+            target.getLocationOnScreen(tgtLoc);
+            int tgtCenterX = tgtLoc[0] + target.getWidth() / 2;
+            int tgtCenterY = tgtLoc[1] + target.getHeight() / 2;
+
+            int dx = tgtCenterX - currCenterX;
+            int dy = tgtCenterY - currCenterY;
+
+            boolean isEligible = false;
+            float score = Float.MAX_VALUE;
+
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (dx > 10) {
+                    isEligible = true;
+                    score = dx + Math.abs(dy) * 2.0f;
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (dx < -10) {
+                    isEligible = true;
+                    score = (-dx) + Math.abs(dy) * 2.0f;
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (dy > 10) {
+                    isEligible = true;
+                    score = dy + Math.abs(dx) * 1.5f;
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (dy < -10) {
+                    isEligible = true;
+                    score = (-dy) + Math.abs(dx) * 1.5f;
+                }
+            }
+
+            if (isEligible && score < bestScore) {
+                bestScore = score;
+                bestTargetIndex = i;
+            }
+        }
+
+        if (bestTargetIndex == -1) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                bestTargetIndex = (selectedLensBadgeIndex + 1) % numBadges;
+            } else {
+                bestTargetIndex = (selectedLensBadgeIndex - 1 + numBadges) % numBadges;
+            }
+        }
+
+        selectLensBadge(bestTargetIndex, ctx);
+        return true;
     }
 
     private void appendObjectExplorePills(Context context, List<String> objects) {
