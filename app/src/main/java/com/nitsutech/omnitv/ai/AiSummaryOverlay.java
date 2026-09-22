@@ -707,14 +707,13 @@ public class AiSummaryOverlay {
                                 return true;
                             }
                         }
-                        if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
-                            View firstCard = containerAiChips.getChildAt(0);
-                            firstCard.requestFocus();
-                            centerViewInScrollView(firstCard);
-                            return true;
-                        } else if (btnSuggested1 != null && btnSuggested1.getVisibility() == View.VISIBLE) {
-                            btnSuggested1.requestFocus();
-                            centerViewInScrollView(btnSuggested1);
+                        View target = findFirstFocusable(containerAiChips);
+                        if (target == null && layoutSuggestedSection != null && layoutSuggestedSection.getVisibility() == View.VISIBLE) {
+                            target = findFirstFocusable(layoutSuggestedSection);
+                        }
+                        if (target != null) {
+                            target.requestFocus();
+                            centerViewInScrollView(target);
                             return true;
                         }
                     }
@@ -811,17 +810,17 @@ public class AiSummaryOverlay {
                     }
                     // In Suggested Questions: Jump backward to last chat card!
                     else if (isViewInside(current, containerSuggested)) {
-                        if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
-                            View lastCard = containerAiChips.getChildAt(containerAiChips.getChildCount() - 1);
-                            lastCard.requestFocus();
-                            centerViewInScrollView(lastCard);
+                        View target = findLastFocusable(containerAiChips);
+                        if (target != null) {
+                            target.requestFocus();
+                            centerViewInScrollView(target);
                             return true;
                         } else {
-                            View target = btnPillVisionScan != null && btnPillVisionScan.getVisibility() == View.VISIBLE
+                            View pillTarget = btnPillVisionScan != null && btnPillVisionScan.getVisibility() == View.VISIBLE
                                     ? btnPillVisionScan
                                     : overlayView.findViewById(R.id.btn_pill_summary);
-                            if (target != null) {
-                                target.requestFocus();
+                            if (pillTarget != null) {
+                                pillTarget.requestFocus();
                                 scrollContent.smoothScrollTo(0, 0);
                                 return true;
                             }
@@ -845,27 +844,42 @@ public class AiSummaryOverlay {
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (current != null) {
                     if (isViewInside(current, headerBar)) {
-                        View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
+                        View target = btnPillVisionScan != null && btnPillVisionScan.getVisibility() == View.VISIBLE
+                                ? btnPillVisionScan
+                                : overlayView.findViewById(R.id.btn_pill_summary);
                         if (target != null) {
                             target.requestFocus();
                             return true;
                         }
                     } else if (isViewInside(current, actionPills)) {
+                        View target = null;
                         if (panelAiVisionOptions != null && panelAiVisionOptions.getVisibility() == View.VISIBLE) {
-                            if (btnVisionOptTranslate != null) {
-                                btnVisionOptTranslate.requestFocus();
+                            target = findFirstFocusable(panelAiVisionOptions);
+                        }
+                        if (target == null && containerAiChips != null) {
+                            target = findFirstFocusable(containerAiChips);
+                        }
+                        if (target == null && layoutSuggestedSection != null && layoutSuggestedSection.getVisibility() == View.VISIBLE) {
+                            target = findFirstFocusable(layoutSuggestedSection);
+                        }
+                        if (target != null) {
+                            target.requestFocus();
+                            centerViewInScrollView(target);
+                            return true;
+                        }
+                    } else if (isViewInside(current, containerAiChips)) {
+                        View next = current.focusSearch(View.FOCUS_DOWN);
+                        if (next != null && next != current && isViewInside(next, scrollContent)) {
+                            next.requestFocus();
+                            centerViewInScrollView(next);
+                            return true;
+                        } else if (layoutSuggestedSection != null && layoutSuggestedSection.getVisibility() == View.VISIBLE) {
+                            View target = findFirstFocusable(layoutSuggestedSection);
+                            if (target != null) {
+                                target.requestFocus();
+                                centerViewInScrollView(target);
                                 return true;
                             }
-                        }
-                        if (containerAiChips != null && containerAiChips.getChildCount() > 0) {
-                            View firstCard = containerAiChips.getChildAt(0);
-                            firstCard.requestFocus();
-                            centerViewInScrollView(firstCard);
-                            return true;
-                        } else if (btnSuggested1 != null && btnSuggested1.getVisibility() == View.VISIBLE) {
-                            btnSuggested1.requestFocus();
-                            centerViewInScrollView(btnSuggested1);
-                            return true;
                         }
                     }
                 }
@@ -877,15 +891,39 @@ public class AiSummaryOverlay {
                             return true;
                         }
                     } else if (isViewInside(current, actionPills)) {
-                        View target = btnAiMic != null ? btnAiMic : overlayView.findViewById(R.id.btn_ai_close);
+                        View target = btnAiMic != null && btnAiMic.getVisibility() == View.VISIBLE ? btnAiMic : overlayView.findViewById(R.id.btn_ai_close);
                         if (target != null) {
                             target.requestFocus();
                             return true;
                         }
+                    } else if (layoutSuggestedSection != null && isViewInside(current, layoutSuggestedSection)) {
+                        View prev = current.focusSearch(View.FOCUS_UP);
+                        if (prev != null && prev != current && isViewInside(prev, layoutSuggestedSection)) {
+                            prev.requestFocus();
+                            centerViewInScrollView(prev);
+                            return true;
+                        }
+                        View target = findLastFocusable(containerAiChips);
+                        if (target == null) {
+                            target = btnPillVisionScan != null && btnPillVisionScan.getVisibility() == View.VISIBLE
+                                    ? btnPillVisionScan
+                                    : overlayView.findViewById(R.id.btn_pill_summary);
+                        }
+                        if (target != null) {
+                            target.requestFocus();
+                            centerViewInScrollView(target);
+                            return true;
+                        }
                     } else if (isViewInside(current, scrollContent)) {
                         View upNeighbor = current.focusSearch(View.FOCUS_UP);
-                        if (upNeighbor == null || !isViewInside(upNeighbor, scrollContent)) {
-                            View target = btnPillVisionScan != null ? btnPillVisionScan : overlayView.findViewById(R.id.btn_pill_summary);
+                        if (upNeighbor != null && upNeighbor != current && isViewInside(upNeighbor, scrollContent)) {
+                            upNeighbor.requestFocus();
+                            centerViewInScrollView(upNeighbor);
+                            return true;
+                        } else {
+                            View target = btnPillVisionScan != null && btnPillVisionScan.getVisibility() == View.VISIBLE
+                                    ? btnPillVisionScan
+                                    : overlayView.findViewById(R.id.btn_pill_summary);
                             if (target != null) {
                                 target.requestFocus();
                                 scrollContent.smoothScrollTo(0, 0);
@@ -941,6 +979,32 @@ public class AiSummaryOverlay {
             }
         }
         return false;
+    }
+
+    private View findFirstFocusable(View view) {
+        if (view == null || view.getVisibility() != View.VISIBLE) return null;
+        if (view.isFocusable()) return view;
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                View found = findFirstFocusable(vg.getChildAt(i));
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private View findLastFocusable(View view) {
+        if (view == null || view.getVisibility() != View.VISIBLE) return null;
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            for (int i = vg.getChildCount() - 1; i >= 0; i--) {
+                View found = findLastFocusable(vg.getChildAt(i));
+                if (found != null) return found;
+            }
+        }
+        if (view.isFocusable()) return view;
+        return null;
     }
 
     public void updateInternalFilters(Context context) {
@@ -2065,6 +2129,11 @@ public class AiSummaryOverlay {
         userCard.setOrientation(LinearLayout.VERTICAL);
         userCard.setBackgroundResource(R.drawable.pill_youtube_tv);
         userCard.setPadding(p14, p10, p14, p10);
+        userCard.setFocusable(true);
+        userCard.setClickable(true);
+        userCard.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) centerViewInScrollView(v);
+        });
         LinearLayout.LayoutParams userParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT

@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="#55000000"
     android:clickable="true"
-    android:focusable="false">
+    android:focusable="true">
 
     <LinearLayout
         android:id="@+id/ai_panel_drawer"
@@ -20,7 +20,7 @@
         android:paddingEnd="20dp"
         android:paddingBottom="14dp"
         android:clickable="true"
-        android:focusable="false">
+        android:focusable="true">
 
         <!-- Top Header Bar -->
         <LinearLayout
