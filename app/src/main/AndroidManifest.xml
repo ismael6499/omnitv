@@ -68,7 +68,7 @@
         <activity
             android:name=".QuickMenuActivity"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen"
-            android:exported="false" />
+            android:exported="true" />
 
         <receiver
             android:name=".BootReceiver"

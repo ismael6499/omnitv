@@ -1407,24 +1407,8 @@ public class QuickMenuOverlay {
         }
 
         // 11. Scheduled Sleep
-        if (current == btnScheduledAlarmPrev) {
-            cycleSelectedScheduledAlarm(-1);
-            return true;
-        }
         if (current == txtScheduledAlarmSelector) {
             cycleSelectedScheduledAlarm(delta);
-            return true;
-        }
-        if (current == btnScheduledAlarmNext) {
-            cycleSelectedScheduledAlarm(1);
-            return true;
-        }
-        if (current == btnAddScheduledAlarm) {
-            addScheduledAlarm();
-            return true;
-        }
-        if (current == btnDeleteScheduledAlarm) {
-            deleteScheduledAlarm();
             return true;
         }
         if (current == btnScheduledPromptToggle) {
@@ -5160,6 +5144,9 @@ public class QuickMenuOverlay {
             sendServiceAction("ACTION_UPDATE_SCHEDULED_SLEEP");
             updateScheduledSleepConfigPanel();
             buildMenu();
+            if (alarms.size() <= 1 && btnAddScheduledAlarm != null) {
+                requestViewFocus(btnAddScheduledAlarm);
+            }
         }
     }
 
@@ -5277,11 +5264,21 @@ public class QuickMenuOverlay {
 
         if (txtScheduledAlarmSelector != null) {
             String status = a.enabled ? "ON" : "OFF";
-            txtScheduledAlarmSelector.setText(String.format(java.util.Locale.US, "Alarm %d of %d: %02d:%02d (%s)",
-                    selectedScheduledAlarmIndex + 1, alarms.size(), a.hour, a.minute, status));
+            if (alarms.size() > 1) {
+                txtScheduledAlarmSelector.setText(String.format(java.util.Locale.US, "◀  Alarm %d of %d: %02d:%02d (%s)  ▶",
+                        selectedScheduledAlarmIndex + 1, alarms.size(), a.hour, a.minute, status));
+            } else {
+                txtScheduledAlarmSelector.setText(String.format(java.util.Locale.US, "Alarm 1 of 1: %02d:%02d (%s)",
+                        a.hour, a.minute, status));
+            }
+        }
+
+        if (btnAddScheduledAlarm != null) {
+            btnAddScheduledAlarm.setText(I18n.get(context, R.string.scheduled_add_alarm));
         }
 
         if (btnDeleteScheduledAlarm != null) {
+            btnDeleteScheduledAlarm.setText(I18n.get(context, R.string.scheduled_delete_alarm));
             btnDeleteScheduledAlarm.setVisibility(alarms.size() > 1 ? View.VISIBLE : View.GONE);
         }
 

@@ -1257,13 +1257,7 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_OPEN_QUICK_MENU": openQuickMenu(); break;
             case "ACTION_UPDATE_SCHEDULED_SLEEP": ScheduledSleepReceiver.scheduleNextAlarm(this); break;
             case "ACTION_SCHEDULED_POWER_OFF":
-                SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-                int promptSec = op.getInt("scheduled_sleep_prompt_sec", 60);
-                if (promptSec > 0) {
-                    showScheduledSleepPrompt(promptSec);
-                } else {
-                    performPowerOffOrSleep();
-                }
+                triggerScheduledPowerOff();
                 break;
             case "ACTION_PAUSE_SCREEN_OFF":
             case "ACTION_PAUSE_AND_SCREEN_OFF": pauseMediaAndBlackScreen(); break;
@@ -1896,6 +1890,21 @@ public class ButtonMappingService extends AccessibilityService {
             Log.e(TAG, "Failed to dispatch media pause key event", e);
         }
         showBlackScreen();
+    }
+
+    public void triggerScheduledPowerOff() {
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                int promptSec = op.getInt("scheduled_sleep_prompt_sec", 60);
+                if (promptSec > 0) {
+                    showScheduledSleepPrompt(promptSec);
+                } else {
+                    performPowerOffOrSleep();
+                }
+            }
+        });
     }
 
     private void showScheduledSleepPrompt(final int seconds) {
