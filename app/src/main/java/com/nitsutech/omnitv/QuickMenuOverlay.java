@@ -45,7 +45,7 @@ public class QuickMenuOverlay {
         "developer_options", "language"
     };
 
-    public static final int TOTAL_ACTIONS = 34;
+    public static final int TOTAL_ACTIONS = 35;
     private static final String[] AI_PROVIDER_NAMES = {"Google Gemini Direct", "OpenRouter (Multi-model)"};
     private static final String[] AI_GEMINI_MODELS = {"gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.5-flash"};
     private static final String[] AI_OPENROUTER_MODELS = {

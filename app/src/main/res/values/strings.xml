@@ -38,6 +38,7 @@
     <string name="action_vot">Voiceover (VOT)</string>
     <string name="action_ai_summary">AI Video Assistant (Gemini)</string>
     <string name="action_youtube_music">YouTube Music</string>
+    <string name="action_play_pause">Play / Pause Video</string>
 
     <!-- Main Menu Items -->
     <string name="menu_manage_apps">Apps  Manage Apps</string>

@@ -1424,6 +1424,9 @@ public class ButtonMappingService extends AccessibilityService {
             case 33: // YouTube Music
                 launchYouTubeMusic();
                 break;
+            case 34: // Reproducir / Pausar Video
+                toggleMediaPlayback();
+                break;
         }
     }
 
@@ -2086,6 +2089,15 @@ public class ButtonMappingService extends AccessibilityService {
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to launch YouTube Music", e);
+        }
+    }
+
+    private void toggleMediaPlayback() {
+        try {
+            MediaNotificationListener.togglePlayPause(this);
+        } catch (Exception e) {
+            Log.e(TAG, "Error toggling media playback", e);
+            sendMediaPlayPause();
         }
     }
 

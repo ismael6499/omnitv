@@ -38,6 +38,7 @@
     <string name="action_vot">Doblaje de Voz (VOT)</string>
     <string name="action_ai_summary">Resumen IA (Gemini)</string>
     <string name="action_youtube_music">YouTube Music</string>
+    <string name="action_play_pause">Reproducir / Pausar Video</string>
 
     <!-- Main Menu Items -->
     <string name="menu_manage_apps">Apps  Administrar Apps</string>
