@@ -131,7 +131,7 @@ function extractScreens(vdomRoot) {
 
     function walk(node) {
         if (!node) return;
-        if (node.id && (node.id.startsWith('panel_') || node.id === 'ai_panel_drawer' || node.id === 'quick_menu_container' || node.id === 'dialog_container')) {
+        if (node.id && (node.id.startsWith('panel_') || node.id === 'ai_panel_drawer' || node.id === 'quick_menu_container' || node.id === 'dialog_container' || node.id.startsWith('dialog_'))) {
             screens[node.id] = node;
         }
         if (node.children) {

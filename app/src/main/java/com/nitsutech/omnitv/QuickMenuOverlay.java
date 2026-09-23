@@ -16,6 +16,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -23,7 +24,10 @@ import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioTrack;
 import android.media.AudioManager;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class QuickMenuOverlay {
@@ -41,7 +45,7 @@ public class QuickMenuOverlay {
         "developer_options", "language"
     };
 
-    public static final int TOTAL_ACTIONS = 33;
+    public static final int TOTAL_ACTIONS = 34;
     private static final String[] AI_PROVIDER_NAMES = {"Google Gemini Direct", "OpenRouter (Multi-model)"};
     private static final String[] AI_GEMINI_MODELS = {"gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.5-flash"};
     private static final String[] AI_OPENROUTER_MODELS = {
@@ -216,6 +220,13 @@ public class QuickMenuOverlay {
     private TextView btnConfigDurationInc;
     private TextView txtConfigDuration;
     private String configuringButton = null;
+
+    // Action Picker Dialog Fields
+    private FrameLayout dialogActionPickerOverlay;
+    private TextView txtActionPickerTitle;
+    private TextView txtActionPickerSubtitle;
+    private LinearLayout containerActionPickerItems;
+    private View lastActionPickerTriggerView = null;
 
     // Translate Config Fields
     private LinearLayout panelTranslateConfig;
@@ -470,6 +481,22 @@ public class QuickMenuOverlay {
         btnConfigDurationDec = rootView.findViewById(R.id.btn_config_duration_dec);
         btnConfigDurationInc = rootView.findViewById(R.id.btn_config_duration_inc);
         txtConfigDuration    = rootView.findViewById(R.id.txt_config_duration);
+
+        dialogActionPickerOverlay    = rootView.findViewById(R.id.dialog_action_picker_overlay);
+        txtActionPickerTitle         = rootView.findViewById(R.id.txt_action_picker_title);
+        txtActionPickerSubtitle      = rootView.findViewById(R.id.txt_action_picker_subtitle);
+        containerActionPickerItems   = rootView.findViewById(R.id.container_action_picker_items);
+        if (dialogActionPickerOverlay != null) {
+            dialogActionPickerOverlay.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    closeActionPickerDialog();
+                    if (lastActionPickerTriggerView != null) {
+                        requestViewFocus(lastActionPickerTriggerView);
+                    }
+                }
+            });
+        }
 
         panelClockConfig     = rootView.findViewById(R.id.panel_clock_config);
         btnClockTextColor    = rootView.findViewById(R.id.btn_clock_text_color);
@@ -839,6 +866,22 @@ public class QuickMenuOverlay {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
 
+        if (dialogActionPickerOverlay != null && dialogActionPickerOverlay.getVisibility() == View.VISIBLE) {
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    stopHoldRepeat();
+                    closeActionPickerDialog();
+                    if (lastActionPickerTriggerView != null) {
+                        requestViewFocus(lastActionPickerTriggerView);
+                    }
+                }
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                return true;
+            }
+        }
+
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (action == KeyEvent.ACTION_DOWN) {
                 stopHoldRepeat();
@@ -899,6 +942,9 @@ public class QuickMenuOverlay {
     }
 
     private ViewGroup getActiveSubPanelGroup() {
+        if (dialogActionPickerOverlay != null && dialogActionPickerOverlay.getVisibility() == View.VISIBLE) {
+            return containerActionPickerItems;
+        }
         if (openSubPanel == null) return menuContainer;
         switch (openSubPanel) {
             case "timer": return panelTimer;
@@ -1122,6 +1168,40 @@ public class QuickMenuOverlay {
 
     private boolean handleOptionCyclingNavigation(View current, int keyCode) {
         if (current == null) return false;
+        if (dialogActionPickerOverlay != null && dialogActionPickerOverlay.getVisibility() == View.VISIBLE) {
+            return false;
+        }
+
+        // 1. Remote button action configs
+        if (current == btnConfigClick1 || current == btnConfigClick2 || current == btnConfigClick3 || current == btnConfigClick4 || current == btnConfigLong) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                showActionPickerDialog(current);
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                adjustButtonConfigAction(current, -1);
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                adjustButtonConfigAction(current, 1);
+                return true;
+            }
+            return false;
+        }
+
+        // 2. Button combo actions
+        if (current == btnComboMuteOk || current == btnComboMuteRight || current == btnComboMuteLeft || current == btnComboMuteUp || current == btnComboMuteDown || current == btnComboYoutube190Mute || current == btnComboInputOk) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                showActionPickerDialog(current);
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                adjustComboAction(current, -1);
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                adjustComboAction(current, 1);
+                return true;
+            }
+            return false;
+        }
+
         int delta;
         if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
             delta = -1;
@@ -1129,18 +1209,6 @@ public class QuickMenuOverlay {
             delta = 1;
         } else {
             return false;
-        }
-
-        // 1. Remote button action configs
-        if (current == btnConfigClick1 || current == btnConfigClick2 || current == btnConfigClick3 || current == btnConfigClick4 || current == btnConfigLong) {
-            adjustButtonConfigAction(current, delta);
-            return true;
-        }
-
-        // 2. Button combo actions & master toggle
-        if (current == btnComboMuteOk || current == btnComboMuteRight || current == btnComboMuteLeft || current == btnComboMuteUp || current == btnComboMuteDown || current == btnComboYoutube190Mute || current == btnComboInputOk) {
-            adjustComboAction(current, delta);
-            return true;
         }
         if (current == btnCombosMasterToggle) {
             boolean cur = getOverlayPrefs().getBoolean("btn_combos_enabled", true);
@@ -1732,7 +1800,7 @@ public class QuickMenuOverlay {
             btnConfigClick1.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    adjustButtonConfigAction(btnConfigClick1, 1);
+                    showActionPickerDialog(btnConfigClick1);
                 }
             });
         }
@@ -1740,7 +1808,7 @@ public class QuickMenuOverlay {
             btnConfigClick2.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    adjustButtonConfigAction(btnConfigClick2, 1);
+                    showActionPickerDialog(btnConfigClick2);
                 }
             });
         }
@@ -1748,7 +1816,7 @@ public class QuickMenuOverlay {
             btnConfigClick3.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    adjustButtonConfigAction(btnConfigClick3, 1);
+                    showActionPickerDialog(btnConfigClick3);
                 }
             });
         }
@@ -1756,7 +1824,7 @@ public class QuickMenuOverlay {
             btnConfigClick4.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    adjustButtonConfigAction(btnConfigClick4, 1);
+                    showActionPickerDialog(btnConfigClick4);
                 }
             });
         }
@@ -1764,7 +1832,7 @@ public class QuickMenuOverlay {
             btnConfigLong.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    adjustButtonConfigAction(btnConfigLong, 1);
+                    showActionPickerDialog(btnConfigLong);
                 }
             });
         }
@@ -2743,49 +2811,49 @@ public class QuickMenuOverlay {
         if (btnComboMuteOk != null) {
             btnComboMuteOk.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    adjustComboAction(btnComboMuteOk, 1);
+                    showActionPickerDialog(btnComboMuteOk);
                 }
             });
         }
         if (btnComboMuteRight != null) {
             btnComboMuteRight.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    adjustComboAction(btnComboMuteRight, 1);
+                    showActionPickerDialog(btnComboMuteRight);
                 }
             });
         }
         if (btnComboMuteLeft != null) {
             btnComboMuteLeft.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    adjustComboAction(btnComboMuteLeft, 1);
+                    showActionPickerDialog(btnComboMuteLeft);
                 }
             });
         }
         if (btnComboMuteUp != null) {
             btnComboMuteUp.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    adjustComboAction(btnComboMuteUp, 1);
+                    showActionPickerDialog(btnComboMuteUp);
                 }
             });
         }
         if (btnComboMuteDown != null) {
             btnComboMuteDown.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    adjustComboAction(btnComboMuteDown, 1);
+                    showActionPickerDialog(btnComboMuteDown);
                 }
             });
         }
         if (btnComboYoutube190Mute != null) {
             btnComboYoutube190Mute.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    adjustComboAction(btnComboYoutube190Mute, 1);
+                    showActionPickerDialog(btnComboYoutube190Mute);
                 }
             });
         }
         if (btnComboInputOk != null) {
             btnComboInputOk.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    adjustComboAction(btnComboInputOk, 1);
+                    showActionPickerDialog(btnComboInputOk);
                 }
             });
         }
@@ -3419,6 +3487,7 @@ public class QuickMenuOverlay {
     }
 
     private void closeSubPanels() {
+        closeActionPickerDialog();
         stopHoldRepeat();
         if (panelTimer != null) panelTimer.setVisibility(View.GONE);
         if (panelCine != null) panelCine.setVisibility(View.GONE);
@@ -4002,10 +4071,10 @@ public class QuickMenuOverlay {
             defClick1 = 1; defClick2 = 7; defClick3 = 8; defClick4 = 23; defLong = 2; defDur = 1000;
         } else if ("youtube_190".equals(btnName)) {
             title += "YouTube (190)";
-            defClick1 = 5; defClick2 = 4; defClick3 = 0; defClick4 = 0; defLong = 3; defDur = 2000;
+            defClick1 = 5; defClick2 = 4; defClick3 = 33; defClick4 = 0; defLong = 3; defDur = 2000;
         } else if ("youtube_189".equals(btnName)) {
             title += "YouTube (189)";
-            defClick1 = 5; defClick2 = 0; defClick3 = 0; defClick4 = 0; defLong = 4; defDur = 2000;
+            defClick1 = 5; defClick2 = 0; defClick3 = 33; defClick4 = 0; defLong = 4; defDur = 2000;
         }
 
         if (txtConfigTitle != null) txtConfigTitle.setText(title);
@@ -4049,7 +4118,7 @@ public class QuickMenuOverlay {
             def = "mute".equals(configuringButton) ? 7 : ("youtube_190".equals(configuringButton) ? 4 : 0);
         } else if (view == btnConfigClick3) {
             key = "btn_" + configuringButton + "_click_3_action";
-            def = "mute".equals(configuringButton) ? 8 : 0;
+            def = "mute".equals(configuringButton) ? 8 : 33;
         } else if (view == btnConfigClick4) {
             key = "btn_" + configuringButton + "_click_4_action";
             def = "mute".equals(configuringButton) ? 23 : 0;
@@ -4097,6 +4166,144 @@ public class QuickMenuOverlay {
         cycleActionConfig(key, cur, delta);
         if (view != null) {
             view.requestFocus();
+        }
+    }
+
+    private static class ActionEntry {
+        final int id;
+        final String name;
+        ActionEntry(int id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    private String getActionKeyForView(View view) {
+        if (view == null) return null;
+        if (view == btnConfigClick1 && configuringButton != null) return "btn_" + configuringButton + "_click_1_action";
+        if (view == btnConfigClick2 && configuringButton != null) return "btn_" + configuringButton + "_click_2_action";
+        if (view == btnConfigClick3 && configuringButton != null) return "btn_" + configuringButton + "_click_3_action";
+        if (view == btnConfigClick4 && configuringButton != null) return "btn_" + configuringButton + "_click_4_action";
+        if (view == btnConfigLong   && configuringButton != null) return "btn_" + configuringButton + "_long_action";
+        if (view == btnComboMuteOk) return "combo_mute_ok_action";
+        if (view == btnComboMuteRight) return "combo_mute_right_action";
+        if (view == btnComboMuteLeft) return "combo_mute_left_action";
+        if (view == btnComboMuteUp) return "combo_mute_up_action";
+        if (view == btnComboMuteDown) return "combo_mute_down_action";
+        if (view == btnComboYoutube190Mute) return "combo_youtube190_mute_action";
+        if (view == btnComboInputOk) return "combo_input_ok_action";
+        return null;
+    }
+
+    private int getDefaultActionForView(View view) {
+        if (view == null) return 0;
+        if (view == btnConfigClick1) return "mute".equals(configuringButton) ? 1 : 5;
+        if (view == btnConfigClick2) return "mute".equals(configuringButton) ? 7 : ("youtube_190".equals(configuringButton) ? 4 : 0);
+        if (view == btnConfigClick3) return "mute".equals(configuringButton) ? 8 : 33;
+        if (view == btnConfigClick4) return "mute".equals(configuringButton) ? 23 : 0;
+        if (view == btnConfigLong) return "mute".equals(configuringButton) ? 2 : ("youtube_190".equals(configuringButton) ? 3 : 4);
+        if (view == btnComboMuteOk) return 23;
+        if (view == btnComboMuteRight) return 24;
+        if (view == btnComboMuteLeft) return 25;
+        return 0;
+    }
+
+    private void showActionPickerDialog(View triggerView) {
+        if (triggerView == null || dialogActionPickerOverlay == null || containerActionPickerItems == null) return;
+        final String key = getActionKeyForView(triggerView);
+        if (key == null) return;
+
+        lastActionPickerTriggerView = triggerView;
+        int def = getDefaultActionForView(triggerView);
+        int currentActionId = getOverlayPrefs().getInt(key, def);
+
+        if (txtActionPickerTitle != null) {
+            txtActionPickerTitle.setText(I18n.get(context, R.string.dialog_select_action));
+        }
+        if (txtActionPickerSubtitle != null) {
+            txtActionPickerSubtitle.setText(I18n.get(context, R.string.dialog_select_action_subtitle));
+        }
+
+        containerActionPickerItems.removeAllViews();
+        float density = context.getResources().getDisplayMetrics().density;
+
+        List<ActionEntry> entries = new ArrayList<>();
+        String[] names = I18n.getActionNames(context);
+        for (int i = 0; i < TOTAL_ACTIONS && i < names.length; i++) {
+            entries.add(new ActionEntry(i, names[i]));
+        }
+        Collections.sort(entries, new Comparator<ActionEntry>() {
+            @Override
+            public int compare(ActionEntry a, ActionEntry b) {
+                return a.name.compareToIgnoreCase(b.name);
+            }
+        });
+
+        View viewToFocus = null;
+        for (final ActionEntry entry : entries) {
+            TextView tv = new TextView(context);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                Math.round(42 * density)
+            );
+            lp.bottomMargin = Math.round(4 * density);
+            tv.setLayoutParams(lp);
+            tv.setFocusable(true);
+            tv.setClickable(true);
+            tv.setBackgroundResource(R.drawable.card_background);
+            tv.setGravity(Gravity.CENTER_VERTICAL);
+            tv.setPadding(Math.round(14 * density), 0, Math.round(14 * density), 0);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+
+            boolean isCurrent = (entry.id == currentActionId);
+            if (isCurrent) {
+                tv.setText(entry.name + "  ✓");
+                tv.setTextColor(Color.parseColor("#8AB4F8"));
+                viewToFocus = tv;
+            } else {
+                tv.setText(entry.name);
+                tv.setTextColor(Color.parseColor("#CCCCCC"));
+            }
+
+            tv.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    getOverlayPrefs().edit().putInt(key, entry.id).apply();
+                    closeActionPickerDialog();
+                    if (key.startsWith("combo_")) {
+                        updateButtonCombosPanel();
+                    } else {
+                        updateButtonConfigPanel();
+                    }
+                    if (lastActionPickerTriggerView != null) {
+                        requestViewFocus(lastActionPickerTriggerView);
+                    }
+                }
+            });
+
+            containerActionPickerItems.addView(tv);
+        }
+
+        dialogActionPickerOverlay.setVisibility(View.VISIBLE);
+
+        final View targetFocus = (viewToFocus != null) ? viewToFocus :
+            (containerActionPickerItems.getChildCount() > 0 ? containerActionPickerItems.getChildAt(0) : null);
+        if (targetFocus != null) {
+            targetFocus.post(new Runnable() {
+                @Override
+                public void run() {
+                    requestViewFocus(targetFocus);
+                }
+            });
+        }
+    }
+
+    private void closeActionPickerDialog() {
+        if (dialogActionPickerOverlay != null) {
+            dialogActionPickerOverlay.setVisibility(View.GONE);
+        }
+        if (containerActionPickerItems != null) {
+            containerActionPickerItems.removeAllViews();
         }
     }
 

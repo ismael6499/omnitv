@@ -37,6 +37,7 @@
     <string name="action_smarttube">SmartTube</string>
     <string name="action_vot">Doblaje de Voz (VOT)</string>
     <string name="action_ai_summary">Resumen IA (Gemini)</string>
+    <string name="action_youtube_music">YouTube Music</string>
 
     <!-- Main Menu Items -->
     <string name="menu_manage_apps">Apps  Administrar Apps</string>
@@ -536,4 +537,7 @@
     <string name="ai_tip_paste">💡 Tip: Podes pegar la clave con el celular usando la app Google TV Remote, o por comando ADB.</string>
     <string name="ai_tip_toast">Tip: Obtené tu clave gratis en aistudio.google.com y copiala con tu móvil usando Google TV Remote.</string>
     <string name="ai_lang_badge">🌐 ES</string>
+    <string name="dialog_select_action">Seleccionar Acción</string>
+    <string name="dialog_select_action_subtitle">Elegí una acción de la lista</string>
+    <string name="toast_yt_music_not_found">YouTube Music no está instalado</string>
 </resources>

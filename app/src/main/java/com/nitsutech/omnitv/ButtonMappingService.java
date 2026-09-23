@@ -475,8 +475,8 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private final ButtonState muteState = new ButtonState("mute", 1, 7, 8, 23, 2, 500);
-    private final ButtonState youtube190State = new ButtonState("youtube_190", 5, 4, 3, 0, 18, 500);
-    private final ButtonState youtube189State = new ButtonState("youtube_189", 5, 0, 0, 0, 4, 2000);
+    private final ButtonState youtube190State = new ButtonState("youtube_190", 5, 4, 33, 0, 18, 500);
+    private final ButtonState youtube189State = new ButtonState("youtube_189", 5, 0, 33, 0, 4, 2000);
 
     private long lastAutoPauseTime = 0;
     private long lastCountdownDetectTime = 0;
@@ -1092,6 +1092,14 @@ public class ButtonMappingService extends AccessibilityService {
         }
 
         final SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        if (!prefs.getBoolean("migrated_yt_triple_music_v1", false)) {
+            prefs.edit()
+                .putInt("btn_youtube_190_click_3_action", 33)
+                .putInt("btn_youtube_189_click_3_action", 33)
+                .putBoolean("migrated_yt_triple_music_v1", true)
+                .apply();
+            Log.d(TAG, "Migrated YouTube triple-click to action 33 (YouTube Music)");
+        }
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -1412,6 +1420,9 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case 32: // Resumen IA (Gemini)
                 openAiSummary();
+                break;
+            case 33: // YouTube Music
+                launchYouTubeMusic();
                 break;
         }
     }
@@ -2037,6 +2048,44 @@ public class ButtonMappingService extends AccessibilityService {
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to launch YouTube", e);
+        }
+    }
+
+    private void launchYouTubeMusic() {
+        try {
+            String[] ytMusicPkgs = {
+                "com.google.android.youtube.tvmusic",
+                "com.google.android.apps.youtube.music"
+            };
+            Intent launchIntent = null;
+            for (String pkg : ytMusicPkgs) {
+                try {
+                    launchIntent = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+                } catch (Exception ignored) {}
+                if (launchIntent == null) {
+                    try {
+                        launchIntent = getPackageManager().getLaunchIntentForPackage(pkg);
+                    } catch (Exception ignored) {}
+                }
+                if (launchIntent != null) break;
+            }
+            if (launchIntent == null) {
+                Intent musicIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://music.youtube.com"));
+                musicIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                if (musicIntent.resolveActivity(getPackageManager()) != null) {
+                    launchIntent = musicIntent;
+                }
+            }
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(launchIntent);
+                Log.d(TAG, "Successfully started YouTube Music");
+            } else {
+                Log.w(TAG, "YouTube Music launch intent not found");
+                Toast.makeText(this, I18n.get(this, R.string.toast_yt_music_not_found), Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to launch YouTube Music", e);
         }
     }
 

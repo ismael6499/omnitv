@@ -49,7 +49,8 @@ public class I18n {
         R.string.action_quick_slider,
         R.string.action_smarttube,
         R.string.action_vot,
-        R.string.action_ai_summary
+        R.string.action_ai_summary,
+        R.string.action_youtube_music
     };
 
     public static String getLanguage(Context context) {

@@ -37,6 +37,7 @@
     <string name="action_smarttube">SmartTube</string>
     <string name="action_vot">Voiceover (VOT)</string>
     <string name="action_ai_summary">AI Video Assistant (Gemini)</string>
+    <string name="action_youtube_music">YouTube Music</string>
 
     <!-- Main Menu Items -->
     <string name="menu_manage_apps">Apps  Manage Apps</string>
@@ -536,4 +537,7 @@
     <string name="ai_tip_paste">💡 Tip: You can paste the key with your phone using the Google TV Remote app, or via ADB.</string>
     <string name="ai_tip_toast">Tip: Get your free key at aistudio.google.com and copy it using Google TV Remote.</string>
     <string name="ai_lang_badge">🌐 EN</string>
+    <string name="dialog_select_action">Select Action</string>
+    <string name="dialog_select_action_subtitle">Choose an action from the list</string>
+    <string name="toast_yt_music_not_found">YouTube Music is not installed</string>
 </resources>

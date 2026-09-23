@@ -1481,6 +1481,66 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Action Selection Modal Scrim & Centered Dialog -->
+    <FrameLayout
+        android:id="@+id/dialog_action_picker_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#A6000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        android:elevation="90dp">
+
+        <LinearLayout
+            android:layout_width="480dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/menu_container_background"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="18dp"
+            android:paddingBottom="18dp"
+            android:clickable="true"
+            android:focusable="false"
+            android:elevation="92dp">
+
+            <TextView
+                android:id="@+id/txt_action_picker_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/dialog_select_action"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/txt_action_picker_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/dialog_select_action_subtitle"
+                android:textColor="#9AA0A6"
+                android:textSize="12sp"
+                android:layout_marginBottom="12dp" />
+
+            <com.nitsutech.omnitv.MaxHeightScrollView
+                android:id="@+id/scroll_action_picker"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fadeScrollbars="false"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:id="@+id/container_action_picker_items"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </com.nitsutech.omnitv.MaxHeightScrollView>
+        </LinearLayout>
+    </FrameLayout>
+
     <!-- Internal eye-care filter overlays (ensures zero-flash dimming when menu opens) -->
     <View android:id="@+id/menu_blue_light_filter" android:layout_width="match_parent" android:layout_height="match_parent" android:elevation="98dp" android:clickable="false" android:focusable="false" android:visibility="gone" />
     <View android:id="@+id/menu_dimmer_filter" android:layout_width="match_parent" android:layout_height="match_parent" android:elevation="99dp" android:clickable="false" android:focusable="false" android:visibility="gone" />
