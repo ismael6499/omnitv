@@ -461,4 +461,79 @@
         <item>After Playlist (Watch Later)</item>
         <item>Permanent (Every video change)</item>
     </string-array>
+
+    <!-- Generic Actions & Buttons -->
+    <string name="btn_done">✓  Done</string>
+    <string name="btn_start">  Start  </string>
+    <string name="btn_cancel">✕  Cancel</string>
+    <string name="btn_close">✕  Close</string>
+
+    <!-- Subpanel Titles with Icons matching UI -->
+    <string name="panel_title_brightness">Adjust Screen Brightness (Dimmer):</string>
+    <string name="panel_title_hud">Configure Brightness HUD:</string>
+    <string name="panel_title_slider">Configure Quick Brightness Slider:</string>
+    <string name="panel_title_blue_light">Adjust Blue Light Filter:</string>
+    <string name="panel_title_cine">Configure Cinema Mode:</string>
+    <string name="panel_title_autopause">Configure Video Auto Pause:</string>
+    <string name="panel_title_button">Configure Button:</string>
+    <string name="panel_title_clock">Configure On-Screen Clock:</string>
+    <string name="panel_title_still_watching">Configure Still Watching (Inactivity):</string>
+    <string name="panel_title_night">Configure Automatic Night Schedule:</string>
+    <string name="panel_title_oled">Configure OLED Saver (Anti-Burn-In):</string>
+    <string name="panel_title_mindful">⏳  Configure Mindful App Delay (Access):</string>
+    <string name="panel_title_translate">🌐  Configure Screen Translator (CTS):</string>
+    <string name="panel_title_combos">🔀  Configure Button Combinations:</string>
+    <string name="panel_title_vot">🎙️  Real-Time Voiceover Config (VOT):</string>
+    <string name="panel_title_ai">✨  AI Assistant / Video Summary:</string>
+
+    <!-- Specific Subpanel Rows and Buttons -->
+    <string name="row_bg_opacity">   Background Opacity:</string>
+    <string name="row_text_opacity">   Text Opacity:</string>
+    <string name="row_font_size">   Font Size:</string>
+    <string name="row_padding">   Padding (Margin):</string>
+    <string name="row_offset_x">   Offset X (dp):</string>
+    <string name="row_offset_y">   Offset Y (dp):</string>
+    <string name="row_hud_duration">   HUD Duration:</string>
+    <string name="row_inactivity_min">   Inactivity (Minutes):</string>
+    <string name="row_response_timeout">   Response Timeout:</string>
+    <string name="row_beep_interval">   Beep Interval (s):</string>
+    <string name="row_beep_delay">   Initial Beep Delay (s):</string>
+    <string name="row_beep_vol">   Beep Volume (%):</string>
+    <string name="row_prompt_size">   Prompt Size:</string>
+    <string name="row_hold_time">   Hold Time:</string>
+    <string name="row_queue_count">   Videos in Queue:</string>
+    <string name="row_night_bl">   Blue Light Filter:</string>
+    <string name="row_night_dimmer">   Dimmer Level:</string>
+    <string name="btn_test_beep">   🔊  Test Beep Sound</string>
+    <string name="btn_test_hud">👁️  Test HUD on Screen</string>
+    <string name="btn_goto_hud">👁️ Configure OSD HUD</string>
+    <string name="btn_goto_slider">🎚️ Configure Quick Slider</string>
+    <string name="btn_add_level">➕ Add Level</string>
+    <string name="btn_daily_autoreset">Daily Screen-On Auto-Reset:</string>
+
+    <!-- Mindful Delay Subpanel -->
+    <string name="row_mindful_min">   Wait Minutes:</string>
+    <string name="row_mindful_sec">   Wait Seconds:</string>
+    <string name="row_mindful_sess_hour">   Session Hours:</string>
+    <string name="row_mindful_sess_min">   Session Minutes:</string>
+    <string name="row_mindful_target_apps">   Select Intercepted Apps:</string>
+    <string name="btn_test_mindful">👁️  Test Mindful Prompt (10s)</string>
+
+    <!-- Translate Subpanel -->
+    <string name="row_translate_opacity">   Patch Opacity:</string>
+    <string name="btn_test_translate">👁️  Test Screen Translator</string>
+
+    <!-- VOT Subpanel -->
+    <string name="vot_dubbing_off">   Dubbing:  [OFF]</string>
+    <string name="vot_key_paste">   AI API Key:  [Paste or Configure]</string>
+    <string name="btn_test_ducking">🔊  Test Voice with Ducking</string>
+
+    <string name="row_start_time">   Start Time:</string>
+    <string name="row_end_time">   End Time:</string>
+
+    <!-- AI Subpanel -->
+    <string name="btn_open_ai_current">✨  Open Assistant with Current Video</string>
+    <string name="ai_tip_paste">💡 Tip: You can paste the key with your phone using the Google TV Remote app, or via ADB.</string>
+    <string name="ai_tip_toast">Tip: Get your free key at aistudio.google.com and copy it using Google TV Remote.</string>
+    <string name="ai_lang_badge">🌐 EN</string>
 </resources>

@@ -461,4 +461,79 @@
         <item>Al terminar Lista (Ver más tarde)</item>
         <item>Permanente (Cada cambio de video)</item>
     </string-array>
+
+    <!-- Generic Actions & Buttons -->
+    <string name="btn_done">✓  Listo</string>
+    <string name="btn_start">  Iniciar  </string>
+    <string name="btn_cancel">✕  Cancelar</string>
+    <string name="btn_close">✕  Cerrar</string>
+
+    <!-- Subpanel Titles with Icons matching UI -->
+    <string name="panel_title_brightness">Ajustar Brillo de Pantalla (Dimmer):</string>
+    <string name="panel_title_hud">Configurar Cartel Indicador de Brillo:</string>
+    <string name="panel_title_slider">Configurar Slider de Brillo Rápido:</string>
+    <string name="panel_title_blue_light">Ajustar Filtro Luz Azul:</string>
+    <string name="panel_title_cine">Configurar Modo Cine:</string>
+    <string name="panel_title_autopause">Configurar Auto Pausa de Video:</string>
+    <string name="panel_title_button">Configurar Botón:</string>
+    <string name="panel_title_clock">Configurar Reloj en Pantalla:</string>
+    <string name="panel_title_still_watching">Configurar ¿Sigues viendo? (Inactividad):</string>
+    <string name="panel_title_night">Configurar Horario Nocturno Automático:</string>
+    <string name="panel_title_oled">Configurar Protector OLED (Anti Burn-In):</string>
+    <string name="panel_title_mindful">⏳  Configurar Espera Consciente (Acceso):</string>
+    <string name="panel_title_translate">🌐  Configurar Traductor de Pantalla (CTS):</string>
+    <string name="panel_title_combos">🔀  Configurar Combinaciones de Teclas:</string>
+    <string name="panel_title_vot">🎙️  Configuración de Doblaje al Vuelo (VOT):</string>
+    <string name="panel_title_ai">✨  Asistente IA / Resumen de Video:</string>
+
+    <!-- Specific Subpanel Rows and Buttons -->
+    <string name="row_bg_opacity">   Opacidad Fondo:</string>
+    <string name="row_text_opacity">   Opacidad Letra:</string>
+    <string name="row_font_size">   Tamaño Letra:</string>
+    <string name="row_padding">   Padding (Margen Int):</string>
+    <string name="row_offset_x">   Desplazar X (dp):</string>
+    <string name="row_offset_y">   Desplazar Y (dp):</string>
+    <string name="row_hud_duration">   Duración Cartel:</string>
+    <string name="row_inactivity_min">   Intervalo (Minutos):</string>
+    <string name="row_response_timeout">   Tiempo Límite Resp:</string>
+    <string name="row_beep_interval">   Intervalo Beep (s):</string>
+    <string name="row_beep_delay">   Demora Inicial Beep (s):</string>
+    <string name="row_beep_vol">   Volumen Beep (%):</string>
+    <string name="row_prompt_size">   Tamaño Cartel:</string>
+    <string name="row_hold_time">   Tiempo Sostenido:</string>
+    <string name="row_queue_count">   Videos en tu Lista:</string>
+    <string name="row_night_bl">   Filtro Luz Azul:</string>
+    <string name="row_night_dimmer">   Nivel Dimmer:</string>
+    <string name="btn_test_beep">   🔊  Probar Sonido Beep</string>
+    <string name="btn_test_hud">👁️  Probar Cartel en Pantalla</string>
+    <string name="btn_goto_hud">👁️ Configurar Cartel OSD (HUD)</string>
+    <string name="btn_goto_slider">🎚️ Configurar Slider Rápido</string>
+    <string name="btn_add_level">➕ Agregar Nivel</string>
+    <string name="btn_daily_autoreset">Auto-Reset Diario al Encender:</string>
+
+    <!-- Mindful Delay Subpanel -->
+    <string name="row_mindful_min">   Minutos de Espera:</string>
+    <string name="row_mindful_sec">   Segundos de Espera:</string>
+    <string name="row_mindful_sess_hour">   Horas de Sesión:</string>
+    <string name="row_mindful_sess_min">   Minutos de Sesión:</string>
+    <string name="row_mindful_target_apps">   Selección de Apps Interceptadas:</string>
+    <string name="btn_test_mindful">👁️  Probar Cartel de Espera (10s)</string>
+
+    <!-- Translate Subpanel -->
+    <string name="row_translate_opacity">   Opacidad del Parche:</string>
+    <string name="btn_test_translate">👁️  Probar Traductor en Pantalla</string>
+
+    <!-- VOT Subpanel -->
+    <string name="vot_dubbing_off">   Doblaje:  [OFF]</string>
+    <string name="vot_key_paste">   API Key IA:  [Pegar o Configurar]</string>
+    <string name="btn_test_ducking">🔊  Probar Voz con Atenuación (Ducking)</string>
+
+    <string name="row_start_time">   Hora Inicio:</string>
+    <string name="row_end_time">   Hora Fin:</string>
+
+    <!-- AI Subpanel -->
+    <string name="btn_open_ai_current">✨  Abrir Asistente con Video Actual</string>
+    <string name="ai_tip_paste">💡 Tip: Podes pegar la clave con el celular usando la app Google TV Remote, o por comando ADB.</string>
+    <string name="ai_tip_toast">Tip: Obtené tu clave gratis en aistudio.google.com y copiala con tu móvil usando Google TV Remote.</string>
+    <string name="ai_lang_badge">🌐 ES</string>
 </resources>

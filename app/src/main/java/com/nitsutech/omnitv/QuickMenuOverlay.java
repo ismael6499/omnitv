@@ -1599,10 +1599,10 @@ public class QuickMenuOverlay {
                     updateMenuInternalFilters();
                     if (txtBlueLightPct != null) {
                         double displayPct = progress / 10.0;
-                        txtBlueLightPct.setText("Nivel: " + (progress > 0 ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : "Desactivado"));
+                        txtBlueLightPct.setText((I18n.isSpanish(context) ? "Nivel: " : "Level: ") + (progress > 0 ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : (I18n.isSpanish(context) ? "Desactivado" : "Disabled")));
                     }
                     if (btnApplyBlueLight != null) {
-                        btnApplyBlueLight.setText(progress > 0 ? "[ Desactivar Filtro ]" : "[ Activar Filtro ]");
+                        btnApplyBlueLight.setText(progress > 0 ? (I18n.isSpanish(context) ? "[ Desactivar Filtro ]" : "[ Disable Filter ]") : (I18n.isSpanish(context) ? "[ Activar Filtro ]" : "[ Enable Filter ]"));
                     }
                 }
                 @Override public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -1639,12 +1639,12 @@ public class QuickMenuOverlay {
             SharedPreferences op = getOverlayPrefs();
             int currentPct = op.getInt("dimmer_brightness_pct", 50);
             sliderBrightness.setProgress(currentPct);
-            if (txtBrightnessPct != null) txtBrightnessPct.setText("Nivel: " + currentPct + "%");
+            if (txtBrightnessPct != null) txtBrightnessPct.setText((I18n.isSpanish(context) ? "Nivel: " : "Level: ") + currentPct + "%");
 
             sliderBrightness.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                 @Override
                 public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    if (txtBrightnessPct != null) txtBrightnessPct.setText("Nivel: " + progress + "%");
+                    if (txtBrightnessPct != null) txtBrightnessPct.setText((I18n.isSpanish(context) ? "Nivel: " : "Level: ") + progress + "%");
                     Bundle b = new Bundle();
                     b.putInt("pct", progress);
                     sendServiceAction("ACTION_SET_DIMMER_BRIGHTNESS", b);
@@ -2925,7 +2925,7 @@ public class QuickMenuOverlay {
         if (btnAiApiHelp != null) {
             btnAiApiHelp.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    android.widget.Toast.makeText(context, "Tip: Obtené tu clave gratis en aistudio.google.com y copiala con tu móvil usando Google TV Remote.", android.widget.Toast.LENGTH_LONG).show();
+                    android.widget.Toast.makeText(context, I18n.get(context, R.string.ai_tip_toast), android.widget.Toast.LENGTH_LONG).show();
                 }
             });
         }

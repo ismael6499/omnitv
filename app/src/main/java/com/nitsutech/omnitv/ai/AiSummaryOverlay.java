@@ -156,7 +156,7 @@ public class AiSummaryOverlay {
         }
 
         windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        LayoutInflater inflater = LayoutInflater.from(context);
+        LayoutInflater inflater = LayoutInflater.from(com.nitsutech.omnitv.I18n.getLocalizedContext(context));
         overlayView = inflater.inflate(R.layout.view_ai_summary_overlay, null);
 
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
@@ -495,24 +495,25 @@ public class AiSummaryOverlay {
         }
 
         // Quick Preset Pills (Top)
+        boolean isEn = "en".equalsIgnoreCase(uiLanguage);
         View btnSummary = overlayView.findViewById(R.id.btn_pill_summary);
         if (btnSummary != null) {
-            btnSummary.setOnClickListener(v -> executePrompt(context, "Haz un resumen completo del video estructurado en puntos clave.", false));
+            btnSummary.setOnClickListener(v -> executePrompt(context, isEn ? "Give a comprehensive summary of this video structured in key points." : "Haz un resumen completo del video estructurado en puntos clave.", false));
         }
 
         View btnKeyPoints = overlayView.findViewById(R.id.btn_pill_key_points);
         if (btnKeyPoints != null) {
-            btnKeyPoints.setOnClickListener(v -> executePrompt(context, "¿Cuáles son los puntos y argumentos clave explicados en este video?", false));
+            btnKeyPoints.setOnClickListener(v -> executePrompt(context, isEn ? "What are the key points and main arguments explained in this video?" : "¿Cuáles son los puntos y argumentos clave explicados en este video?", false));
         }
 
         View btnConclusions = overlayView.findViewById(R.id.btn_pill_conclusions);
         if (btnConclusions != null) {
-            btnConclusions.setOnClickListener(v -> executePrompt(context, "¿Cuáles son las conclusiones finales y consejos que da el autor?", false));
+            btnConclusions.setOnClickListener(v -> executePrompt(context, isEn ? "What are the key takeaways, conclusions and advice shared in this video?" : "¿Cuáles son las conclusiones finales y consejos que da el autor?", false));
         }
 
         View btnMoments = overlayView.findViewById(R.id.btn_pill_moments);
         if (btnMoments != null) {
-            btnMoments.setOnClickListener(v -> executePrompt(context, "Detalla los momentos o temas más importantes del video con marcas de tiempo si están disponibles.", false));
+            btnMoments.setOnClickListener(v -> executePrompt(context, isEn ? "Detail the most important moments or sections of this video with timestamps if available." : "Detalla los momentos o temas más importantes del video con marcas de tiempo si están disponibles.", false));
         }
 
         // Suggested Follow-up Buttons (Bottom)
