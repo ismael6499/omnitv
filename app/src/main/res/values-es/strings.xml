@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OmniTV</string>
+    <string name="accessibility_service_description">Centro de control todo en uno, remapeo de botones y utilidades de pantalla para Android TV.</string>
+
+    <!-- 33 Action Names -->
+    <string name="action_none">Ninguna</string>
+    <string name="action_mute">Silenciar Audio</string>
+    <string name="action_grayscale">Escala de Grises (B/N)</string>
+    <string name="action_black_screen">Apagar Pantalla (Negro)</string>
+    <string name="action_google_home">Google Home Panel</string>
+    <string name="action_youtube">YouTube</string>
+    <string name="action_netflix">Netflix</string>
+    <string name="action_bluetooth">Auriculares Bluetooth</string>
+    <string name="action_quick_menu">Menú de Acciones</string>
+    <string name="action_blue_light">Filtro Luz Azul</string>
+    <string name="action_clock">Reloj en Pantalla</string>
+    <string name="action_dimmer">Dimmer de Pantalla</string>
+    <string name="action_cine_mode">Modo Cine</string>
+    <string name="action_system_info">Info del Sistema</string>
+    <string name="action_reboot">Reiniciar Chromecast</string>
+    <string name="action_system_settings">Ajustes del Sistema</string>
+    <string name="action_screen_mirror">Pantalla Espejo</string>
+    <string name="action_recents">Recientes</string>
+    <string name="action_pause_screen_off">Pausar y Apagar Pantalla</string>
+    <string name="action_dimmer_down">Bajar Brillo (Dimmer)</string>
+    <string name="action_dimmer_up">Subir Brillo (Dimmer)</string>
+    <string name="action_cycle_brightness">Ciclar Brillo</string>
+    <string name="action_still_watching">¿Sigues viendo?</string>
+    <string name="action_translate_screen">Traducir Pantalla (CTS)</string>
+    <string name="action_frame_hud">Control Cuadro por Cuadro (HUD)</string>
+    <string name="action_forward_frame">Avanzar 1 Frame (YouTube)</string>
+    <string name="action_backward_frame">Retroceder 1 Frame (YouTube)</string>
+    <string name="action_developer_options">Opciones de Desarrollador</string>
+    <string name="action_cycle_brightness_reverse">Ciclar Brillo Inverso</string>
+    <string name="action_quick_slider">Slider de Brillo Rápido</string>
+    <string name="action_smarttube">SmartTube</string>
+    <string name="action_vot">Doblaje de Voz (VOT)</string>
+    <string name="action_ai_summary">Resumen IA (Gemini)</string>
+
+    <!-- Main Menu Items -->
+    <string name="menu_manage_apps">Apps  Administrar Apps</string>
+    <string name="menu_timer_format">Timer  Temporizador [%s]</string>
+    <string name="menu_timer_off">Timer  Temporizador [OFF]</string>
+    <string name="menu_blue_light">Luz Azul  Filtro Luz Azul [%s]</string>
+    <string name="menu_clock">Reloj  Reloj en Pantalla (tap=configurar)</string>
+    <string name="menu_dimmer">Noche  Dimmer de Pantalla (%d%%)</string>
+    <string name="menu_grayscale">B/N  Escala de Grises</string>
+    <string name="menu_cine_mode">Cine  Modo Cine</string>
+    <string name="menu_auto_pause">Pausa  Auto Pausa de Video [%s]</string>
+    <string name="menu_screen_off">Sleep  Apagar Pantalla</string>
+    <string name="menu_system_menu">System  Ajustes del Sistema</string>
+    <string name="menu_google_home">Home  Google Home Panel</string>
+    <string name="menu_bluetooth">BT  Auriculares Bluetooth</string>
+    <string name="menu_system_info">Info  Info del Sistema</string>
+    <string name="menu_reboot">Reiniciar Chromecast</string>
+    <string name="menu_developer_options">Dev  Opciones de Desarrollo</string>
+    <string name="menu_pause_screen_off">Sleep  Pausar y Apagar Pantalla</string>
+    <string name="menu_scheduled_sleep">⏰  Apagado Programado   [%s]</string>
+    <string name="menu_cycle_brightness">Brillo  Ciclar Brillo [%d%%]</string>
+    <string name="menu_still_watching">📺  ¿Sigues viendo?</string>
+    <string name="menu_mindful_delay">⏳  Espera Consciente [%s]</string>
+    <string name="menu_night_schedule">🌙  Horario Nocturno</string>
+    <string name="menu_oled_saver">🛡️  Protector OLED (Burn-In)</string>
+    <string name="menu_vot">🎙️  Doblaje al Vuelo (VOT)</string>
+    <string name="menu_trigger_ai_summary">🤖  Asistente IA (Video Actual)</string>
+    <string name="menu_ai_summary_config">⚙️  Configurar Asistente IA</string>
+    <string name="menu_trigger_translate">🌐  Traducir Pantalla Ahora</string>
+    <string name="menu_translate_config">⚙️  Configurar Traductor (CTS)</string>
+    <string name="menu_button_combos">⚡  Combinaciones de Teclas</string>
+    <string name="menu_config_mute">Config  Configurar Botón Mute</string>
+    <string name="menu_config_youtube_190">Config  Configurar YouTube (190)</string>
+    <string name="menu_config_youtube_189">Config  Configurar YouTube (189)</string>
+    <string name="menu_language">🌐  Idioma: %s</string>
+
+    <!-- Common Status & Modes -->
+    <string name="status_enabled">ACTIVADO</string>
+    <string name="status_disabled">DESACTIVADO</string>
+    <string name="status_on">ON</string>
+    <string name="status_off">OFF</string>
+    <string name="status_prefix">   Estado:  %s</string>
+    <string name="mode_once">Una vez</string>
+    <string name="mode_permanent">Permanente</string>
+    <string name="mode_times">%d veces</string>
+    <string name="mode_black_screen">Pantalla Negra</string>
+    <string name="mode_dimmer_95">Dimmer 95%</string>
+
+    <!-- Subpanels: Timer -->
+    <string name="timer_presets_title">Presets de duracion:</string>
+    <string name="timer_custom_title">Custom Timer:</string>
+    <string name="timer_start">  Iniciar  </string>
+    <string name="timer_cancel">X  Cancelar Timer</string>
+
+    <!-- Subpanels: Dimmer & Levels -->
+    <string name="dimmer_adjust_title">Ajustar Brillo de Pantalla (Dimmer):</string>
+    <string name="dimmer_level_prefix">Nivel: %d%%</string>
+    <string name="dimmer_add_level">➕ Agregar Nivel</string>
+    <string name="dimmer_config_hud">⚙️ Configurar Cartel OSD (HUD)</string>
+    <string name="dimmer_config_slider">🎚️ Configurar Slider Rápido</string>
+    <string name="dimmer_autoreset_title">Auto-Reset Diario al Encender:</string>
+    <string name="dimmer_autoreset_step1">Auto-Reset Brillo (Paso 1):   [%s]</string>
+    <string name="dimmer_autoreset_bw">Auto-Reset B/N a Color:   [%s]</string>
+    <string name="time_start_prefix">   Hora Inicio:</string>
+    <string name="time_end_prefix">   Hora Fin:</string>
+
+    <!-- Subpanels: HUD Config -->
+    <string name="hud_config_title">Configurar Cartel Indicador de Brillo:</string>
+    <string name="hud_bg_opacity">   Opacidad Fondo:</string>
+    <string name="hud_text_opacity">   Opacidad Letra:</string>
+    <string name="hud_font_size">   Tamaño Letra:</string>
+    <string name="hud_padding">   Padding (Margen Int):</string>
+    <string name="hud_offset_x">   Desplazar X:</string>
+    <string name="hud_offset_y">   Desplazar Y:</string>
+    <string name="hud_duration">   Duración:</string>
+    <string name="hud_test_button">👁️ Probar Cartel en Pantalla</string>
+
+    <!-- Subpanels: Slider Config -->
+    <string name="slider_config_title">Configurar Slider de Brillo Rápido:</string>
+    <string name="slider_test_button">Probar Slider Ahora</string>
+    <string name="slider_orientation">   Orientación:  %s</string>
+    <string name="slider_step">   Paso de Brillo:  %d%%</string>
+    <string name="slider_perp_action">   Acción Teclas Perpendiculares:  %s</string>
+    <string name="slider_position">   Posición en Pantalla:  %s</string>
+    <string name="slider_timeout">   Tiempo de Espera:  %s</string>
+
+    <!-- Subpanels: Blue Light Filter -->
+    <string name="bl_filter_title">Filtro Luz Azul:</string>
+    <string name="bl_level_prefix">Nivel: %s</string>
+    <string name="bl_toggle_btn">   Filtro:  %s</string>
+    <string name="bl_disable_btn">Desactivar Filtro Luz Azul</string>
+
+    <!-- Subpanels: Clock -->
+    <string name="clock_title">Reloj en Pantalla:</string>
+    <string name="clock_format">   Formato:  %s</string>
+    <string name="clock_text_color">   Color de Texto:  %s</string>
+    <string name="clock_bg_color">   Color de Fondo:  %s</string>
+    <string name="clock_position">   Posición:  %s</string>
+    <string name="clock_font_size">   Tamaño Letra:</string>
+    <string name="clock_padding">   Padding:</string>
+    <string name="clock_offset_x">   Desplazar X:</string>
+    <string name="clock_offset_y">   Desplazar Y:</string>
+    <string name="clock_apply_btn">[ Aplicar Ajustes de Reloj ]</string>
+
+    <!-- Subpanels: Cinema Mode -->
+    <string name="cine_title">Modo Cine:</string>
+    <string name="cine_bl_prefix">   Filtro Luz Azul:  %s</string>
+    <string name="cine_dimmer_prefix">   Dimmer:  %s</string>
+    <string name="cine_timer_prefix">   Temporizador:  %s</string>
+    <string name="cine_apply_btn">[ Aplicar Modo Cine ]</string>
+
+    <!-- Subpanels: Auto Pause -->
+    <string name="autopause_title">Auto Pausa:</string>
+    <string name="autopause_mode">   Modo:  %s</string>
+    <string name="autopause_count">   Cantidad de Pausas:</string>
+    <string name="autopause_black_screen">   Pantalla Negra al pausar:  %s</string>
+    <string name="autopause_dismiss_up_next">   Descartar \'Siguiente video\':  %s</string>
+
+    <!-- Subpanels: Night Schedule -->
+    <string name="night_title">Horario Nocturno:</string>
+    <string name="night_bl_prefix">   Filtro Luz Azul:  %s</string>
+    <string name="night_dimmer_prefix">   Dimmer:  %s</string>
+    <string name="night_apply_enable">[ Activar Horario Nocturno ]</string>
+    <string name="night_apply_disable">[ Desactivar Horario Nocturno ]</string>
+
+    <!-- Subpanels: OLED Saver -->
+    <string name="oled_title">Protector OLED (Burn-In):</string>
+    <string name="oled_minutes_title">Tiempo de inactividad:</string>
+    <string name="oled_mode_prefix">   Modo Protector:  %s</string>
+    <string name="oled_apply_enable">[ Activar Protector OLED ]</string>
+    <string name="oled_apply_disable">[ Desactivar Protector OLED ]</string>
+
+    <!-- Subpanels: Scheduled Sleep -->
+    <string name="scheduled_sleep_title">Apagado Programado:</string>
+    <string name="scheduled_add_alarm">+ Agregar Alarma</string>
+    <string name="scheduled_delete_alarm">🗑️ Eliminar Alarma</string>
+    <string name="scheduled_sleep_hour">   Hora de Apagado:</string>
+    <string name="scheduled_sleep_minute">   Minuto de Apagado:</string>
+    <string name="scheduled_active_days">   Días Activos:</string>
+    <string name="scheduled_skip_next">[ Saltear próxima alarma (%s) ]</string>
+    <string name="scheduled_skip_cancel">[ Próxima alarma salteada (%s) - Reactivar ]</string>
+    <string name="scheduled_prompt_prefix">   Aviso previo de apagado:  %s</string>
+    <string name="scheduled_apply_enable">[ Activar Alarma Seleccionada ]</string>
+    <string name="scheduled_apply_disable">[ Desactivar Alarma Seleccionada ]</string>
+
+    <!-- Subpanels: Button Config -->
+    <string name="btn_config_title">Configurar Botón:</string>
+    <string name="btn_config_single">   Click Simple:  %s</string>
+    <string name="btn_config_double">   Doble Click:  %s</string>
+    <string name="btn_config_triple">   Triple Click:  %s</string>
+    <string name="btn_config_quad">   Cuádruple Clic (4x):  %s</string>
+    <string name="btn_config_long">   Sostenido:  %s</string>
+    <string name="btn_config_reset">[ Restablecer por Defecto ]</string>
+
+    <!-- Subpanels: Button Combos -->
+    <string name="combos_title">Combinaciones de Teclas:</string>
+    <string name="combos_master">   Combinaciones:  %s</string>
+    <string name="combo_mute_ok">   Mute + OK:  %s</string>
+    <string name="combo_mute_right">   Mute + Flecha Der:  %s</string>
+    <string name="combo_mute_left">   Mute + Flecha Izq:  %s</string>
+    <string name="combo_mute_up">   Mute + Flecha Arriba:  %s</string>
+    <string name="combo_mute_down">   Mute + Flecha Abajo:  %s</string>
+    <string name="combo_yt_mute">   YouTube + Mute:  %s</string>
+    <string name="combo_input_ok">   TV Input + OK:  %s</string>
+
+    <!-- Subpanels: Still Watching -->
+    <string name="still_watching_title">¿Sigues viendo?:</string>
+    <string name="still_watching_minutes">Minutos de inactividad:</string>
+    <string name="still_watching_beep">   Sonido Beep:  %s</string>
+    <string name="still_watching_test_beep">🔊 Probar Sonido Beep Ahora</string>
+    <string name="still_watching_prompt_sec">   Aviso previo:  %ds</string>
+    <string name="still_watching_apply_enable">[ Activar ¿Sigues viendo? ]</string>
+    <string name="still_watching_apply_disable">[ Desactivar ¿Sigues viendo? ]</string>
+
+    <!-- Subpanels: Mindful Delay -->
+    <string name="action_mindful_delay">Espera Consciente</string>
+    <string name="mindful_title">Espera Consciente:</string>
+    <string name="mindful_toggle">Espera Consciente:   %s</string>
+    <string name="mindful_min_prefix">   Minutos:</string>
+    <string name="mindful_sec_prefix">   Segundos:</string>
+    <string name="mindful_cancel_action">   Acción al cancelar:  %s</string>
+    <string name="mindful_apps_title">Aplicaciones protegidas:</string>
+    <string name="mindful_session_mode">   Modo de sesión:  %s</string>
+    <string name="mindful_test_btn">[ Probar Pantalla de Espera ]</string>
+
+    <!-- Subpanels: VOT -->
+    <string name="vot_title">Doblaje al Vuelo (VOT):</string>
+    <string name="vot_source_lang">   Idioma Origen:  %s</string>
+    <string name="vot_target_lang">   Idioma Destino:  %s</string>
+    <string name="vot_volume">   Volumen Voz:  %s</string>
+    <string name="vot_ducking">   Atenuación Audio:  %s</string>
+    <string name="vot_subtitles">   Subtítulos:  %s</string>
+    <string name="vot_rate">   Velocidad de Voz:  %s</string>
+    <string name="vot_provider">   Proveedor:  %s</string>
+    <string name="vot_model">   Modelo:  %s</string>
+    <string name="vot_key_set">   API Key:  [ CONFIGURADA ]</string>
+    <string name="vot_key_unset">   API Key:  [ NO CONFIGURADA ]</string>
+
+    <!-- Subpanels: AI Video Assistant -->
+    <string name="ai_title">Asistente IA:</string>
+    <string name="ai_launch_now">✨ Abrir Asistente IA Ahora</string>
+    <string name="ai_provider">   Proveedor IA:  %s</string>
+    <string name="ai_model">   Modelo IA:  %s</string>
+    <string name="ai_key_set">   API Key:  [ CONFIGURADA ]</string>
+    <string name="ai_key_unset">   API Key:  [ NO CONFIGURADA ]</string>
+    <string name="ai_instructions">   Instrucciones del Sistema:  %s</string>
+
+    <!-- Subpanels: Screen Translator -->
+    <string name="translate_title">Traducir Pantalla (CTS):</string>
+    <string name="translate_launch">🌐 Traducir Pantalla Ahora</string>
+    <string name="translate_target_lang">   Idioma Destino:  %s</string>
+    <string name="translate_provider">   Proveedor:  %s</string>
+    <string name="translate_top_bar">   Barra Superior:  %s</string>
+
+    <!-- Dialogs, Warning Overlays & Toasts -->
+    <string name="prompt_scheduled_sleep">⏰  Apagado Programado\n\nEl dispositivo se apagará en %d s\n\nPresiona cualquier botón del control para cancelar</string>
+    <string name="toast_scheduled_sleep_cancelled">⏰ Apagado programado cancelado hoy</string>
+    <string name="prompt_still_watching">📺 ¿Sigues viendo?\nPresiona OK o Atrás para continuar (%ds)</string>
+    <string name="prompt_mindful_delay">⏳ Espera Consciente: %1$s (%2$ds restantes)\nPresiona Atrás para cancelar</string>
+    <string name="prompt_oled_saver">🛡️ Protector OLED activo. Presiona cualquier botón para volver.</string>
+    <string name="toast_bw_enabled">B/N Escala de Grises Activado</string>
+    <string name="toast_bw_disabled">B/N Escala de Grises Desactivado</string>
+    <string name="toast_dimmer_level">Dimmer de Pantalla: %d%%</string>
+    <string name="toast_cine_enabled">Modo Cine: Activado</string>
+    <string name="toast_cine_disabled">Modo Cine: Desactivado</string>
+    <string name="toast_vot_enabled">🎙️ Doblaje VOT Activado</string>
+    <string name="toast_vot_disabled">🎙️ Doblaje VOT Desactivado</string>
+    <string name="toast_still_watching_enabled">📺 ¿Sigues viendo?: Activado</string>
+    <string name="toast_still_watching_disabled">📺 ¿Sigues viendo?: Desactivado</string>
+    <string name="toast_rebooting">Reiniciando Chromecast...</string>
+
+    <!-- AI Assistant Drawer Overlay -->
+    <string name="ai_header_title">✨ OmniTV AI</string>
+    <string name="ai_voice_btn">🎙️ Hablar</string>
+    <string name="ai_new_chat">🔄 Nuevo</string>
+    <string name="ai_close">✕ Cerrar</string>
+    <string name="ai_detecting_video">📺 Detectando video activo...</string>
+    <string name="ai_ready">✨ Listo para analizar con Gemini</string>
+    <string name="ai_pill_analyze_screen">📸 Analizar Pantalla</string>
+    <string name="ai_pill_summarize">📝 Resumir Video</string>
+    <string name="ai_pill_key_points">💡 Puntos Clave</string>
+    <string name="ai_pill_conclusions">🎯 Conclusiones</string>
+    <string name="ai_pill_key_moments">⏱️ Momentos Clave</string>
+    <string name="ai_pill_analyze_ai">📸 Analizar Pantalla con IA</string>
+    <string name="ai_pill_lens_text">🔤 Traducir Texto (Lens IA)</string>
+    <string name="ai_lens_target">🌐 Destino: ES</string>
+    <string name="ai_pill_lens_objects">🎯 Analizar Objetos y Elementos</string>
+    <string name="ai_pill_lens_places">📍 Identificar Lugar o Personas</string>
+    <string name="ai_consulting">Consultando a Gemini...</string>
+    <string name="ai_empty_state">✨ Elegí una opción arriba o una pregunta abajo para explorar este video.</string>
+    <string name="ai_suggested_questions_title">❓ Preguntas para profundizar sobre el video:</string>
+    <string name="ai_q1">1. ¿De qué trata este video?</string>
+    <string name="ai_q2">2. ¿Cuáles son los puntos principales?</string>
+    <string name="ai_q3">3. ¿Qué conclusiones o consejos da el autor?</string>
+    <string name="ai_footer_nav">🎮 Flechas para navegar • OK para seleccionar / saltar a minuto • Atrás para salir</string>
+    <string name="yes_text">SÍ</string>
+    <string name="no_text">NO</string>
+    <string name="toast_language_changed">🌐 Idioma cambiado a %s</string>
+
+    <!-- String Arrays for Config Panels -->
+    <string-array name="clock_color_names">
+        <item>Blanco</item>
+        <item>Negro</item>
+        <item>Amarillo</item>
+        <item>Rojo</item>
+        <item>Verde</item>
+        <item>Azul</item>
+    </string-array>
+
+    <string-array name="clock_bg_names">
+        <item>Negro</item>
+        <item>Gris Oscuro</item>
+        <item>Azul Marino</item>
+        <item>Ninguno (Transparente)</item>
+    </string-array>
+
+    <string-array name="clock_position_names">
+        <item>Arriba Derecha</item>
+        <item>Arriba Izquierda</item>
+        <item>Abajo Derecha</item>
+        <item>Abajo Izquierda</item>
+        <item>Centro</item>
+    </string-array>
+
+    <string-array name="slider_orientations">
+        <item>Horizontal</item>
+        <item>Vertical</item>
+    </string-array>
+
+    <string-array name="slider_steps_labels">
+        <item>1% (Default)</item>
+        <item>0.5%</item>
+        <item>0.1%</item>
+        <item>2%</item>
+        <item>5%</item>
+    </string-array>
+
+    <string-array name="slider_perp_actions">
+        <item>Ciclar Niveles Guardados (Default)</item>
+        <item>Saltos de 5%</item>
+        <item>Saltos de 10%</item>
+        <item>Saltos de 20%</item>
+        <item>Extremos (1% y 100%)</item>
+    </string-array>
+
+    <string-array name="slider_positions_h">
+        <item>Abajo Centro (Default)</item>
+        <item>Centro</item>
+        <item>Arriba Centro</item>
+    </string-array>
+
+    <string-array name="slider_positions_v">
+        <item>Derecha (Default)</item>
+        <item>Izquierda</item>
+        <item>Centro</item>
+    </string-array>
+
+    <string-array name="slider_timeouts_labels">
+        <item>3 segundos (Default)</item>
+        <item>2 segundos</item>
+        <item>4 segundos</item>
+        <item>5 segundos</item>
+    </string-array>
+
+    <string-array name="still_watching_positions">
+        <item>Arriba Izquierda</item>
+        <item>Arriba Derecha</item>
+        <item>Abajo Izquierda</item>
+        <item>Abajo Derecha</item>
+        <item>Centro</item>
+    </string-array>
+
+    <string-array name="still_watching_actions">
+        <item>Pausar Video</item>
+        <item>Pausar y Apagar Pantalla</item>
+        <item>Enviar Tecla Atrás</item>
+    </string-array>
+
+    <string-array name="still_watching_tones">
+        <item>Clásico (800Hz)</item>
+        <item>Ding-Dong (Campana)</item>
+        <item>Grave (550Hz)</item>
+        <item>Agudo (1050Hz)</item>
+    </string-array>
+
+    <string-array name="mindful_cancel_actions">
+        <item>Cerrar App (Ir al Home)</item>
+        <item>Pausar Video</item>
+        <item>Ninguna (Solo Salir)</item>
+    </string-array>
+
+    <string-array name="mindful_positions">
+        <item>Arriba Centro</item>
+        <item>Centro</item>
+        <item>Abajo Centro</item>
+    </string-array>
+
+    <string-array name="mindful_session_names">
+        <item>Por Sesión (Duración)</item>
+        <item>En Cada Apertura (Siempre)</item>
+    </string-array>
+
+    <string-array name="mindful_msg_options">
+        <item>¿Realmente necesitas abrir esta app ahora?</item>
+        <item>Pausa y respira hondo antes de continuar.</item>
+        <item>¿Es así como deseas aprovechar tu tiempo?</item>
+        <item>Mantente presente. Mira con un propósito.</item>
+    </string-array>
+
+    <string-array name="vot_source_lang_names">
+        <item>Auto (Detectar)</item>
+        <item>Inglés (English)</item>
+        <item>Coreano (한국어)</item>
+        <item>Japonés (日本語)</item>
+    </string-array>
+
+    <string-array name="vot_target_lang_names">
+        <item>Español (Latam)</item>
+        <item>Inglés (English)</item>
+        <item>Coreano (한국어)</item>
+        <item>Japonés (日本語)</item>
+    </string-array>
+
+    <string-array name="vot_speech_rate_names">
+        <item>Normal (1.0x)</item>
+        <item>Rápido (1.15x)</item>
+        <item>Muy Rápido (1.3x)</item>
+        <item>Ultra (1.45x)</item>
+    </string-array>
+
+    <string-array name="vot_tts_volume_names">
+        <item>100% (Máximo)</item>
+        <item>85% (Equilibrado)</item>
+        <item>70% (Medio)</item>
+        <item>50% (Bajo)</item>
+    </string-array>
+
+    <string-array name="vot_ducking_mode_names">
+        <item>Atenuar Video (~25%)</item>
+        <item>Silenciar Video al Hablar</item>
+        <item>Sin Atenuación (Normal)</item>
+    </string-array>
+
+    <string-array name="vot_provider_names">
+        <item>Google (Gratuito)</item>
+        <item>MyMemory (50k/día)</item>
+        <item>OpenRouter IA</item>
+    </string-array>
+
+    <string-array name="brightness_hud_format_names">
+        <item>100% (1/5)</item>
+        <item>100% Brillo (1/5)</item>
+        <item>Brillo 100% (1/5)</item>
+        <item>(1/5) 100%</item>
+        <item>100%</item>
+        <item>Nivel 1/5 (100%)</item>
+    </string-array>
+
+    <string-array name="autopause_modes">
+        <item>Desactivado</item>
+        <item>Al terminar video actual (1 vez)</item>
+        <item>Al terminar Lista (Ver más tarde)</item>
+        <item>Permanente (Cada cambio de video)</item>
+    </string-array>
+</resources>

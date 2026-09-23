@@ -1271,7 +1271,7 @@ public class ButtonMappingService extends AccessibilityService {
                 if (extras != null && extras.getString("key") != null) {
                     String k = extras.getString("key").trim();
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putString("vot_openrouter_key", k).apply();
-                    android.widget.Toast.makeText(this, "🔑 OpenRouter API Key guardada", android.widget.Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.makeText(this, I18n.isSpanish(this) ? "🔑 OpenRouter API Key guardada" : "🔑 OpenRouter API Key saved", android.widget.Toast.LENGTH_SHORT).show();
                 }
                 break;
             case "SET_OPENROUTER_MODEL":
@@ -1279,7 +1279,7 @@ public class ButtonMappingService extends AccessibilityService {
                 if (extras != null && extras.getString("model") != null) {
                     String m = extras.getString("model").trim();
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putString("vot_openrouter_model", m).apply();
-                    android.widget.Toast.makeText(this, "🤖 OpenRouter Modelo: " + m, android.widget.Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.makeText(this, (I18n.isSpanish(this) ? "🤖 OpenRouter Modelo: " : "🤖 OpenRouter Model: ") + m, android.widget.Toast.LENGTH_SHORT).show();
                 }
                 break;
             case "ACTION_UPDATE_MINDFUL_DELAY":
@@ -1426,7 +1426,7 @@ public class ButtonMappingService extends AccessibilityService {
         boolean cur = op.getBoolean("vot_enabled", false);
         boolean next = !cur;
         com.nitsutech.omnitv.vot.VotManager.getInstance(this).setEnabled(next);
-        Toast.makeText(this, next ? "🎙️ Doblaje VOT Activado" : "🎙️ Doblaje VOT Desactivado", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, next ? I18n.get(this, R.string.toast_vot_enabled) : I18n.get(this, R.string.toast_vot_disabled), Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -1616,7 +1616,7 @@ public class ButtonMappingService extends AccessibilityService {
 
                     // Title
                     TextView txtTitle = new TextView(ButtonMappingService.this);
-                    txtTitle.setText("⏳  Espera Consciente");
+                    txtTitle.setText("⏳  " + I18n.get(ButtonMappingService.this, R.string.action_mindful_delay));
                     txtTitle.setTextColor(0xFF81D4FA);
                     txtTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp + 2);
                     txtTitle.setTypeface(Typeface.DEFAULT_BOLD);
@@ -1625,7 +1625,7 @@ public class ButtonMappingService extends AccessibilityService {
 
                     // App target
                     txtMindfulDelayAppName = new TextView(ButtonMappingService.this);
-                    txtMindfulDelayAppName.setText("Accediendo a: " + appName);
+                    txtMindfulDelayAppName.setText((I18n.isSpanish(ButtonMappingService.this) ? "Accediendo a: " : "Accessing: ") + appName);
                     txtMindfulDelayAppName.setTextColor(0xFFE0E0E0);
                     txtMindfulDelayAppName.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp);
                     txtMindfulDelayAppName.setGravity(Gravity.CENTER);
@@ -1649,7 +1649,8 @@ public class ButtonMappingService extends AccessibilityService {
 
                     // Motivator message
                     txtMindfulDelayMsg = new TextView(ButtonMappingService.this);
-                    String msg = (msgIdx >= 0 && msgIdx < MINDFUL_MSG_OPTIONS.length) ? MINDFUL_MSG_OPTIONS[msgIdx] : MINDFUL_MSG_OPTIONS[0];
+                    String[] mindfulMsgs = I18n.getStringArray(ButtonMappingService.this, R.array.mindful_msg_options);
+                    String msg = (msgIdx >= 0 && msgIdx < mindfulMsgs.length) ? mindfulMsgs[msgIdx] : (mindfulMsgs.length > 0 ? mindfulMsgs[0] : "");
                     txtMindfulDelayMsg.setText(msg);
                     txtMindfulDelayMsg.setTextColor(0xFFB0BEC5);
                     txtMindfulDelayMsg.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp - 2);
@@ -1658,7 +1659,7 @@ public class ButtonMappingService extends AccessibilityService {
 
                     // Action hint button
                     TextView txtHint = new TextView(ButtonMappingService.this);
-                    txtHint.setText("← Presioná ATRÁS para volver a Home");
+                    txtHint.setText(I18n.isSpanish(ButtonMappingService.this) ? "← Presioná ATRÁS para volver a Home" : "← Press BACK to return Home");
                     txtHint.setTextColor(0xFFFF8A80); // Soft red/coral
                     txtHint.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp - 1);
                     txtHint.setTypeface(Typeface.DEFAULT_BOLD);
@@ -1721,7 +1722,7 @@ public class ButtonMappingService extends AccessibilityService {
                             if (mindfulRemainingSeconds <= 0) {
                                 grantAppSession(currentMindfulAppKey);
                                 dismissMindfulDelayOverlay();
-                                Toast.makeText(getApplicationContext(), "✓ Acceso autorizado a " + appName, Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplicationContext(), (I18n.isSpanish(ButtonMappingService.this) ? "✓ Acceso autorizado a " : "✓ Access granted to ") + appName, Toast.LENGTH_SHORT).show();
                             } else {
                                 handler.postDelayed(this, 1000);
                             }
@@ -1946,7 +1947,7 @@ public class ButtonMappingService extends AccessibilityService {
     private void updateScheduledSleepPromptText() {
         if (scheduledSleepOverlayView instanceof TextView) {
             TextView tv = (TextView) scheduledSleepOverlayView;
-            tv.setText("⏰  Apagado Programado\n\nEl dispositivo se apagará en " + scheduledSleepCountdownSeconds + " s\n\nPresiona cualquier botón del control para cancelar");
+            tv.setText(I18n.get(this, R.string.prompt_scheduled_sleep, scheduledSleepCountdownSeconds));
         }
     }
 
@@ -2671,12 +2672,14 @@ public class ButtonMappingService extends AccessibilityService {
                     String text;
                     int curLvl = Math.max(1, currentLevelIdx);
                     int totLvls = Math.max(1, totalLevels);
+                    String brightnessWord = I18n.isSpanish(ButtonMappingService.this) ? "Brillo" : "Brightness";
+                    String levelWord = I18n.isSpanish(ButtonMappingService.this) ? "Nivel" : "Level";
                     switch (formatIdx) {
                         case 1:
-                            text = currentPct + "% Brillo (" + curLvl + "/" + totLvls + ")";
+                            text = currentPct + "% " + brightnessWord + " (" + curLvl + "/" + totLvls + ")";
                             break;
                         case 2:
-                            text = "Brillo " + currentPct + "% (" + curLvl + "/" + totLvls + ")";
+                            text = brightnessWord + " " + currentPct + "% (" + curLvl + "/" + totLvls + ")";
                             break;
                         case 3:
                             text = "(" + curLvl + "/" + totLvls + ") " + currentPct + "%";
@@ -2685,7 +2688,7 @@ public class ButtonMappingService extends AccessibilityService {
                             text = currentPct + "%";
                             break;
                         case 5:
-                            text = "Nivel " + curLvl + "/" + totLvls + " (" + currentPct + "%)";
+                            text = levelWord + " " + curLvl + "/" + totLvls + " (" + currentPct + "%)";
                             break;
                         case 0:
                         default:
@@ -2856,7 +2859,7 @@ public class ButtonMappingService extends AccessibilityService {
         } else {
             stopStillWatchingTimer();
         }
-        Toast.makeText(this, nextState ? "📺 ¿Sigues viendo?: Activado" : "📺 ¿Sigues viendo?: Desactivado", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, nextState ? I18n.get(this, R.string.toast_still_watching_enabled) : I18n.get(this, R.string.toast_still_watching_disabled), Toast.LENGTH_SHORT).show();
     }
 
     private void updateStillWatching() {
@@ -3123,7 +3126,7 @@ public class ButtonMappingService extends AccessibilityService {
     private void updateStillWatchingPromptText() {
         if (stillWatchingOverlayView instanceof TextView) {
             TextView tv = (TextView) stillWatchingOverlayView;
-            tv.setText("📺 ¿Sigues viendo?\nPresiona OK o Atrás para continuar (" + stillWatchingCountdownSeconds + "s)");
+            tv.setText(I18n.get(this, R.string.prompt_still_watching, stillWatchingCountdownSeconds));
         }
     }
 
@@ -3781,7 +3784,7 @@ public class ButtonMappingService extends AccessibilityService {
                     handler.post(new Runnable() {
                         @Override public void run() {
                             try {
-                                Toast.makeText(getApplicationContext(), "⏰ Apagado programado cancelado hoy", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplicationContext(), I18n.get(ButtonMappingService.this, R.string.toast_scheduled_sleep_cancelled), Toast.LENGTH_SHORT).show();
                             } catch (Exception ignored) {}
                         }
                     });
@@ -4981,7 +4984,7 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void captureAndTranslateScreen() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            Toast.makeText(getApplicationContext(), "Traducción requiere Android 11+", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Traducción requiere Android 11+" : "Translation requires Android 11+", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -4991,7 +4994,7 @@ public class ButtonMappingService extends AccessibilityService {
             sendMediaPause();
         }
 
-        Toast.makeText(getApplicationContext(), "🌐 Capturando y traduciendo pantalla...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "🌐 Capturando y traduciendo pantalla..." : "🌐 Capturing and translating screen...", Toast.LENGTH_SHORT).show();
 
         handler.postDelayed(new Runnable() {
             @Override
@@ -5006,7 +5009,7 @@ public class ButtonMappingService extends AccessibilityService {
                                 hardwareBuffer.close();
 
                                 if (rawBitmap == null) {
-                                    Toast.makeText(getApplicationContext(), "Error al obtener captura", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Error al obtener captura" : "Error capturing screen", Toast.LENGTH_SHORT).show();
                                     return;
                                 }
 
@@ -5016,14 +5019,14 @@ public class ButtonMappingService extends AccessibilityService {
                                 processScreenshotForTranslation(bitmap);
                             } catch (Exception e) {
                                 Log.e(TAG, "Error processing screenshot bitmap", e);
-                                Toast.makeText(getApplicationContext(), "Error procesando imagen", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Error procesando imagen" : "Error processing image", Toast.LENGTH_SHORT).show();
                             }
                         }
 
                         @Override
                         public void onFailure(int errorCode) {
                             Log.e(TAG, "takeScreenshot failed: " + errorCode);
-                            Toast.makeText(getApplicationContext(), "No se pudo capturar la pantalla (" + errorCode + ")", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getApplicationContext(), (I18n.isSpanish(ButtonMappingService.this) ? "No se pudo capturar la pantalla (" : "Could not capture screen (") + errorCode + ")", Toast.LENGTH_SHORT).show();
                         }
                     });
                 } catch (Exception e) {
@@ -5229,7 +5232,7 @@ public class ButtonMappingService extends AccessibilityService {
                             public void onFailure(Exception e) {
                                 bitmap.recycle();
                                 Log.e(TAG, "Parallel OCR recognition failed", e);
-                                Toast.makeText(getApplicationContext(), "Error en reconocimiento OCR", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Error en reconocimiento OCR" : "OCR recognition error", Toast.LENGTH_SHORT).show();
                             }
                         });
             } else {
@@ -5260,7 +5263,7 @@ public class ButtonMappingService extends AccessibilityService {
                             public void onFailure(Exception e) {
                                 bitmap.recycle();
                                 Log.e(TAG, "OCR recognition failed", e);
-                                Toast.makeText(getApplicationContext(), "Error en reconocimiento OCR", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Error en reconocimiento OCR" : "OCR recognition error", Toast.LENGTH_SHORT).show();
                             }
                         });
             }
@@ -5272,7 +5275,7 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void handleClassicOcrSuccess(Text visionText, int srcLangIdx) {
         if (visionText == null || visionText.getTextBlocks().isEmpty()) {
-            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto en pantalla", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "🔍 No se detectó texto en pantalla" : "🔍 No text detected on screen", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -5300,7 +5303,7 @@ public class ButtonMappingService extends AccessibilityService {
         }
 
         if (rawBlocks.isEmpty()) {
-            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto extranjero para traducir", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "🔍 No se detectó texto extranjero para traducir" : "🔍 No foreign text detected to translate", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -5384,7 +5387,7 @@ public class ButtonMappingService extends AccessibilityService {
                     @Override
                     public void onFailure(Exception e) {
                         Log.e(TAG, "Failed to download translation model", e);
-                        Toast.makeText(getApplicationContext(), "Error al cargar modelo de " + finalSrcName, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), (I18n.isSpanish(ButtonMappingService.this) ? "Error al cargar modelo de " : "Failed to load model for ") + finalSrcName, Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -5433,7 +5436,7 @@ public class ButtonMappingService extends AccessibilityService {
         }
 
         if (rawBlocks.isEmpty()) {
-            Toast.makeText(getApplicationContext(), "🔍 No se detectó texto extranjero para traducir", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "🔍 No se detectó texto extranjero para traducir" : "🔍 No foreign text detected to translate", Toast.LENGTH_SHORT).show();
             return;
         }
 

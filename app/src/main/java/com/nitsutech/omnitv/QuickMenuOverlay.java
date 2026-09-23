@@ -38,46 +38,11 @@ public class QuickMenuOverlay {
         "pause_screen_off", "scheduled_sleep", "cycle_brightness", "mindful_delay", "still_watching",
         "night_schedule", "oled_saver", "vot", "trigger_ai_summary", "ai_summary", "trigger_translate", "translate", "button_combos",
         "config_mute", "config_youtube_190", "config_youtube_189",
-        "developer_options"
+        "developer_options", "language"
     };
 
-    private static final String[] ACTION_NAMES = {
-        "Ninguna",
-        "Silenciar Audio",
-        "Escala de Grises (B/N)",
-        "Apagar Pantalla (Negro)",
-        "Google Home Panel",
-        "YouTube",
-        "Netflix",
-        "Auriculares Bluetooth",
-        "Menú de Acciones",
-        "Filtro Luz Azul",
-        "Reloj en Pantalla",
-        "Dimmer de Pantalla",
-        "Modo Cine",
-        "Info del Sistema",
-        "Reiniciar Chromecast",
-        "Ajustes del Sistema",
-        "Pantalla Espejo",
-        "Recientes",
-        "Pausar y Apagar Pantalla",
-        "Bajar Brillo (Dimmer)",
-        "Subir Brillo (Dimmer)",
-        "Ciclar Brillo",
-        "¿Sigues viendo?",
-        "Traducir Pantalla (CTS)",
-        "Control Cuadro por Cuadro (HUD)",
-        "Avanzar 1 Frame (YouTube)",
-        "Retroceder 1 Frame (YouTube)",
-        "Opciones de Desarrollador",
-        "Ciclar Brillo Inverso",
-        "Slider de Brillo Rápido",
-        "SmartTube",
-        "Doblaje de Voz (VOT)",
-        "Resumen IA (Gemini)"
-    };
-
-    private static final String[] AI_PROVIDER_NAMES = {"Google Gemini Directo", "OpenRouter (Multi-modelo)"};
+    public static final int TOTAL_ACTIONS = 33;
+    private static final String[] AI_PROVIDER_NAMES = {"Google Gemini Direct", "OpenRouter (Multi-model)"};
     private static final String[] AI_GEMINI_MODELS = {"gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.5-flash"};
     private static final String[] AI_OPENROUTER_MODELS = {
         "google/gemini-2.0-flash-001",
@@ -432,7 +397,8 @@ public class QuickMenuOverlay {
 
     private void ensureViews() {
         if (rootView != null) return;
-        rootView = LayoutInflater.from(context).inflate(R.layout.activity_quick_menu, null);
+        Context locContext = I18n.getLocalizedContext(context);
+        rootView = LayoutInflater.from(locContext != null ? locContext : context).inflate(R.layout.activity_quick_menu, null);
 
         menuDimmerFilter    = rootView.findViewById(R.id.menu_dimmer_filter);
         menuBlueLightFilter = rootView.findViewById(R.id.menu_blue_light_filter);
@@ -3129,93 +3095,99 @@ public class QuickMenuOverlay {
         boolean enabled = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_ENABLED, false);
 
         if (btnVotMasterToggle != null) {
-            btnVotMasterToggle.setText(enabled ? "   Doblaje:  [ON]" : "   Doblaje:  [OFF]");
+            btnVotMasterToggle.setText("   " + I18n.get(context, R.string.action_vot) + ":  [" + (enabled ? I18n.get(context, R.string.status_on) : I18n.get(context, R.string.status_off)) + "]");
             btnVotMasterToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFFF6B6B);
         }
 
         String curLang = op.getString(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SOURCE_LANG, "auto");
-        String langName = "Auto (Detectar)";
+        String[] sourceLangNames = I18n.getStringArray(context, R.array.vot_source_lang_names);
+        String langName = sourceLangNames.length > 0 ? sourceLangNames[0] : "Auto";
         for (int i = 0; i < VOT_SOURCE_LANGS.length; i++) {
             if (VOT_SOURCE_LANGS[i].equalsIgnoreCase(curLang)) {
-                langName = VOT_SOURCE_LANG_NAMES[i];
+                if (i < sourceLangNames.length) langName = sourceLangNames[i];
                 break;
             }
         }
         if (btnVotSourceLang != null) {
-            btnVotSourceLang.setText("   Idioma Video:  " + langName + "  (◄ / ►)");
+            btnVotSourceLang.setText(I18n.get(context, R.string.vot_source_lang, langName) + "  (◄ / ►)");
         }
 
         String curTargetLang = op.getString(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_TARGET_LANG, "es");
-        String targetLangName = "Español (Latam)";
+        String[] targetLangNames = I18n.getStringArray(context, R.array.vot_target_lang_names);
+        String targetLangName = targetLangNames.length > 0 ? targetLangNames[0] : "Spanish";
         for (int i = 0; i < VOT_TARGET_LANGS.length; i++) {
             if (VOT_TARGET_LANGS[i].equalsIgnoreCase(curTargetLang)) {
-                targetLangName = VOT_TARGET_LANG_NAMES[i];
+                if (i < targetLangNames.length) targetLangName = targetLangNames[i];
                 break;
             }
         }
         if (btnVotTargetLang != null) {
-            btnVotTargetLang.setText("   Idioma Salida:  " + targetLangName + "  (◄ / ►)");
+            btnVotTargetLang.setText(I18n.get(context, R.string.vot_target_lang, targetLangName) + "  (◄ / ►)");
         }
 
         float curVol = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_TTS_VOLUME, 1.0f);
-        String volName = "100% (Máximo)";
+        String[] volNames = I18n.getStringArray(context, R.array.vot_tts_volume_names);
+        String volName = volNames.length > 0 ? volNames[0] : "100%";
         for (int i = 0; i < VOT_TTS_VOLUMES.length; i++) {
             if (Math.abs(VOT_TTS_VOLUMES[i] - curVol) < 0.05f) {
-                volName = VOT_TTS_VOLUME_NAMES[i];
+                if (i < volNames.length) volName = volNames[i];
                 break;
             }
         }
         if (btnVotTtsVolume != null) {
-            btnVotTtsVolume.setText("   Volumen Voz:  " + volName + "  (◄ / ►)");
+            btnVotTtsVolume.setText(I18n.get(context, R.string.vot_volume, volName) + "  (◄ / ►)");
         }
 
         int ducking = op.getInt(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_DUCKING_MODE, 0);
-        String duckLabel = (ducking >= 0 && ducking < VOT_DUCKING_MODE_NAMES.length) ? VOT_DUCKING_MODE_NAMES[ducking] : "Atenuar Video (~25%)";
+        String[] duckNames = I18n.getStringArray(context, R.array.vot_ducking_mode_names);
+        String duckLabel = (ducking >= 0 && ducking < duckNames.length) ? duckNames[ducking] : (duckNames.length > 0 ? duckNames[0] : "");
         if (btnVotDuckingMode != null) {
-            btnVotDuckingMode.setText("   Atenuación Video:  " + duckLabel + "  (◄ / ►)");
+            btnVotDuckingMode.setText(I18n.get(context, R.string.vot_ducking, duckLabel) + "  (◄ / ►)");
         }
 
         boolean showSubs = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SHOW_SUBTITLES, true);
         boolean bilingual = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_BILINGUAL, false);
-        String subLabel = "Ocultos";
-        if (showSubs && bilingual) subLabel = "Bilingüe (Original + Doblaje)";
-        else if (showSubs) subLabel = "Solo Doblaje en " + targetLangName;
+        String subLabel = I18n.get(context, R.string.status_off);
+        if (showSubs && bilingual) subLabel = "Bilingual";
+        else if (showSubs) subLabel = targetLangName;
         if (btnVotSubtitlesMode != null) {
-            btnVotSubtitlesMode.setText("   Subtítulos:  " + subLabel + "  (◄ / ►)");
+            btnVotSubtitlesMode.setText(I18n.get(context, R.string.vot_subtitles, subLabel) + "  (◄ / ►)");
         }
 
         float curRate = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
-        String rateLabel = "Rápido (1.15x)";
+        String[] rateNames = I18n.getStringArray(context, R.array.vot_speech_rate_names);
+        String rateLabel = rateNames.length > 1 ? rateNames[1] : "1.15x";
         for (int i = 0; i < VOT_SPEECH_RATES.length; i++) {
             if (Math.abs(VOT_SPEECH_RATES[i] - curRate) < 0.05f) {
-                rateLabel = VOT_SPEECH_RATE_NAMES[i];
+                if (i < rateNames.length) rateLabel = rateNames[i];
                 break;
             }
         }
         if (btnVotSpeechRate != null) {
-            btnVotSpeechRate.setText("   Velocidad Voz:  " + rateLabel + "  (◄ / ►)");
+            btnVotSpeechRate.setText(I18n.get(context, R.string.vot_rate, rateLabel) + "  (◄ / ►)");
         }
 
         int provider = op.getInt(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_TRANSLATION_PROVIDER, 0);
-        String provLabel = (provider >= 0 && provider < VOT_PROVIDER_NAMES.length) ? VOT_PROVIDER_NAMES[provider] : "Google (Gratuito)";
+        String[] provNames = I18n.getStringArray(context, R.array.vot_provider_names);
+        String provLabel = (provider >= 0 && provider < provNames.length) ? provNames[provider] : (provNames.length > 0 ? provNames[0] : "Google");
         if (btnVotProvider != null) {
-            btnVotProvider.setText("   Motor Traducción:  " + provLabel + "  (◄ / ►)");
+            btnVotProvider.setText(I18n.get(context, R.string.vot_provider, provLabel) + "  (◄ / ►)");
         }
 
         String curModel = op.getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[0]);
         if (btnVotOpenrouterModel != null) {
-            btnVotOpenrouterModel.setText("   Modelo IA:  " + curModel + "  (◄ / ►)");
+            btnVotOpenrouterModel.setText(I18n.get(context, R.string.vot_model, curModel) + "  (◄ / ►)");
             btnVotOpenrouterModel.setVisibility(provider == 2 ? View.VISIBLE : View.GONE);
         }
 
         String curKey = op.getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, "").trim();
         if (btnVotOpenrouterKey != null) {
             if (!curKey.isEmpty()) {
-                String masked = curKey.length() > 8 ? (curKey.substring(0, 4) + "••••" + curKey.substring(curKey.length() - 4)) : "Configurada";
-                btnVotOpenrouterKey.setText("   API Key IA:  " + masked + " (OK: info/pegar)");
+                String masked = curKey.length() > 8 ? (curKey.substring(0, 4) + "••••" + curKey.substring(curKey.length() - 4)) : "OK";
+                btnVotOpenrouterKey.setText(I18n.get(context, R.string.vot_key_set) + " (" + masked + ")");
                 btnVotOpenrouterKey.setTextColor(0xFF81C784);
             } else {
-                btnVotOpenrouterKey.setText("   API Key IA:  [No configurada - OK: pegar]");
+                btnVotOpenrouterKey.setText(I18n.get(context, R.string.vot_key_unset));
                 btnVotOpenrouterKey.setTextColor(0xFFFFB74D);
             }
             btnVotOpenrouterKey.setVisibility(provider == 2 ? View.VISIBLE : View.GONE);
@@ -3305,8 +3277,8 @@ public class QuickMenuOverlay {
         int provider = op.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
 
         if (btnAiProviderToggle != null) {
-            String pName = (provider >= 0 && provider < AI_PROVIDER_NAMES.length) ? AI_PROVIDER_NAMES[provider] : "Google Gemini Directo";
-            btnAiProviderToggle.setText("   Proveedor:  " + pName + "  (◄ / ►)");
+            String pName = (provider >= 0 && provider < AI_PROVIDER_NAMES.length) ? AI_PROVIDER_NAMES[provider] : "Google Gemini Direct";
+            btnAiProviderToggle.setText(I18n.get(context, R.string.ai_provider, pName) + "  (◄ / ►)");
         }
 
         if (btnAiModelToggle != null) {
@@ -3315,17 +3287,17 @@ public class QuickMenuOverlay {
                 String curModel = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL, com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL);
                 int idx = models.indexOf(curModel);
                 String pos = (idx >= 0) ? (" [" + (idx + 1) + "/" + models.size() + "]") : "";
-                btnAiModelToggle.setText("   Modelo Gemini:  " + curModel + pos + "  (◄ / ►)");
+                btnAiModelToggle.setText(I18n.get(context, R.string.ai_model, curModel + pos) + "  (◄ / ►)");
             } else {
                 String curModel = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL, AI_OPENROUTER_MODELS[0]);
-                btnAiModelToggle.setText("   Modelo OpenRouter:  " + curModel + "  (◄ / ►)");
+                btnAiModelToggle.setText(I18n.get(context, R.string.ai_model, curModel) + "  (◄ / ►)");
             }
         }
 
         if (btnAiUiLangToggle != null) {
-            String lang = op.getString("ai_ui_language", "es");
+            String lang = op.getString("ai_ui_language", I18n.getLanguage(context));
             String langLabel = "es".equalsIgnoreCase(lang) ? "Español" : "English";
-            btnAiUiLangToggle.setText("   Idioma Interfaz:  " + langLabel + "  (◄ / ►)");
+            btnAiUiLangToggle.setText("   UI Language:  " + langLabel + "  (◄ / ►)");
         }
 
         if (btnAiApiKeyConfig != null) {
@@ -3333,18 +3305,18 @@ public class QuickMenuOverlay {
             String prefix;
             if (provider == 0) {
                 key = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_KEY, "").trim();
-                prefix = "API Key Gemini";
+                prefix = "Gemini";
             } else {
                 key = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_KEY, "").trim();
-                prefix = "API Key OpenRouter";
+                prefix = "OpenRouter";
             }
 
             if (!key.isEmpty()) {
-                String masked = key.length() > 8 ? (key.substring(0, 4) + "••••" + key.substring(key.length() - 4)) : "Configurada";
-                btnAiApiKeyConfig.setText("   " + prefix + ":  " + masked + " (OK: pegar/info)");
+                String masked = key.length() > 8 ? (key.substring(0, 4) + "••••" + key.substring(key.length() - 4)) : "OK";
+                btnAiApiKeyConfig.setText("   " + prefix + " " + I18n.get(context, R.string.ai_key_set) + " (" + masked + ")");
                 btnAiApiKeyConfig.setTextColor(0xFF81C784);
             } else {
-                btnAiApiKeyConfig.setText("   " + prefix + ":  [No configurada - OK: pegar]");
+                btnAiApiKeyConfig.setText("   " + prefix + " " + I18n.get(context, R.string.ai_key_unset));
                 btnAiApiKeyConfig.setTextColor(0xFFFFB74D);
             }
         }
@@ -3684,6 +3656,21 @@ public class QuickMenuOverlay {
                 sendServiceAction("ACTION_REBOOT");
                 dismiss();
                 break;
+            case "language": {
+                String cur = I18n.getLanguage(context);
+                String next = I18n.LANG_SPANISH.equalsIgnoreCase(cur) ? I18n.LANG_ENGLISH : I18n.LANG_SPANISH;
+                I18n.setLanguage(context, next);
+                String nextName = I18n.LANG_SPANISH.equalsIgnoreCase(next) ? "Español" : "English";
+                android.widget.Toast.makeText(context, I18n.get(context, R.string.toast_language_changed, nextName), android.widget.Toast.LENGTH_SHORT).show();
+                if (rootView != null && windowManager != null) {
+                    try {
+                        if (rootView.isAttachedToWindow()) windowManager.removeView(rootView);
+                    } catch (Exception ignored) {}
+                    rootView = null;
+                }
+                show(context);
+                break;
+            }
             case "config_mute":
             case "config_youtube_190":
             case "config_youtube_189":
@@ -3835,48 +3822,49 @@ public class QuickMenuOverlay {
 
     private String getLabelForId(String id, SharedPreferences op, SharedPreferences tp) {
         switch (id) {
-            case "manage_apps":  return "Apps  Administrar Apps";
+            case "manage_apps":  return I18n.get(context, R.string.menu_manage_apps);
             case "timer":        return getTimerLabel(tp);
             case "blue_light": {
                 int pct = op.getInt("blue_light_pct", 50);
                 if (pct == 0) pct = 50;
                 boolean active = op.getBoolean(ButtonMappingService.KEY_BLUE_LIGHT, false);
                 double displayPct = pct / 10.0;
-                return "Luz Azul  Filtro Luz Azul  [" + (active ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : "OFF") + "]";
+                String valStr = active ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : I18n.get(context, R.string.status_off);
+                return I18n.get(context, R.string.menu_blue_light, valStr);
             }
-            case "clock":        return fmtToggle("Reloj  Reloj en Pantalla  (tap=configurar)", op.getBoolean(ButtonMappingService.KEY_CLOCK,  false));
+            case "clock":        return fmtToggle(I18n.get(context, R.string.menu_clock), op.getBoolean(ButtonMappingService.KEY_CLOCK,  false));
             case "dimmer": {
                 int pct = op.getInt("dimmer_brightness_pct", 50);
-                return fmtToggle("Noche  Dimmer de Pantalla (" + pct + "%)", op.getBoolean(ButtonMappingService.KEY_DIMMER, false));
+                return fmtToggle(I18n.get(context, R.string.menu_dimmer, pct), op.getBoolean(ButtonMappingService.KEY_DIMMER, false));
             }
-            case "grayscale":    return fmtToggle("B/N  Escala de Grises",      isGrayscaleOn());
-            case "cine_mode":    return fmtToggle("Cine  Modo Cine",            op.getBoolean(ButtonMappingService.KEY_CINE_MODE, false));
+            case "grayscale":    return fmtToggle(I18n.get(context, R.string.menu_grayscale), isGrayscaleOn());
+            case "cine_mode":    return fmtToggle(I18n.get(context, R.string.menu_cine_mode), op.getBoolean(ButtonMappingService.KEY_CINE_MODE, false));
             case "auto_pause": {
                 int mode = op.getInt("auto_pause_mode", 0);
                 String modeText;
-                if (mode == 0) modeText = "OFF";
-                else if (mode == 1) modeText = "Una vez";
-                else if (mode == 2) modeText = "Permanente";
+                if (mode == 0) modeText = I18n.get(context, R.string.status_off);
+                else if (mode == 1) modeText = I18n.get(context, R.string.mode_once);
+                else if (mode == 2) modeText = I18n.get(context, R.string.mode_permanent);
                 else {
                     int count = op.getInt("auto_pause_custom_count", 1);
-                    modeText = count + " veces";
+                    modeText = I18n.get(context, R.string.mode_times, count);
                 }
-                return "Pausa  Auto Pausa de Video  [" + modeText + "]";
+                return I18n.get(context, R.string.menu_auto_pause, modeText);
             }
-            case "screen_off":   return "Sleep  Apagar Pantalla";
-            case "system_menu":  return "System  Ajustes del Sistema";
-            case "google_home":  return "Home  Google Home Panel";
-            case "bluetooth":    return "BT  Auriculares Bluetooth";
-            case "system_info":  return "Info  Info del Sistema";
-            case "reboot":       return "Reiniciar Chromecast";
-            case "developer_options": return "Dev  Opciones de Desarrollo";
-            case "pause_screen_off": return "Sleep  Pausar y Apagar Pantalla";
+            case "screen_off":   return I18n.get(context, R.string.menu_screen_off);
+            case "system_menu":  return I18n.get(context, R.string.menu_system_menu);
+            case "google_home":  return I18n.get(context, R.string.menu_google_home);
+            case "bluetooth":    return I18n.get(context, R.string.menu_bluetooth);
+            case "system_info":  return I18n.get(context, R.string.menu_system_info);
+            case "reboot":       return I18n.get(context, R.string.menu_reboot);
+            case "developer_options": return I18n.get(context, R.string.menu_developer_options);
+            case "pause_screen_off": return I18n.get(context, R.string.menu_pause_screen_off);
             case "scheduled_sleep": return fmtScheduledSleep(op);
             case "cycle_brightness": {
                 int pct = op.getInt("dimmer_brightness_pct", 50);
-                return "Brillo  Ciclar Brillo  [" + pct + "%]";
+                return I18n.get(context, R.string.menu_cycle_brightness, pct);
             }
-            case "still_watching": return fmtToggle("📺  ¿Sigues viendo?", op.getBoolean(ButtonMappingService.KEY_STILL_WATCHING, false));
+            case "still_watching": return fmtToggle(I18n.get(context, R.string.menu_still_watching), op.getBoolean(ButtonMappingService.KEY_STILL_WATCHING, false));
             case "mindful_delay": {
                 boolean active = op.getBoolean(ButtonMappingService.KEY_MINDFUL_DELAY, false);
                 int secs = op.getInt("mindful_delay_seconds", 60);
@@ -3884,37 +3872,39 @@ public class QuickMenuOverlay {
                 if (secs % 60 != 0 && secs >= 60) {
                     timeStr = (secs / 60) + "m " + (secs % 60) + "s";
                 }
-                return active ? "⏳  Espera Consciente  [" + timeStr + "]" : "⏳  Espera Consciente  [OFF]";
+                return I18n.get(context, R.string.menu_mindful_delay, active ? timeStr : I18n.get(context, R.string.status_off));
             }
-            case "night_schedule": return fmtToggle("🌙  Horario Nocturno", op.getBoolean(ButtonMappingService.KEY_NIGHT_SCHEDULE, false));
-            case "oled_saver": return fmtToggle("🛡️  Protector OLED (Burn-In)", op.getBoolean(ButtonMappingService.KEY_OLED_SAVER, false));
+            case "night_schedule": return fmtToggle(I18n.get(context, R.string.menu_night_schedule), op.getBoolean(ButtonMappingService.KEY_NIGHT_SCHEDULE, false));
+            case "oled_saver": return fmtToggle(I18n.get(context, R.string.menu_oled_saver), op.getBoolean(ButtonMappingService.KEY_OLED_SAVER, false));
             case "vot": {
                 boolean on = op.getBoolean(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_ENABLED, false);
-                return fmtToggle("🎙️  Doblaje al Vuelo (VOT)", on);
+                return fmtToggle(I18n.get(context, R.string.menu_vot), on);
             }
-            case "trigger_ai_summary": return "🤖  Asistente IA (Video Actual)";
-            case "ai_summary": return "⚙️  Configurar Asistente IA";
-            case "trigger_translate": return "🌐  Traducir Pantalla Ahora";
-            case "translate": return "⚙️  Configurar Traductor (CTS)";
-            case "button_combos": return "⚡  Combinaciones de Teclas";
-            case "config_mute":        return "Config  Configurar Botón Mute";
-            case "config_youtube_190": return "Config  Configurar YouTube (190)";
-            case "config_youtube_189": return "Config  Configurar YouTube (189)";
+            case "trigger_ai_summary": return I18n.get(context, R.string.menu_trigger_ai_summary);
+            case "ai_summary": return I18n.get(context, R.string.menu_ai_summary_config);
+            case "trigger_translate": return I18n.get(context, R.string.menu_trigger_translate);
+            case "translate": return I18n.get(context, R.string.menu_translate_config);
+            case "button_combos": return I18n.get(context, R.string.menu_button_combos);
+            case "config_mute":        return I18n.get(context, R.string.menu_config_mute);
+            case "config_youtube_190": return I18n.get(context, R.string.menu_config_youtube_190);
+            case "config_youtube_189": return I18n.get(context, R.string.menu_config_youtube_189);
+            case "language": {
+                String cur = I18n.getLanguage(context);
+                String langName = I18n.LANG_SPANISH.equalsIgnoreCase(cur) ? "Español" : "English";
+                return I18n.get(context, R.string.menu_language, langName);
+            }
             default:             return id;
         }
     }
 
     private String fmtScheduledSleep(SharedPreferences op) {
         String summary = ScheduledSleepReceiver.getActiveAlarmsSummary(context);
-        if ("OFF".equals(summary)) {
-            return "⏰  Scheduled Sleep   [OFF]";
-        }
-        return "⏰  Scheduled Sleep   [" + summary + "]";
+        return I18n.get(context, R.string.menu_scheduled_sleep, summary);
     }
 
     private int getColorForId(String id) {
         if ("reboot".equals(id)) return 0xFFFF6B6B;
-        if ("mindful_delay".equals(id)) return 0xFF81D4FA;
+        if ("mindful_delay".equals(id) || "language".equals(id)) return 0xFF81D4FA;
         if ("ai_summary".equals(id) || "trigger_ai_summary".equals(id)) return 0xFF8AB4F8;
         return Color.WHITE;
     }
@@ -3928,7 +3918,7 @@ public class QuickMenuOverlay {
             case "screen_off": case "pause_screen_off": case "scheduled_sleep":
                 return 2;
             case "google_home": case "bluetooth": case "system_info": case "reboot":
-            case "system_menu": case "developer_options":
+            case "system_menu": case "developer_options": case "language":
                 return 3;
             default:
                 return 4;
@@ -3940,9 +3930,9 @@ public class QuickMenuOverlay {
         long remaining = endTime - System.currentTimeMillis();
         if (endTime > 0 && remaining > 0) {
             int mins = (int)(remaining / 60000);
-            return "Timer  Sleep Timer - " + mins + " min restantes";
+            return I18n.get(context, R.string.menu_timer_format, mins + " min");
         }
-        return "Timer  Sleep Timer  (tap para abrir)";
+        return I18n.get(context, R.string.menu_timer_off);
     }
 
     private boolean isGrayscaleOn() {
@@ -3985,17 +3975,17 @@ public class QuickMenuOverlay {
     private void updateCineConfigPanel() {
         SharedPreferences cp = context.getSharedPreferences("cine_prefs", Context.MODE_PRIVATE);
         if (btnCineBlueLightConfig != null)
-            btnCineBlueLightConfig.setText("   Filtro Azul:  " + (cp.getBoolean("cine_blue_light", true) ? "ON" : "OFF"));
+            btnCineBlueLightConfig.setText(I18n.get(context, R.string.cine_bl_prefix, cp.getBoolean("cine_blue_light", true) ? I18n.get(context, R.string.status_on) : I18n.get(context, R.string.status_off)));
         if (btnCineDimmerConfig != null)
-            btnCineDimmerConfig.setText("   Dimmer:  " + (cp.getBoolean("cine_dimmer", false) ? "ON" : "OFF"));
+            btnCineDimmerConfig.setText(I18n.get(context, R.string.cine_dimmer_prefix, cp.getBoolean("cine_dimmer", false) ? I18n.get(context, R.string.status_on) : I18n.get(context, R.string.status_off)));
         if (btnCineTimerConfig != null) {
             int t = cp.getInt("cine_timer", 0);
-            String tLabel = t == 0 ? "Desactivado" : (t < 60 ? t + " min" : (t / 60) + "h" + (t % 60 > 0 ? " " + (t % 60) + "m" : ""));
-            btnCineTimerConfig.setText("   Timer:  " + tLabel + "  (tap=cambiar)");
+            String tLabel = t == 0 ? I18n.get(context, R.string.status_disabled) : (t < 60 ? t + " min" : (t / 60) + "h" + (t % 60 > 0 ? " " + (t % 60) + "m" : ""));
+            btnCineTimerConfig.setText(I18n.get(context, R.string.cine_timer_prefix, tLabel) + "  (tap=change)");
         }
         if (btnApplyCine != null) {
             boolean active = getOverlayPrefs().getBoolean(ButtonMappingService.KEY_CINE_MODE, false);
-            btnApplyCine.setText(active ? "[ Desactivar Modo Cine ]" : "[ Activar Modo Cine ]");
+            btnApplyCine.setText(active ? "[ " + I18n.get(context, R.string.status_disabled) + " " + I18n.get(context, R.string.action_cine_mode) + " ]" : I18n.get(context, R.string.cine_apply_btn));
         }
     }
 
@@ -4006,7 +3996,7 @@ public class QuickMenuOverlay {
         String btnName = configuringButton;
         
         int defClick1 = 0, defClick2 = 0, defClick3 = 0, defClick4 = 0, defLong = 0, defDur = 1000;
-        String title = "Configurar Botón: ";
+        String title = I18n.get(context, R.string.btn_config_title) + " ";
         if ("mute".equals(btnName)) {
             title += "Mute";
             defClick1 = 1; defClick2 = 7; defClick3 = 8; defClick4 = 23; defLong = 2; defDur = 1000;
@@ -4027,11 +4017,11 @@ public class QuickMenuOverlay {
         int actLong   = prefs.getInt("btn_" + btnName + "_long_action", defLong);
         int durationMs = prefs.getInt("btn_" + btnName + "_long_duration_ms", defDur);
 
-        if (btnConfigClick1 != null) btnConfigClick1.setText("   Click Simple:  " + getActionName(actClick1));
-        if (btnConfigClick2 != null) btnConfigClick2.setText("   Doble Click:  " + getActionName(actClick2));
-        if (btnConfigClick3 != null) btnConfigClick3.setText("   Triple Click:  " + getActionName(actClick3));
-        if (btnConfigClick4 != null) btnConfigClick4.setText("   Cuádruple Clic (4x):  " + getActionName(actClick4));
-        if (btnConfigLong != null)   btnConfigLong.setText("   Sostenido:  " + getActionName(actLong));
+        if (btnConfigClick1 != null) btnConfigClick1.setText(I18n.get(context, R.string.btn_config_single, getActionName(actClick1)));
+        if (btnConfigClick2 != null) btnConfigClick2.setText(I18n.get(context, R.string.btn_config_double, getActionName(actClick2)));
+        if (btnConfigClick3 != null) btnConfigClick3.setText(I18n.get(context, R.string.btn_config_triple, getActionName(actClick3)));
+        if (btnConfigClick4 != null) btnConfigClick4.setText(I18n.get(context, R.string.btn_config_quad, getActionName(actClick4)));
+        if (btnConfigLong != null)   btnConfigLong.setText(I18n.get(context, R.string.btn_config_long, getActionName(actLong)));
         
         if (txtConfigDuration != null) {
             double secs = durationMs / 1000.0;
@@ -4040,10 +4030,11 @@ public class QuickMenuOverlay {
     }
 
     private String getActionName(int actionId) {
-        if (actionId >= 0 && actionId < ACTION_NAMES.length) {
-            return ACTION_NAMES[actionId];
+        String[] names = I18n.getActionNames(context);
+        if (actionId >= 0 && actionId < names.length) {
+            return names[actionId];
         }
-        return "Desconocido";
+        return "Unknown";
     }
 
     private void adjustButtonConfigAction(View view, int delta) {
@@ -4235,8 +4226,8 @@ public class QuickMenuOverlay {
     }
 
     private void cycleActionConfig(String configKey, int currentAction, int delta) {
-        int nextAction = (currentAction + delta) % ACTION_NAMES.length;
-        if (nextAction < 0) nextAction += ACTION_NAMES.length;
+        int nextAction = (currentAction + delta) % TOTAL_ACTIONS;
+        if (nextAction < 0) nextAction += TOTAL_ACTIONS;
         getOverlayPrefs().edit().putInt(configKey, nextAction).apply();
         if (configKey.startsWith("combo_")) {
             updateButtonCombosPanel();
@@ -4272,9 +4263,13 @@ public class QuickMenuOverlay {
         
         boolean active = prefs.getBoolean(ButtonMappingService.KEY_CLOCK, false);
 
-        if (btnClockTextColor != null) btnClockTextColor.setText("   Color Letra:  " + CLOCK_COLOR_NAMES[colorIdx % CLOCK_COLOR_NAMES.length]);
-        if (btnClockBgColor != null) btnClockBgColor.setText("   Color Fondo:  " + CLOCK_BG_NAMES[bgIdx % CLOCK_BG_NAMES.length]);
-        if (btnClockPosition != null) btnClockPosition.setText("   Posición Base:  " + CLOCK_POSITION_NAMES[posIdx % CLOCK_POSITION_NAMES.length]);
+        String[] colorNames = I18n.getStringArray(context, R.array.clock_color_names);
+        String[] bgNames = I18n.getStringArray(context, R.array.clock_bg_names);
+        String[] posNames = I18n.getStringArray(context, R.array.clock_position_names);
+
+        if (btnClockTextColor != null) btnClockTextColor.setText(I18n.get(context, R.string.clock_text_color, colorNames.length > 0 ? colorNames[colorIdx % colorNames.length] : ""));
+        if (btnClockBgColor != null) btnClockBgColor.setText(I18n.get(context, R.string.clock_bg_color, bgNames.length > 0 ? bgNames[bgIdx % bgNames.length] : ""));
+        if (btnClockPosition != null) btnClockPosition.setText(I18n.get(context, R.string.clock_position, posNames.length > 0 ? posNames[posIdx % posNames.length] : ""));
         
         if (txtClockAlpha != null) txtClockAlpha.setText(alphaPct + "%");
         if (txtClockTextAlpha != null) txtClockTextAlpha.setText(textAlphaPct + "%");
@@ -4283,7 +4278,7 @@ public class QuickMenuOverlay {
         if (txtClockX != null) txtClockX.setText(posX + "dp");
         if (txtClockY != null) txtClockY.setText(posY + "dp");
         
-        if (btnApplyClock != null) btnApplyClock.setText(active ? "[ Desactivar Reloj ]" : "[ Activar Reloj ]");
+        if (btnApplyClock != null) btnApplyClock.setText(active ? "[ " + I18n.get(context, R.string.status_disabled) + " " + I18n.get(context, R.string.action_clock) + " ]" : I18n.get(context, R.string.clock_apply_btn));
     }
 
     private void adjustClockIntPref(String key, int def, int delta, int min, int max) {
@@ -4368,20 +4363,25 @@ public class QuickMenuOverlay {
         int durMs = prefs.getInt("brightness_hud_duration_ms", 2000);
         int curPct = prefs.getInt("dimmer_brightness_pct", 50);
 
+        String[] formatNames = I18n.getStringArray(context, R.array.brightness_hud_format_names);
+        String[] colorNames = I18n.getStringArray(context, R.array.clock_color_names);
+        String[] bgNames = I18n.getStringArray(context, R.array.clock_bg_names);
+        String[] posNames = I18n.getStringArray(context, R.array.clock_position_names);
+
         if (btnCycleBrightnessNow != null) {
-            btnCycleBrightnessNow.setText("⚡  Ciclar Brillo Ahora  [" + curPct + "%]");
+            btnCycleBrightnessNow.setText("⚡  " + I18n.get(context, R.string.action_cycle_brightness) + "  [" + curPct + "%]");
         }
         if (btnBrightnessHudFormat != null) {
-            btnBrightnessHudFormat.setText("   Formato Texto:  " + BRIGHTNESS_HUD_FORMAT_NAMES[formatIdx % BRIGHTNESS_HUD_FORMAT_NAMES.length]);
+            btnBrightnessHudFormat.setText("   " + I18n.get(context, R.string.clock_format, formatNames.length > 0 ? formatNames[formatIdx % formatNames.length] : ""));
         }
         if (btnBrightnessHudTextColor != null) {
-            btnBrightnessHudTextColor.setText("   Color Letra:  " + CLOCK_COLOR_NAMES[colorIdx % CLOCK_COLOR_NAMES.length]);
+            btnBrightnessHudTextColor.setText(I18n.get(context, R.string.clock_text_color, colorNames.length > 0 ? colorNames[colorIdx % colorNames.length] : ""));
         }
         if (btnBrightnessHudBgColor != null) {
-            btnBrightnessHudBgColor.setText("   Color Fondo:  " + CLOCK_BG_NAMES[bgIdx % CLOCK_BG_NAMES.length]);
+            btnBrightnessHudBgColor.setText(I18n.get(context, R.string.clock_bg_color, bgNames.length > 0 ? bgNames[bgIdx % bgNames.length] : ""));
         }
         if (btnBrightnessHudPosition != null) {
-            btnBrightnessHudPosition.setText("   Posición Base:  " + CLOCK_POSITION_NAMES[posIdx % CLOCK_POSITION_NAMES.length]);
+            btnBrightnessHudPosition.setText(I18n.get(context, R.string.clock_position, posNames.length > 0 ? posNames[posIdx % posNames.length] : ""));
         }
         if (txtBrightnessHudAlpha != null) txtBrightnessHudAlpha.setText(alphaPct + "%");
         if (txtBrightnessHudTextAlpha != null) txtBrightnessHudTextAlpha.setText(textAlphaPct + "%");
@@ -4394,7 +4394,7 @@ public class QuickMenuOverlay {
             txtBrightnessHudDur.setText(String.format(java.util.Locale.US, "%.1fs", secs));
         }
         if (btnTestBrightnessHud != null) {
-            btnTestBrightnessHud.setText("👁️  Probar Cartel en Pantalla");
+            btnTestBrightnessHud.setText(I18n.get(context, R.string.hud_test_button));
         }
     }
 
@@ -4429,24 +4429,31 @@ public class QuickMenuOverlay {
         int posIdx = prefs.getInt("quick_slider_pos_idx", 0);
         int timeoutIdx = prefs.getInt("quick_slider_timeout_idx", 0);
 
+        String[] orientations = I18n.getStringArray(context, R.array.slider_orientations);
+        String[] stepLabels = I18n.getStringArray(context, R.array.slider_steps_labels);
+        String[] perpActions = I18n.getStringArray(context, R.array.slider_perp_actions);
+        String[] posH = I18n.getStringArray(context, R.array.slider_positions_h);
+        String[] posV = I18n.getStringArray(context, R.array.slider_positions_v);
+        String[] timeouts = I18n.getStringArray(context, R.array.slider_timeouts_labels);
+
         if (btnSliderTestNow != null) {
-            btnSliderTestNow.setText("👁️  Probar Slider en Pantalla");
+            btnSliderTestNow.setText(I18n.get(context, R.string.slider_test_button));
         }
         if (btnSliderOrientation != null) {
-            btnSliderOrientation.setText("   Orientación:  " + SLIDER_ORIENTATIONS[orientation % SLIDER_ORIENTATIONS.length]);
+            btnSliderOrientation.setText(I18n.get(context, R.string.slider_orientation, orientations.length > 0 ? orientations[orientation % orientations.length] : ""));
         }
         if (btnSliderStep != null) {
-            btnSliderStep.setText("   Salto (Paso):  " + SLIDER_STEPS_LABELS[stepIdx % SLIDER_STEPS_LABELS.length]);
+            btnSliderStep.setText("   " + (stepLabels.length > 0 ? stepLabels[stepIdx % stepLabels.length] : ""));
         }
         if (btnSliderPerpAction != null) {
-            btnSliderPerpAction.setText("   Flechas Perpendiculares:  " + SLIDER_PERP_ACTIONS[perpIdx % SLIDER_PERP_ACTIONS.length]);
+            btnSliderPerpAction.setText(I18n.get(context, R.string.slider_perp_action, perpActions.length > 0 ? perpActions[perpIdx % perpActions.length] : ""));
         }
         if (btnSliderPosition != null) {
-            String[] posNames = (orientation == 1) ? SLIDER_POSITIONS_V : SLIDER_POSITIONS_H;
-            btnSliderPosition.setText("   Posición:  " + posNames[posIdx % posNames.length]);
+            String[] posNames = (orientation == 1) ? posV : posH;
+            btnSliderPosition.setText(I18n.get(context, R.string.slider_position, posNames.length > 0 ? posNames[posIdx % posNames.length] : ""));
         }
         if (btnSliderTimeout != null) {
-            btnSliderTimeout.setText("   Cierre por Inactividad:  " + SLIDER_TIMEOUTS_LABELS[timeoutIdx % SLIDER_TIMEOUTS_LABELS.length]);
+            btnSliderTimeout.setText(I18n.get(context, R.string.slider_timeout, timeouts.length > 0 ? timeouts[timeoutIdx % timeouts.length] : ""));
         }
     }
 
@@ -4475,21 +4482,21 @@ public class QuickMenuOverlay {
             sliderBrightness.setProgress(brightnessPct);
         }
         if (txtBrightnessPct != null) {
-            txtBrightnessPct.setText("Nivel: " + brightnessPct + "%");
+            txtBrightnessPct.setText(I18n.get(context, R.string.dimmer_level_prefix, brightnessPct));
         }
         if (btnApplyBrightness != null) {
-            btnApplyBrightness.setText(active ? "[ Desactivar Dimmer ]" : "[ Activar Dimmer ]");
+            btnApplyBrightness.setText(active ? "[ " + I18n.get(context, R.string.status_disabled) + " Dimmer ]" : "[ " + I18n.get(context, R.string.status_enabled) + " Dimmer ]");
         }
 
         boolean dimmerAutoReset = prefs.getBoolean("dimmer_day_auto_reset_enabled", true);
         if (btnDimmerDayAutoReset != null) {
-            btnDimmerDayAutoReset.setText("Auto-Reset Brillo (Paso 1):   " + (dimmerAutoReset ? "[Activado]" : "[Desactivado]"));
+            btnDimmerDayAutoReset.setText(I18n.get(context, R.string.dimmer_autoreset_step1, dimmerAutoReset ? "[" + I18n.get(context, R.string.status_enabled) + "]" : "[" + I18n.get(context, R.string.status_disabled) + "]"));
             btnDimmerDayAutoReset.setTextColor(dimmerAutoReset ? 0xFF81C784 : 0xFFE57373);
         }
 
         boolean grayscaleAutoReset = prefs.getBoolean("grayscale_day_auto_reset_enabled", true);
         if (btnGrayscaleDayAutoReset != null) {
-            btnGrayscaleDayAutoReset.setText("Auto-Reset B/N a Color:   " + (grayscaleAutoReset ? "[Activado]" : "[Desactivado]"));
+            btnGrayscaleDayAutoReset.setText(I18n.get(context, R.string.dimmer_autoreset_bw, grayscaleAutoReset ? "[" + I18n.get(context, R.string.status_enabled) + "]" : "[" + I18n.get(context, R.string.status_disabled) + "]"));
             btnGrayscaleDayAutoReset.setTextColor(grayscaleAutoReset ? 0xFF81C784 : 0xFFE57373);
         }
 
@@ -4529,7 +4536,7 @@ public class QuickMenuOverlay {
                 final TextView tvVal = new TextView(context);
 
                 TextView tvLabel = new TextView(context);
-                tvLabel.setText("   Nivel " + (i + 1) + ":");
+                tvLabel.setText("   " + (I18n.getLanguage(context).equalsIgnoreCase("es") ? "Nivel " : "Level ") + (i + 1) + ":");
                 tvLabel.setTextColor(0xFFCCCCCC);
                 tvLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
                 tvLabel.setPadding(Math.round(4 * d), 0, 0, 0);
@@ -4792,10 +4799,10 @@ public class QuickMenuOverlay {
         }
         if (txtBlueLightPct != null) {
             double displayPct = pct / 10.0;
-            txtBlueLightPct.setText("Nivel: " + (active ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : "Desactivado"));
+            txtBlueLightPct.setText(I18n.get(context, R.string.bl_level_prefix, active ? String.format(java.util.Locale.US, "%.1f%%", displayPct) : I18n.get(context, R.string.status_disabled)));
         }
         if (btnApplyBlueLight != null) {
-            btnApplyBlueLight.setText(active ? "[ Desactivar Filtro ]" : "[ Activar Filtro ]");
+            btnApplyBlueLight.setText(active ? I18n.get(context, R.string.bl_disable_btn) : "[ " + I18n.get(context, R.string.status_enabled) + " " + I18n.get(context, R.string.action_blue_light) + " ]");
         }
     }
 
@@ -4805,16 +4812,10 @@ public class QuickMenuOverlay {
         int playlistCount = op.getInt("auto_pause_playlist_count", 2);
         boolean blackScreen = op.getBoolean("auto_pause_black_screen", false);
 
+        String[] modes = I18n.getStringArray(context, R.array.autopause_modes);
         if (btnAutoPauseMode != null) {
-            String modeStr;
-            switch (mode) {
-                case 0: modeStr = "Desactivado"; break;
-                case 1: modeStr = "Al terminar video actual (1 vez)"; break;
-                case 2: modeStr = "Al terminar Lista (Ver más tarde)"; break;
-                case 3: modeStr = "Permanente (Cada cambio de video)"; break;
-                default: modeStr = "Desactivado"; break;
-            }
-            btnAutoPauseMode.setText("   Modo de Auto Pausa:  " + modeStr);
+            String modeStr = (mode >= 0 && mode < modes.length) ? modes[mode] : (modes.length > 0 ? modes[0] : "");
+            btnAutoPauseMode.setText(I18n.get(context, R.string.autopause_mode, modeStr));
         }
 
         if (layoutAutoPauseCustom != null) {
@@ -4826,12 +4827,12 @@ public class QuickMenuOverlay {
         }
 
         if (btnAutoPauseBlackScreen != null) {
-            btnAutoPauseBlackScreen.setText("   Apagar Pantalla al Pausar:  " + (blackScreen ? "ON" : "OFF"));
+            btnAutoPauseBlackScreen.setText(I18n.get(context, R.string.autopause_black_screen, blackScreen ? I18n.get(context, R.string.status_on) : I18n.get(context, R.string.status_off)));
         }
 
         if (btnAutoDismissUpNext != null) {
             boolean autoDismiss = op.getBoolean(ButtonMappingService.KEY_AUTO_DISMISS_UP_NEXT, true);
-            btnAutoDismissUpNext.setText("   Ocultar Cartel 'A continuación':  " + (autoDismiss ? "ON" : "OFF"));
+            btnAutoDismissUpNext.setText(I18n.get(context, R.string.autopause_dismiss_up_next, autoDismiss ? I18n.get(context, R.string.status_on) : I18n.get(context, R.string.status_off)));
         }
     }
 
@@ -4852,29 +4853,33 @@ public class QuickMenuOverlay {
         int posX = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_X, 16);
         int posY = prefs.getInt(ButtonMappingService.KEY_STILL_WATCHING_Y, 16);
 
-        if (toneIdx < 0 || toneIdx >= STILL_WATCHING_TONES.length) toneIdx = 0;
-        if (actionIdx < 0 || actionIdx >= STILL_WATCHING_ACTIONS.length) actionIdx = 0;
-        if (posIdx < 0 || posIdx >= STILL_WATCHING_POSITIONS.length) posIdx = 0;
+        String[] tones = I18n.getStringArray(context, R.array.still_watching_tones);
+        String[] actions = I18n.getStringArray(context, R.array.still_watching_actions);
+        String[] positions = I18n.getStringArray(context, R.array.still_watching_positions);
 
-        if (btnStillWatchingToggle != null) btnStillWatchingToggle.setText("   Estado:  " + (active ? "ACTIVADO" : "DESACTIVADO"));
+        if (toneIdx < 0 || toneIdx >= tones.length) toneIdx = 0;
+        if (actionIdx < 0 || actionIdx >= actions.length) actionIdx = 0;
+        if (posIdx < 0 || posIdx >= positions.length) posIdx = 0;
+
+        if (btnStillWatchingToggle != null) btnStillWatchingToggle.setText(I18n.get(context, R.string.status_prefix, active ? I18n.get(context, R.string.status_enabled) : I18n.get(context, R.string.status_disabled)));
         if (txtStillWatchingInterval != null) txtStillWatchingInterval.setText(interval + "m");
         if (txtStillWatchingTimeout != null) txtStillWatchingTimeout.setText(timeout + "s");
         if (btnStillWatchingBeepToggle != null) {
-            btnStillWatchingBeepToggle.setText("   Sonido Beep:  " + (beepActive ? "[ ACTIVADO ]" : "[ DESACTIVADO ]"));
+            btnStillWatchingBeepToggle.setText(I18n.get(context, R.string.still_watching_beep, beepActive ? "[ " + I18n.get(context, R.string.status_enabled) + " ]" : "[ " + I18n.get(context, R.string.status_disabled) + " ]"));
             btnStillWatchingBeepToggle.setTextColor(beepActive ? 0xFF4CAF50 : 0xFFFF5252);
         }
         if (txtStillWatchingBeepInterval != null) txtStillWatchingBeepInterval.setText(beepInterval + "s");
         if (txtStillWatchingBeepDelay != null) txtStillWatchingBeepDelay.setText(beepDelay + "s");
         if (txtStillWatchingBeepVol != null) txtStillWatchingBeepVol.setText(beepVol + "%");
-        if (btnStillWatchingBeepTone != null) btnStillWatchingBeepTone.setText("   Tipo de Tono:  " + STILL_WATCHING_TONES[toneIdx]);
-        if (btnStillWatchingActionType != null) btnStillWatchingActionType.setText("   Acción Inactividad:  " + STILL_WATCHING_ACTIONS[actionIdx]);
-        if (btnStillWatchingPosition != null) btnStillWatchingPosition.setText("   Posición:  " + STILL_WATCHING_POSITIONS[posIdx]);
+        if (btnStillWatchingBeepTone != null) btnStillWatchingBeepTone.setText("   " + (tones.length > 0 ? tones[toneIdx] : ""));
+        if (btnStillWatchingActionType != null) btnStillWatchingActionType.setText("   " + (actions.length > 0 ? actions[actionIdx] : ""));
+        if (btnStillWatchingPosition != null) btnStillWatchingPosition.setText(I18n.get(context, R.string.clock_position, positions.length > 0 ? positions[posIdx] : ""));
         if (txtStillWatchingAlpha != null) txtStillWatchingAlpha.setText(alpha + "%");
         if (txtStillWatchingSize != null) txtStillWatchingSize.setText(sizeSp + "sp");
         if (txtStillWatchingX != null) txtStillWatchingX.setText(posX + "dp");
         if (txtStillWatchingY != null) txtStillWatchingY.setText(posY + "dp");
 
-        if (btnApplyStillWatching != null) btnApplyStillWatching.setText(active ? "[ Desactivar ¿Sigues viendo? ]" : "[ Activar ¿Sigues viendo? ]");
+        if (btnApplyStillWatching != null) btnApplyStillWatching.setText(active ? I18n.get(context, R.string.still_watching_apply_disable) : I18n.get(context, R.string.still_watching_apply_enable));
     }
 
     private void updateNightScheduleConfigPanel() {
@@ -4885,12 +4890,12 @@ public class QuickMenuOverlay {
         int blueLight = op.getInt(ButtonMappingService.KEY_NIGHT_BLUE_LIGHT, 40);
         int dimmer = op.getInt(ButtonMappingService.KEY_NIGHT_DIMMER, 50);
 
-        if (btnNightScheduleToggle != null) btnNightScheduleToggle.setText("   Estado:  " + (active ? "ACTIVADO" : "DESACTIVADO"));
+        if (btnNightScheduleToggle != null) btnNightScheduleToggle.setText(I18n.get(context, R.string.status_prefix, active ? I18n.get(context, R.string.status_enabled) : I18n.get(context, R.string.status_disabled)));
         if (txtNightStart != null) txtNightStart.setText(String.format(java.util.Locale.US, "%02d:00", start));
         if (txtNightEnd != null) txtNightEnd.setText(String.format(java.util.Locale.US, "%02d:00", end));
         if (txtNightBlueLight != null) txtNightBlueLight.setText(blueLight + "%");
         if (txtNightDimmer != null) txtNightDimmer.setText(dimmer + "%");
-        if (btnApplyNightSchedule != null) btnApplyNightSchedule.setText(active ? "[ Desactivar Horario Nocturno ]" : "[ Activar Horario Nocturno ]");
+        if (btnApplyNightSchedule != null) btnApplyNightSchedule.setText(active ? I18n.get(context, R.string.night_apply_disable) : I18n.get(context, R.string.night_apply_enable));
     }
 
     private void updateOledSaverConfigPanel() {
@@ -4899,12 +4904,12 @@ public class QuickMenuOverlay {
         int mins = op.getInt(ButtonMappingService.KEY_OLED_MINUTES, 5);
         int mode = op.getInt(ButtonMappingService.KEY_OLED_MODE, 0);
 
-        String modeText = (mode == 1) ? "Pantalla Negra" : "Dimmer 95%";
+        String modeText = (mode == 1) ? I18n.get(context, R.string.mode_black_screen) : I18n.get(context, R.string.mode_dimmer_95);
 
-        if (btnOledSaverToggle != null) btnOledSaverToggle.setText("   Estado:  " + (active ? "ACTIVADO" : "DESACTIVADO"));
+        if (btnOledSaverToggle != null) btnOledSaverToggle.setText(I18n.get(context, R.string.status_prefix, active ? I18n.get(context, R.string.status_enabled) : I18n.get(context, R.string.status_disabled)));
         if (txtOledMinutes != null) txtOledMinutes.setText(mins + "m");
-        if (btnOledMode != null) btnOledMode.setText("   Modo Protector:  " + modeText);
-        if (btnApplyOledSaver != null) btnApplyOledSaver.setText(active ? "[ Desactivar Protector OLED ]" : "[ Activar Protector OLED ]");
+        if (btnOledMode != null) btnOledMode.setText(I18n.get(context, R.string.oled_mode_prefix, modeText));
+        if (btnApplyOledSaver != null) btnApplyOledSaver.setText(active ? I18n.get(context, R.string.oled_apply_disable) : I18n.get(context, R.string.oled_apply_enable));
     }
 
     private void cycleSelectedScheduledAlarm(int delta) {
@@ -5292,24 +5297,29 @@ public class QuickMenuOverlay {
         int posX = op.getInt("mindful_delay_pos_x_dp", 0);
         int posY = op.getInt("mindful_delay_pos_y_dp", 0);
 
+        String[] cancelActions = I18n.getStringArray(context, R.array.mindful_cancel_actions);
+        String[] sessionNames = I18n.getStringArray(context, R.array.mindful_session_names);
+        String[] positions = I18n.getStringArray(context, R.array.mindful_positions);
+        String[] msgOptions = I18n.getStringArray(context, R.array.mindful_msg_options);
+
         if (btnMindfulDelayToggle != null) {
-            btnMindfulDelayToggle.setText("Espera Consciente:   " + (enabled ? "[ ACTIVADO ]" : "[ DESACTIVADO ]"));
+            btnMindfulDelayToggle.setText(I18n.get(context, R.string.mindful_toggle, enabled ? "[ " + I18n.get(context, R.string.status_enabled) + " ]" : "[ " + I18n.get(context, R.string.status_disabled) + " ]"));
             btnMindfulDelayToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFB0BEC5);
         }
 
         int m = secs / 60;
         int s = secs % 60;
         if (txtMindfulDelayMin != null) txtMindfulDelayMin.setText(m + " min");
-        if (txtMindfulDelaySec != null) txtMindfulDelaySec.setText(String.format(java.util.Locale.US, "%02d seg", s));
+        if (txtMindfulDelaySec != null) txtMindfulDelaySec.setText(String.format(java.util.Locale.US, "%02d s", s));
 
         if (btnMindfulDelayCancelAction != null) {
-            String actName = (cancelAction >= 0 && cancelAction < MINDFUL_CANCEL_ACTIONS.length) ? MINDFUL_CANCEL_ACTIONS[cancelAction] : MINDFUL_CANCEL_ACTIONS[0];
-            btnMindfulDelayCancelAction.setText("Al Cancelar / Salir:   " + actName);
+            String actName = (cancelAction >= 0 && cancelAction < cancelActions.length) ? cancelActions[cancelAction] : (cancelActions.length > 0 ? cancelActions[0] : "");
+            btnMindfulDelayCancelAction.setText(I18n.get(context, R.string.mindful_cancel_action, actName));
         }
 
         if (btnMindfulDelaySession != null) {
-            String sessName = (sessionMode >= 0 && sessionMode < MINDFUL_SESSION_NAMES.length) ? MINDFUL_SESSION_NAMES[sessionMode] : MINDFUL_SESSION_NAMES[0];
-            btnMindfulDelaySession.setText("Modo de Sesión:   " + sessName);
+            String sessName = (sessionMode >= 0 && sessionMode < sessionNames.length) ? sessionNames[sessionMode] : (sessionNames.length > 0 ? sessionNames[0] : "");
+            btnMindfulDelaySession.setText(I18n.get(context, R.string.mindful_session_mode, sessName));
         }
 
         if (rowMindfulSessHours != null) rowMindfulSessHours.setVisibility(sessionMode == 0 ? View.VISIBLE : View.GONE);
@@ -5318,13 +5328,13 @@ public class QuickMenuOverlay {
         if (txtMindfulDelaySessMin != null) txtMindfulDelaySessMin.setText(sessionMins + " min");
 
         if (btnMindfulDelayPos != null) {
-            String posName = (posIdx >= 0 && posIdx < MINDFUL_POSITIONS.length) ? MINDFUL_POSITIONS[posIdx] : MINDFUL_POSITIONS[0];
-            btnMindfulDelayPos.setText("Posición del Cartel:   " + posName);
+            String posName = (posIdx >= 0 && posIdx < positions.length) ? positions[posIdx] : (positions.length > 0 ? positions[0] : "");
+            btnMindfulDelayPos.setText(I18n.get(context, R.string.clock_position, posName));
         }
 
         if (btnMindfulDelayMsg != null) {
-            String msgName = (msgIdx >= 0 && msgIdx < MINDFUL_MSG_OPTIONS.length) ? MINDFUL_MSG_OPTIONS[msgIdx] : MINDFUL_MSG_OPTIONS[0];
-            btnMindfulDelayMsg.setText("Mensaje:   \"" + (msgName.length() > 30 ? msgName.substring(0, 27) + "..." : msgName) + "\"");
+            String msgName = (msgIdx >= 0 && msgIdx < msgOptions.length) ? msgOptions[msgIdx] : (msgOptions.length > 0 ? msgOptions[0] : "");
+            btnMindfulDelayMsg.setText("   \"" + (msgName.length() > 30 ? msgName.substring(0, 27) + "..." : msgName) + "\"");
         }
 
         if (txtMindfulDelayBgAlpha != null) txtMindfulDelayBgAlpha.setText(bgAlpha + "%");
@@ -5348,7 +5358,8 @@ public class QuickMenuOverlay {
 
     private void updateAppButton(TextView btn, String name, boolean active) {
         if (btn == null) return;
-        btn.setText(name + ":   " + (active ? "[ SÍ ]" : "[ NO ]"));
+        String flag = active ? I18n.get(context, R.string.yes_text) : I18n.get(context, R.string.no_text);
+        btn.setText(name + ":   [ " + flag + " ]");
         btn.setTextColor(active ? 0xFF81D4FA : 0xFF888888);
     }
 
@@ -5365,11 +5376,11 @@ public class QuickMenuOverlay {
         if (targetIdx < 0 || targetIdx >= TRANSLATE_TARGET_LANGS.length) targetIdx = 0;
         if (srcIdx < 0 || srcIdx >= TRANSLATE_SOURCE_LANGS.length) srcIdx = 0;
 
-        if (btnTranslateTargetLang != null) btnTranslateTargetLang.setText("   Idioma de Destino:  " + TRANSLATE_TARGET_LANGS[targetIdx]);
-        if (btnTranslateSourceLang != null) btnTranslateSourceLang.setText("   Idioma de Origen:  " + TRANSLATE_SOURCE_LANGS[srcIdx]);
-        if (btnTranslateAutoPause != null) btnTranslateAutoPause.setText("   Pausar Video al Iniciar:  " + (autoPause ? "SÍ" : "NO"));
-        if (btnTranslateAutoResume != null) btnTranslateAutoResume.setText("   Reanudar al Salir con OK:  " + (autoResume ? "SÍ" : "NO"));
-        if (btnTranslateTopBar != null) btnTranslateTopBar.setText("   Cartel Superior:  " + (showTopBar ? "MOSTRAR" : "OCULTAR"));
+        if (btnTranslateTargetLang != null) btnTranslateTargetLang.setText(I18n.get(context, R.string.translate_target_lang, TRANSLATE_TARGET_LANGS[targetIdx]));
+        if (btnTranslateSourceLang != null) btnTranslateSourceLang.setText("   Source Language:  " + TRANSLATE_SOURCE_LANGS[srcIdx]);
+        if (btnTranslateAutoPause != null) btnTranslateAutoPause.setText("   Pause on Start:  " + (autoPause ? I18n.get(context, R.string.yes_text) : I18n.get(context, R.string.no_text)));
+        if (btnTranslateAutoResume != null) btnTranslateAutoResume.setText("   Resume on OK:  " + (autoResume ? I18n.get(context, R.string.yes_text) : I18n.get(context, R.string.no_text)));
+        if (btnTranslateTopBar != null) btnTranslateTopBar.setText(I18n.get(context, R.string.translate_top_bar, showTopBar ? I18n.get(context, R.string.status_on) : I18n.get(context, R.string.status_off)));
         if (txtTranslateBgAlpha != null) txtTranslateBgAlpha.setText(alpha + "%");
         if (txtTranslateTextSize != null) txtTranslateTextSize.setText(size + "sp");
     }
@@ -5386,35 +5397,35 @@ public class QuickMenuOverlay {
         int inputOk = op.getInt("combo_input_ok_action", 0);
 
         if (btnCombosMasterToggle != null) {
-            btnCombosMasterToggle.setText("   Combinaciones:  " + (enabled ? "[ ACTIVADO ]" : "[ DESACTIVADO ]"));
+            btnCombosMasterToggle.setText(I18n.get(context, R.string.combos_master, enabled ? "[ " + I18n.get(context, R.string.status_enabled) + " ]" : "[ " + I18n.get(context, R.string.status_disabled) + " ]"));
             btnCombosMasterToggle.setTextColor(enabled ? 0xFF4CAF50 : 0xFFFF5252);
         }
         if (btnComboMuteOk != null) {
-            btnComboMuteOk.setText("   Mute + OK:  " + (muteOk == 0 ? "[ DESACTIVADO ]" : getActionName(muteOk)));
+            btnComboMuteOk.setText(I18n.get(context, R.string.combo_mute_ok, muteOk == 0 ? "[ " + I18n.get(context, R.string.status_disabled) + " ]" : getActionName(muteOk)));
             btnComboMuteOk.setTextColor(muteOk == 0 ? 0xFF888888 : 0xFF81D4FA);
         }
         if (btnComboMuteRight != null) {
-            btnComboMuteRight.setText("   Mute + Flecha Der:  " + (muteRight == 0 ? "[ DESACTIVADO ]" : getActionName(muteRight)));
+            btnComboMuteRight.setText(I18n.get(context, R.string.combo_mute_right, muteRight == 0 ? "[ " + I18n.get(context, R.string.status_disabled) + " ]" : getActionName(muteRight)));
             btnComboMuteRight.setTextColor(muteRight == 0 ? 0xFF888888 : 0xFF81D4FA);
         }
         if (btnComboMuteLeft != null) {
-            btnComboMuteLeft.setText("   Mute + Flecha Izq:  " + (muteLeft == 0 ? "[ DESACTIVADO ]" : getActionName(muteLeft)));
+            btnComboMuteLeft.setText(I18n.get(context, R.string.combo_mute_left, muteLeft == 0 ? "[ " + I18n.get(context, R.string.status_disabled) + " ]" : getActionName(muteLeft)));
             btnComboMuteLeft.setTextColor(muteLeft == 0 ? 0xFF888888 : 0xFF81D4FA);
         }
         if (btnComboMuteUp != null) {
-            btnComboMuteUp.setText("   Mute + Flecha Arriba:  " + (muteUp == 0 ? "[ DESACTIVADO ]" : getActionName(muteUp)));
+            btnComboMuteUp.setText(I18n.get(context, R.string.combo_mute_up, muteUp == 0 ? "[ " + I18n.get(context, R.string.status_disabled) + " ]" : getActionName(muteUp)));
             btnComboMuteUp.setTextColor(muteUp == 0 ? 0xFF888888 : 0xFF81D4FA);
         }
         if (btnComboMuteDown != null) {
-            btnComboMuteDown.setText("   Mute + Flecha Abajo:  " + (muteDown == 0 ? "[ DESACTIVADO ]" : getActionName(muteDown)));
+            btnComboMuteDown.setText(I18n.get(context, R.string.combo_mute_down, muteDown == 0 ? "[ " + I18n.get(context, R.string.status_disabled) + " ]" : getActionName(muteDown)));
             btnComboMuteDown.setTextColor(muteDown == 0 ? 0xFF888888 : 0xFF81D4FA);
         }
         if (btnComboYoutube190Mute != null) {
-            btnComboYoutube190Mute.setText("   YouTube + Mute:  " + (ytMute == 0 ? "[ DESACTIVADO ]" : getActionName(ytMute)));
+            btnComboYoutube190Mute.setText(I18n.get(context, R.string.combo_yt_mute, ytMute == 0 ? "[ " + I18n.get(context, R.string.status_disabled) + " ]" : getActionName(ytMute)));
             btnComboYoutube190Mute.setTextColor(ytMute == 0 ? 0xFF888888 : 0xFF81D4FA);
         }
         if (btnComboInputOk != null) {
-            btnComboInputOk.setText("   TV Input + OK:  " + (inputOk == 0 ? "[ DESACTIVADO ]" : getActionName(inputOk)));
+            btnComboInputOk.setText(I18n.get(context, R.string.combo_input_ok, inputOk == 0 ? "[ " + I18n.get(context, R.string.status_disabled) + " ]" : getActionName(inputOk)));
             btnComboInputOk.setTextColor(inputOk == 0 ? 0xFF888888 : 0xFF81D4FA);
         }
     }

@@ -1051,7 +1051,7 @@ public class AiSummaryOverlay {
     private void applyUiLanguage(Context context) {
         if (context == null || overlayView == null) return;
         SharedPreferences prefs = context.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE);
-        uiLanguage = prefs.getString("ai_ui_language", "es");
+        uiLanguage = prefs.getString("ai_ui_language", com.nitsutech.omnitv.I18n.getLanguage(context));
         boolean isEn = "en".equalsIgnoreCase(uiLanguage);
 
         if (textAiWelcome != null) {
