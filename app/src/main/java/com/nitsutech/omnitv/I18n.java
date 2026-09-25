@@ -51,7 +51,8 @@ public class I18n {
         R.string.action_vot,
         R.string.action_ai_summary,
         R.string.action_youtube_music,
-        R.string.action_play_pause
+        R.string.action_play_pause,
+        R.string.action_subtitles
     };
 
     public static String getLanguage(Context context) {

@@ -39,6 +39,7 @@
     <string name="action_ai_summary">Resumen IA (Gemini)</string>
     <string name="action_youtube_music">YouTube Music</string>
     <string name="action_play_pause">Reproducir / Pausar Video</string>
+    <string name="action_subtitles">Subtítulos (Activar / Desactivar)</string>
 
     <!-- Main Menu Items -->
     <string name="menu_manage_apps">Apps  Administrar Apps</string>
@@ -541,4 +542,6 @@
     <string name="dialog_select_action">Seleccionar Acción</string>
     <string name="dialog_select_action_subtitle">Elegí una acción de la lista</string>
     <string name="toast_yt_music_not_found">YouTube Music no está instalado</string>
+    <string name="toast_subtitles_on">💬 Subtítulos: Activados</string>
+    <string name="toast_subtitles_off">💬 Subtítulos: Desactivados</string>
 </resources>

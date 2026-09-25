@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService;
 import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -1261,6 +1262,7 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case "ACTION_PAUSE_SCREEN_OFF":
             case "ACTION_PAUSE_AND_SCREEN_OFF": pauseMediaAndBlackScreen(); break;
+            case "ACTION_TOGGLE_SUBTITLES": toggleSubtitles(); break;
             case "ACTION_TEST_MINDFUL_DELAY":
                 showMindfulDelayOverlay("YouTube (Prueba)", "test", 10);
                 break;
@@ -1420,6 +1422,9 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case 34: // Reproducir / Pausar Video
                 toggleMediaPlayback();
+                break;
+            case 35: // Subtítulos (Activar / Desactivar)
+                toggleSubtitles();
                 break;
         }
     }
@@ -2107,6 +2112,112 @@ public class ButtonMappingService extends AccessibilityService {
         } catch (Exception e) {
             Log.e(TAG, "Error toggling media playback", e);
             sendMediaPlayPause();
+        }
+    }
+
+    private void toggleSubtitles() {
+        Log.d(TAG, "Executing toggleSubtitles action");
+        boolean uiClicked = false;
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root != null) {
+                uiClicked = findAndClickSubtitleNode(root);
+                root.recycle();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking accessibility subtitle node", e);
+        }
+
+        if (!uiClicked) {
+            try {
+                MediaNotificationListener.toggleSubtitles(this);
+            } catch (Exception e) {
+                Log.e(TAG, "Error in MediaNotificationListener.toggleSubtitles", e);
+                sendSubtitleKeyEvent();
+            }
+        }
+
+        int nextState = 1;
+        try {
+            ContentResolver resolver = getContentResolver();
+            int current = Settings.Secure.getInt(resolver, "accessibility_captioning_enabled", 0);
+            nextState = (current == 1) ? 0 : 1;
+            Settings.Secure.putInt(resolver, "accessibility_captioning_enabled", nextState);
+            Log.d(TAG, "Toggled system accessibility_captioning_enabled to: " + nextState);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to toggle accessibility_captioning_enabled", e);
+        }
+
+        String msg = (nextState == 1)
+                ? I18n.get(this, R.string.toast_subtitles_on)
+                : I18n.get(this, R.string.toast_subtitles_off);
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+
+    private boolean findAndClickSubtitleNode(AccessibilityNodeInfo node) {
+        if (node == null) return false;
+
+        CharSequence desc = node.getContentDescription();
+        CharSequence text = node.getText();
+        String viewId = node.getViewIdResourceName();
+
+        boolean match = false;
+        if (desc != null) {
+            String d = desc.toString().toLowerCase(Locale.US);
+            if (d.contains("subtítulo") || d.contains("subtitulo") || d.contains("subtitle") ||
+                d.contains("caption") || d.equals("cc") || d.contains("closed caption")) {
+                match = true;
+            }
+        }
+        if (!match && text != null) {
+            String t = text.toString().trim();
+            if (t.equalsIgnoreCase("CC") || t.equalsIgnoreCase("Subtítulos") || t.equalsIgnoreCase("Subtitles") ||
+                t.equalsIgnoreCase("Captions")) {
+                match = true;
+            }
+        }
+        if (!match && viewId != null) {
+            String v = viewId.toLowerCase(Locale.US);
+            if (v.contains("subtitle") || v.contains("caption") || v.contains("btn_cc") || v.contains("exo_subtitles")) {
+                match = true;
+            }
+        }
+
+        if (match) {
+            AccessibilityNodeInfo target = node;
+            while (target != null && !target.isClickable()) {
+                AccessibilityNodeInfo parent = target.getParent();
+                if (target != node) target.recycle();
+                target = parent;
+            }
+            if (target != null && target.isClickable()) {
+                Log.d(TAG, "Found subtitle node in UI, performing click: " + (desc != null ? desc : text));
+                boolean clicked = target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                if (target != node) target.recycle();
+                return clicked;
+            }
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                boolean clicked = findAndClickSubtitleNode(child);
+                child.recycle();
+                if (clicked) return true;
+            }
+        }
+        return false;
+    }
+
+    private void sendSubtitleKeyEvent() {
+        try {
+            if (audioManager != null) {
+                long now = android.os.SystemClock.uptimeMillis();
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_CAPTIONS, 0));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_CAPTIONS, 0));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in sendSubtitleKeyEvent", e);
         }
     }
 

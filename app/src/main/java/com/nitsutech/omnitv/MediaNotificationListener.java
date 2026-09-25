@@ -9,6 +9,7 @@ import android.media.session.PlaybackState;
 import android.service.notification.NotificationListenerService;
 import android.util.Log;
 import java.util.List;
+import java.util.Locale;
 
 public class MediaNotificationListener extends NotificationListenerService {
     private static final String TAG = "MediaNotifListener";
@@ -266,6 +267,61 @@ public class MediaNotificationListener extends NotificationListenerService {
             Log.e(TAG, "Fallback play/pause failed", e);
         }
         return false;
+    }
+
+    public static boolean toggleSubtitles(Context context) {
+        boolean handled = false;
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null && !controllers.isEmpty()) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null) {
+                            if (mc.getPlaybackState() != null) {
+                                List<PlaybackState.CustomAction> customActions = mc.getPlaybackState().getCustomActions();
+                                if (customActions != null) {
+                                    for (PlaybackState.CustomAction ca : customActions) {
+                                        if (ca != null && ca.getAction() != null) {
+                                            String a = ca.getAction().toLowerCase(Locale.US);
+                                            CharSequence name = ca.getName();
+                                            String n = (name != null) ? name.toString().toLowerCase(Locale.US) : "";
+                                            if (a.contains("subtitle") || a.contains("caption") || a.contains("sub") ||
+                                                n.contains("subtitle") || n.contains("subtítulo") || n.contains("caption")) {
+                                                Log.d(TAG, "Triggering MediaController CustomAction for subtitles: " + ca.getAction());
+                                                mc.getTransportControls().sendCustomAction(ca, null);
+                                                handled = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            long now = android.os.SystemClock.uptimeMillis();
+                            mc.dispatchMediaButtonEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_CAPTIONS, 0));
+                            mc.dispatchMediaButtonEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_CAPTIONS, 0));
+                            handled = true;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error toggling subtitles via MediaController", e);
+        }
+
+        try {
+            if (context != null) {
+                android.media.AudioManager am = (android.media.AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) {
+                    long now = android.os.SystemClock.uptimeMillis();
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_CAPTIONS, 0));
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_CAPTIONS, 0));
+                    handled = true;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error toggling subtitles via AudioManager", e);
+        }
+        return handled;
     }
 
     public static boolean seekActiveMediaBy(long deltaMs) {
