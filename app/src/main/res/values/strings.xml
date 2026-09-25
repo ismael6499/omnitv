@@ -542,6 +542,5 @@
     <string name="dialog_select_action">Select Action</string>
     <string name="dialog_select_action_subtitle">Choose an action from the list</string>
     <string name="toast_yt_music_not_found">YouTube Music is not installed</string>
-    <string name="toast_subtitles_on">💬 Subtitles: ON</string>
-    <string name="toast_subtitles_off">💬 Subtitles: OFF</string>
+    <string name="toast_subtitles">💬 Subtitles (CC)</string>
 </resources>

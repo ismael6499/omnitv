@@ -186,6 +186,15 @@ public class ButtonMappingService extends AccessibilityService {
         }
     };
 
+    private View osdMessageOverlayView = null;
+    private TextView osdMessageTextView = null;
+    private final Runnable hideOsdMessageRunnable = new Runnable() {
+        @Override
+        public void run() {
+            hideOsdMessageOverlay();
+        }
+    };
+
     private boolean isStillWatchingActive = false;
     private boolean isStillWatchingPromptActive = false;
     private boolean isDismissingStillWatchingKey = false;
@@ -1270,12 +1279,18 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_TRANSLATE_SCREEN":
                 triggerScreenTranslation();
                 break;
+            case "SHOW_OSD":
+            case "ACTION_SHOW_OSD":
+                if (extras != null && extras.getString("message") != null) {
+                    showOsdMessage(extras.getString("message"));
+                }
+                break;
             case "SET_OPENROUTER_KEY":
             case "ACTION_SET_OPENROUTER_KEY":
                 if (extras != null && extras.getString("key") != null) {
                     String k = extras.getString("key").trim();
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putString("vot_openrouter_key", k).apply();
-                    android.widget.Toast.makeText(this, I18n.isSpanish(this) ? "🔑 OpenRouter API Key guardada" : "🔑 OpenRouter API Key saved", android.widget.Toast.LENGTH_SHORT).show();
+                    showOsdMessage(I18n.isSpanish(this) ? "🔑 OpenRouter API Key guardada" : "🔑 OpenRouter API Key saved");
                 }
                 break;
             case "SET_OPENROUTER_MODEL":
@@ -1283,7 +1298,7 @@ public class ButtonMappingService extends AccessibilityService {
                 if (extras != null && extras.getString("model") != null) {
                     String m = extras.getString("model").trim();
                     getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE).edit().putString("vot_openrouter_model", m).apply();
-                    android.widget.Toast.makeText(this, (I18n.isSpanish(this) ? "🤖 OpenRouter Modelo: " : "🤖 OpenRouter Model: ") + m, android.widget.Toast.LENGTH_SHORT).show();
+                    showOsdMessage((I18n.isSpanish(this) ? "🤖 OpenRouter Modelo: " : "🤖 OpenRouter Model: ") + m);
                 }
                 break;
             case "ACTION_UPDATE_MINDFUL_DELAY":
@@ -1439,7 +1454,7 @@ public class ButtonMappingService extends AccessibilityService {
         boolean cur = op.getBoolean("vot_enabled", false);
         boolean next = !cur;
         com.nitsutech.omnitv.vot.VotManager.getInstance(this).setEnabled(next);
-        Toast.makeText(this, next ? I18n.get(this, R.string.toast_vot_enabled) : I18n.get(this, R.string.toast_vot_disabled), Toast.LENGTH_SHORT).show();
+        showOsdMessage(next ? I18n.get(this, R.string.toast_vot_enabled) : I18n.get(this, R.string.toast_vot_disabled));
     }
 
     @Override
@@ -1735,7 +1750,7 @@ public class ButtonMappingService extends AccessibilityService {
                             if (mindfulRemainingSeconds <= 0) {
                                 grantAppSession(currentMindfulAppKey);
                                 dismissMindfulDelayOverlay();
-                                Toast.makeText(getApplicationContext(), (I18n.isSpanish(ButtonMappingService.this) ? "✓ Acceso autorizado a " : "✓ Access granted to ") + appName, Toast.LENGTH_SHORT).show();
+                                showOsdMessage((I18n.isSpanish(ButtonMappingService.this) ? "✓ Acceso autorizado a " : "✓ Access granted to ") + appName);
                             } else {
                                 handler.postDelayed(this, 1000);
                             }
@@ -1808,6 +1823,7 @@ public class ButtonMappingService extends AccessibilityService {
         hideBlueLightOverlay();
         hideClockOverlay();
         hideBrightnessHudOverlay();
+        hideOsdMessageOverlay();
         hideDimmerOverlay();
         dismissSystemInfoOverlay();
         dismissMindfulDelayOverlay();
@@ -2099,7 +2115,7 @@ public class ButtonMappingService extends AccessibilityService {
                 Log.d(TAG, "Successfully started YouTube Music");
             } else {
                 Log.w(TAG, "YouTube Music launch intent not found");
-                Toast.makeText(this, I18n.get(this, R.string.toast_yt_music_not_found), Toast.LENGTH_SHORT).show();
+                showOsdMessage(I18n.get(this, R.string.toast_yt_music_not_found));
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to launch YouTube Music", e);
@@ -2148,10 +2164,7 @@ public class ButtonMappingService extends AccessibilityService {
             Log.e(TAG, "Failed to toggle accessibility_captioning_enabled", e);
         }
 
-        String msg = (nextState == 1)
-                ? I18n.get(this, R.string.toast_subtitles_on)
-                : I18n.get(this, R.string.toast_subtitles_off);
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+        showOsdMessage(I18n.get(this, R.string.toast_subtitles));
     }
 
     private boolean findAndClickSubtitleNode(AccessibilityNodeInfo node) {
@@ -2833,6 +2846,9 @@ public class ButtonMappingService extends AccessibilityService {
                     if (!enabled) return;
 
                     handler.removeCallbacks(hideBrightnessHudRunnable);
+                    if (osdMessageOverlayView != null) {
+                        hideOsdMessageOverlay();
+                    }
 
                     WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
                     if (wm == null) return;
@@ -2932,6 +2948,11 @@ public class ButtonMappingService extends AccessibilityService {
                     int offsetX = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, xDp, dm);
                     int offsetY = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, yDp, dm);
 
+                    int cornerRadiusPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6, dm);
+                    GradientDrawable bgDrawable = new GradientDrawable();
+                    bgDrawable.setColor(bgColor);
+                    bgDrawable.setCornerRadius(cornerRadiusPx);
+
                     if (brightnessHudOverlayView == null) {
                         TextView tv = new TextView(ButtonMappingService.this);
                         tv.setText(text);
@@ -2939,7 +2960,7 @@ public class ButtonMappingService extends AccessibilityService {
                         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
                         tv.setTypeface(Typeface.DEFAULT_BOLD);
                         tv.setPadding(paddingPx, paddingPxHalf, paddingPx, paddingPxHalf);
-                        tv.setBackgroundColor(bgColor);
+                        tv.setBackground(bgDrawable);
 
                         brightnessHudTextView = tv;
                         brightnessHudOverlayView = tv;
@@ -2964,7 +2985,7 @@ public class ButtonMappingService extends AccessibilityService {
                             brightnessHudTextView.setTextColor(textColor);
                             brightnessHudTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
                             brightnessHudTextView.setPadding(paddingPx, paddingPxHalf, paddingPx, paddingPxHalf);
-                            brightnessHudTextView.setBackgroundColor(bgColor);
+                            brightnessHudTextView.setBackground(bgDrawable);
                         }
                         WindowManager.LayoutParams p = (WindowManager.LayoutParams) brightnessHudOverlayView.getLayoutParams();
                         if (p != null) {
@@ -2999,6 +3020,192 @@ public class ButtonMappingService extends AccessibilityService {
                 }
             }
         });
+    }
+
+    // ── OSD HUD overlay (non-intrusive top-left notification matching brightness HUD) ──
+
+    public void showOsdMessage(final CharSequence text) {
+        showOsdMessage(text, -1);
+    }
+
+    public void showOsdMessage(final CharSequence text, final int customDurationMs) {
+        if (text == null || text.length() == 0) return;
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                    handler.removeCallbacks(hideOsdMessageRunnable);
+                    if (brightnessHudOverlayView != null) {
+                        hideBrightnessHudOverlay();
+                    }
+
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm == null) return;
+
+                    int colorIdx = prefs.getInt("brightness_hud_text_color_idx", 0);
+                    int bgIdx = prefs.getInt("brightness_hud_bg_color_idx", 0);
+                    int alphaPct = prefs.getInt("brightness_hud_bg_alpha_pct", 35);
+                    int textAlphaPct = prefs.getInt("brightness_hud_text_alpha_pct", 100);
+                    // Default to top-left (index 1 = Gravity.TOP | Gravity.START)
+                    int posIdx = prefs.getInt("brightness_hud_position_idx", 1);
+
+                    int sizeSp = Math.max(11, prefs.getInt("brightness_hud_size_sp", 12));
+                    int paddingDp = prefs.getInt("brightness_hud_padding_dp", 12);
+                    int xDp = prefs.getInt("brightness_hud_pos_x_dp", 16);
+                    int yDp = prefs.getInt("brightness_hud_pos_y_dp", 16);
+                    int defaultDuration = (text.length() > 30) ? 2800 : 2000;
+                    int durationMs = customDurationMs > 0 ? customDurationMs : prefs.getInt("brightness_hud_duration_ms", defaultDuration);
+
+                    float brightnessFactor = 1.0f;
+                    if (isDimmerActive) {
+                        int curDimmerPct = prefs.getInt("dimmer_brightness_pct", 100);
+                        brightnessFactor = Math.max(0.12f, curDimmerPct / 100.0f);
+                    }
+
+                    int[] textColors = {0xFFFFFFFF, 0xFF000000, 0xFFFFFF00, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF};
+                    int rawColor = textColors[colorIdx >= 0 && colorIdx < textColors.length ? colorIdx : 0];
+                    int textAlphaVal = (int) (textAlphaPct * 2.55);
+
+                    int r = Color.red(rawColor);
+                    int g = Color.green(rawColor);
+                    int b = Color.blue(rawColor);
+                    if (isBlueLightActive) {
+                        int bluePct = prefs.getInt("blue_light_pct", 50);
+                        b = (int) (b * (1.0f - (bluePct / 100.0f) * 0.7f));
+                    }
+                    int dimmedR = Math.round(r * brightnessFactor);
+                    int dimmedG = Math.round(g * brightnessFactor);
+                    int dimmedB = Math.round(b * brightnessFactor);
+                    int textColor = Color.argb(textAlphaVal, dimmedR, dimmedG, dimmedB);
+
+                    int[][] bgRGBs = {
+                        {0, 0, 0},
+                        {80, 80, 80},
+                        {15, 15, 40}
+                    };
+
+                    int bgColor;
+                    if (bgIdx == 3 || alphaPct == 0) {
+                        bgColor = Color.TRANSPARENT;
+                    } else {
+                        int alphaVal = (int) (alphaPct * 2.55);
+                        int[] rgb = bgRGBs[bgIdx >= 0 && bgIdx < bgRGBs.length ? bgIdx : 0];
+                        int bgR = Math.round(rgb[0] * brightnessFactor);
+                        int bgG = Math.round(rgb[1] * brightnessFactor);
+                        int bgB = Math.round(rgb[2] * brightnessFactor);
+                        if (isBlueLightActive) {
+                            int bluePct = prefs.getInt("blue_light_pct", 50);
+                            bgB = (int) (bgB * (1.0f - (bluePct / 100.0f) * 0.7f));
+                        }
+                        bgColor = Color.argb(alphaVal, bgR, bgG, bgB);
+                    }
+
+                    int[] positions = {
+                        Gravity.TOP | Gravity.END,      // 0
+                        Gravity.TOP | Gravity.START,    // 1 (Default top-left)
+                        Gravity.BOTTOM | Gravity.END,   // 2
+                        Gravity.BOTTOM | Gravity.START, // 3
+                        Gravity.CENTER                  // 4
+                    };
+                    int gravity = positions[posIdx >= 0 && posIdx < positions.length ? posIdx : 1];
+
+                    android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+                    int paddingPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, paddingDp, dm);
+                    int paddingPxHalf = (int) (paddingPx * 0.6f);
+                    int offsetX = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, xDp, dm);
+                    int offsetY = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, yDp, dm);
+                    int cornerRadiusPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6, dm);
+
+                    GradientDrawable bgDrawable = new GradientDrawable();
+                    bgDrawable.setColor(bgColor);
+                    bgDrawable.setCornerRadius(cornerRadiusPx);
+
+                    if (osdMessageOverlayView == null) {
+                        TextView tv = new TextView(ButtonMappingService.this);
+                        tv.setText(text);
+                        tv.setTextColor(textColor);
+                        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
+                        tv.setTypeface(Typeface.DEFAULT_BOLD);
+                        tv.setPadding(paddingPx, paddingPxHalf, paddingPx, paddingPxHalf);
+                        tv.setBackground(bgDrawable);
+
+                        osdMessageTextView = tv;
+                        osdMessageOverlayView = tv;
+
+                        WindowManager.LayoutParams p = new WindowManager.LayoutParams(
+                                WindowManager.LayoutParams.WRAP_CONTENT,
+                                WindowManager.LayoutParams.WRAP_CONTENT,
+                                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                                PixelFormat.TRANSLUCENT
+                        );
+                        p.gravity = gravity;
+                        p.x = offsetX;
+                        p.y = offsetY;
+
+                        wm.addView(osdMessageOverlayView, p);
+                    } else {
+                        if (osdMessageTextView != null) {
+                            osdMessageTextView.setText(text);
+                            osdMessageTextView.setTextColor(textColor);
+                            osdMessageTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
+                            osdMessageTextView.setPadding(paddingPx, paddingPxHalf, paddingPx, paddingPxHalf);
+                            osdMessageTextView.setBackground(bgDrawable);
+                        }
+                        WindowManager.LayoutParams p = (WindowManager.LayoutParams) osdMessageOverlayView.getLayoutParams();
+                        if (p != null) {
+                            p.gravity = gravity;
+                            p.x = offsetX;
+                            p.y = offsetY;
+                            wm.updateViewLayout(osdMessageOverlayView, p);
+                        }
+                    }
+
+                    handler.postDelayed(hideOsdMessageRunnable, durationMs);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error showing OSD message overlay", e);
+                }
+            }
+        });
+    }
+
+    private void hideOsdMessageOverlay() {
+        if (osdMessageOverlayView == null) return;
+        final View v = osdMessageOverlayView;
+        osdMessageOverlayView = null;
+        osdMessageTextView = null;
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                    if (wm != null) wm.removeView(v);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error hiding OSD message overlay", e);
+                }
+            }
+        });
+    }
+
+    public static void showOsdToast(final Context context, final CharSequence message) {
+        if (instance != null) {
+            instance.showOsdMessage(message);
+        } else {
+            try {
+                android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (context != null) {
+                            Toast.makeText(context.getApplicationContext(), message, Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+            } catch (Exception ignored) {}
+        }
     }
 
     private void hideDimmerOverlay() {
@@ -3040,7 +3247,7 @@ public class ButtonMappingService extends AccessibilityService {
         } else {
             stopStillWatchingTimer();
         }
-        Toast.makeText(this, nextState ? I18n.get(this, R.string.toast_still_watching_enabled) : I18n.get(this, R.string.toast_still_watching_disabled), Toast.LENGTH_SHORT).show();
+        showOsdMessage(nextState ? I18n.get(this, R.string.toast_still_watching_enabled) : I18n.get(this, R.string.toast_still_watching_disabled));
     }
 
     private void updateStillWatching() {
@@ -3962,13 +4169,7 @@ public class ButtonMappingService extends AccessibilityService {
                 if (action == KeyEvent.ACTION_DOWN) {
                     Log.d(TAG, "Key pressed (" + keyCode + ") while Scheduled Sleep prompt active. Cancelling power off!");
                     dismissScheduledSleepPrompt();
-                    handler.post(new Runnable() {
-                        @Override public void run() {
-                            try {
-                                Toast.makeText(getApplicationContext(), I18n.get(ButtonMappingService.this, R.string.toast_scheduled_sleep_cancelled), Toast.LENGTH_SHORT).show();
-                            } catch (Exception ignored) {}
-                        }
-                    });
+                    showOsdMessage(I18n.get(ButtonMappingService.this, R.string.toast_scheduled_sleep_cancelled));
                 }
                 return true; // Consume key press cleanly
             }
@@ -5099,6 +5300,7 @@ public class ButtonMappingService extends AccessibilityService {
         final boolean wasBlackScreenVisible = (isBlackScreenActive && blackOverlayView != null && blackOverlayView.getVisibility() == View.VISIBLE);
         final boolean wasClockVisible = (isClockActive && clockOverlayView != null && clockOverlayView.getVisibility() == View.VISIBLE);
         final boolean wasHudVisible = (brightnessHudOverlayView != null && brightnessHudOverlayView.getVisibility() == View.VISIBLE);
+        final boolean wasOsdVisible = (osdMessageOverlayView != null && osdMessageOverlayView.getVisibility() == View.VISIBLE);
         final boolean wasOledSaverVisible = (oledSaverOverlayView != null && oledSaverOverlayView.getVisibility() == View.VISIBLE);
 
         if (dimmerOverlayView != null) dimmerOverlayView.setVisibility(View.INVISIBLE);
@@ -5106,6 +5308,7 @@ public class ButtonMappingService extends AccessibilityService {
         if (blackOverlayView != null) blackOverlayView.setVisibility(View.INVISIBLE);
         if (clockOverlayView != null) clockOverlayView.setVisibility(View.INVISIBLE);
         if (brightnessHudOverlayView != null) brightnessHudOverlayView.setVisibility(View.INVISIBLE);
+        if (osdMessageOverlayView != null) osdMessageOverlayView.setVisibility(View.INVISIBLE);
         if (oledSaverOverlayView != null) oledSaverOverlayView.setVisibility(View.INVISIBLE);
 
         final Runnable restoreOverlays = new Runnable() {
@@ -5116,6 +5319,7 @@ public class ButtonMappingService extends AccessibilityService {
                 if (wasBlackScreenVisible && blackOverlayView != null) blackOverlayView.setVisibility(View.VISIBLE);
                 if (wasClockVisible && clockOverlayView != null) clockOverlayView.setVisibility(View.VISIBLE);
                 if (wasHudVisible && brightnessHudOverlayView != null) brightnessHudOverlayView.setVisibility(View.VISIBLE);
+                if (wasOsdVisible && osdMessageOverlayView != null) osdMessageOverlayView.setVisibility(View.VISIBLE);
                 if (wasOledSaverVisible && oledSaverOverlayView != null) oledSaverOverlayView.setVisibility(View.VISIBLE);
             }
         };
@@ -5165,7 +5369,7 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void captureAndTranslateScreen() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Traducción requiere Android 11+" : "Translation requires Android 11+", Toast.LENGTH_SHORT).show();
+            showOsdMessage(I18n.isSpanish(ButtonMappingService.this) ? "Traducción requiere Android 11+" : "Translation requires Android 11+");
             return;
         }
 
@@ -5175,7 +5379,7 @@ public class ButtonMappingService extends AccessibilityService {
             sendMediaPause();
         }
 
-        Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "🌐 Capturando y traduciendo pantalla..." : "🌐 Capturing and translating screen...", Toast.LENGTH_SHORT).show();
+        showOsdMessage(I18n.isSpanish(ButtonMappingService.this) ? "🌐 Capturando y traduciendo pantalla..." : "🌐 Capturing and translating screen...");
 
         handler.postDelayed(new Runnable() {
             @Override
@@ -5190,7 +5394,7 @@ public class ButtonMappingService extends AccessibilityService {
                                 hardwareBuffer.close();
 
                                 if (rawBitmap == null) {
-                                    Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Error al obtener captura" : "Error capturing screen", Toast.LENGTH_SHORT).show();
+                                    showOsdMessage(I18n.isSpanish(ButtonMappingService.this) ? "Error al obtener captura" : "Error capturing screen");
                                     return;
                                 }
 
@@ -5200,14 +5404,14 @@ public class ButtonMappingService extends AccessibilityService {
                                 processScreenshotForTranslation(bitmap);
                             } catch (Exception e) {
                                 Log.e(TAG, "Error processing screenshot bitmap", e);
-                                Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Error procesando imagen" : "Error processing image", Toast.LENGTH_SHORT).show();
+                                showOsdMessage(I18n.isSpanish(ButtonMappingService.this) ? "Error procesando imagen" : "Error processing image");
                             }
                         }
 
                         @Override
                         public void onFailure(int errorCode) {
                             Log.e(TAG, "takeScreenshot failed: " + errorCode);
-                            Toast.makeText(getApplicationContext(), (I18n.isSpanish(ButtonMappingService.this) ? "No se pudo capturar la pantalla (" : "Could not capture screen (") + errorCode + ")", Toast.LENGTH_SHORT).show();
+                            showOsdMessage((I18n.isSpanish(ButtonMappingService.this) ? "No se pudo capturar la pantalla (" : "Could not capture screen (") + errorCode + ")");
                         }
                     });
                 } catch (Exception e) {
@@ -5413,7 +5617,7 @@ public class ButtonMappingService extends AccessibilityService {
                             public void onFailure(Exception e) {
                                 bitmap.recycle();
                                 Log.e(TAG, "Parallel OCR recognition failed", e);
-                                Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Error en reconocimiento OCR" : "OCR recognition error", Toast.LENGTH_SHORT).show();
+                                showOsdMessage(I18n.isSpanish(ButtonMappingService.this) ? "Error en reconocimiento OCR" : "OCR recognition error");
                             }
                         });
             } else {
@@ -5444,7 +5648,7 @@ public class ButtonMappingService extends AccessibilityService {
                             public void onFailure(Exception e) {
                                 bitmap.recycle();
                                 Log.e(TAG, "OCR recognition failed", e);
-                                Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "Error en reconocimiento OCR" : "OCR recognition error", Toast.LENGTH_SHORT).show();
+                                showOsdMessage(I18n.isSpanish(ButtonMappingService.this) ? "Error en reconocimiento OCR" : "OCR recognition error");
                             }
                         });
             }
@@ -5456,7 +5660,7 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void handleClassicOcrSuccess(Text visionText, int srcLangIdx) {
         if (visionText == null || visionText.getTextBlocks().isEmpty()) {
-            Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "🔍 No se detectó texto en pantalla" : "🔍 No text detected on screen", Toast.LENGTH_SHORT).show();
+            showOsdMessage(I18n.isSpanish(ButtonMappingService.this) ? "🔍 No se detectó texto en pantalla" : "🔍 No text detected on screen");
             return;
         }
 
@@ -5484,7 +5688,7 @@ public class ButtonMappingService extends AccessibilityService {
         }
 
         if (rawBlocks.isEmpty()) {
-            Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "🔍 No se detectó texto extranjero para traducir" : "🔍 No foreign text detected to translate", Toast.LENGTH_SHORT).show();
+            showOsdMessage(I18n.isSpanish(ButtonMappingService.this) ? "🔍 No se detectó texto extranjero para traducir" : "🔍 No foreign text detected to translate");
             return;
         }
 
@@ -5568,7 +5772,7 @@ public class ButtonMappingService extends AccessibilityService {
                     @Override
                     public void onFailure(Exception e) {
                         Log.e(TAG, "Failed to download translation model", e);
-                        Toast.makeText(getApplicationContext(), (I18n.isSpanish(ButtonMappingService.this) ? "Error al cargar modelo de " : "Failed to load model for ") + finalSrcName, Toast.LENGTH_SHORT).show();
+                        showOsdMessage((I18n.isSpanish(ButtonMappingService.this) ? "Error al cargar modelo de " : "Failed to load model for ") + finalSrcName);
                     }
                 });
     }
@@ -5617,7 +5821,7 @@ public class ButtonMappingService extends AccessibilityService {
         }
 
         if (rawBlocks.isEmpty()) {
-            Toast.makeText(getApplicationContext(), I18n.isSpanish(ButtonMappingService.this) ? "🔍 No se detectó texto extranjero para traducir" : "🔍 No foreign text detected to translate", Toast.LENGTH_SHORT).show();
+            showOsdMessage(I18n.isSpanish(ButtonMappingService.this) ? "🔍 No se detectó texto extranjero para traducir" : "🔍 No foreign text detected to translate");
             return;
         }
 

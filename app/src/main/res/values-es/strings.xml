@@ -542,6 +542,5 @@
     <string name="dialog_select_action">Seleccionar Acción</string>
     <string name="dialog_select_action_subtitle">Elegí una acción de la lista</string>
     <string name="toast_yt_music_not_found">YouTube Music no está instalado</string>
-    <string name="toast_subtitles_on">💬 Subtítulos: Activados</string>
-    <string name="toast_subtitles_off">💬 Subtítulos: Desactivados</string>
+    <string name="toast_subtitles">💬 Subtítulos (CC)</string>
 </resources>

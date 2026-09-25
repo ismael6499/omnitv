@@ -1725,7 +1725,7 @@ public class QuickMenuOverlay {
                         updateBrightnessConfigPanel();
                         btnAddBrightnessLevel.requestFocus();
                     } else {
-                        android.widget.Toast.makeText(context, "Máximo 8 niveles de brillo admitidos", android.widget.Toast.LENGTH_SHORT).show();
+                        ButtonMappingService.showOsdToast(context, I18n.isSpanish(context) ? "Máximo 8 niveles de brillo admitidos" : "Maximum 8 brightness levels allowed");
                     }
                 }
             });
@@ -2977,7 +2977,7 @@ public class QuickMenuOverlay {
         if (btnAiApiHelp != null) {
             btnAiApiHelp.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    android.widget.Toast.makeText(context, I18n.get(context, R.string.ai_tip_toast), android.widget.Toast.LENGTH_LONG).show();
+                    ButtonMappingService.showOsdToast(context, I18n.get(context, R.string.ai_tip_toast));
                 }
             });
         }
@@ -3126,7 +3126,7 @@ public class QuickMenuOverlay {
                     String key = clipText.toString().trim();
                     getOverlayPrefs().edit().putString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, key).apply();
                     String masked = key.length() > 8 ? (key.substring(0, 4) + "..." + key.substring(key.length() - 4)) : "***";
-                    android.widget.Toast.makeText(context, "🔑 Key pegada del portapapeles (" + masked + ")", android.widget.Toast.LENGTH_LONG).show();
+                    ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "🔑 Key pegada del portapapeles (" : "🔑 Key pasted from clipboard (") + masked + ")");
                     updateVotConfigPanel();
                     return;
                 }
@@ -3136,9 +3136,13 @@ public class QuickMenuOverlay {
         }
         String curKey = getOverlayPrefs().getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, "");
         if (!curKey.isEmpty()) {
-            android.widget.Toast.makeText(context, "🔑 Key activa. Para cambiarla copia la nueva en el móvil y presiona OK, o usa ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'tu-key'", android.widget.Toast.LENGTH_LONG).show();
+            ButtonMappingService.showOsdToast(context, I18n.isSpanish(context)
+                    ? "🔑 Key activa. Para cambiarla copia la nueva en el móvil y presiona OK, o usa ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'tu-key'"
+                    : "🔑 Active key. To change, copy new one on phone and press OK, or via ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'your-key'");
         } else {
-            android.widget.Toast.makeText(context, "💡 Copia la API Key en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'tu-api-key'", android.widget.Toast.LENGTH_LONG).show();
+            ButtonMappingService.showOsdToast(context, I18n.isSpanish(context)
+                    ? "💡 Copia la API Key en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'tu-api-key'"
+                    : "💡 Copy API Key on phone (Google TV Remote) and press OK to paste, or via ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'your-api-key'");
         }
     }
 
@@ -3265,7 +3269,7 @@ public class QuickMenuOverlay {
             int next = (idx + delta + models.size()) % models.size();
             String selected = models.get(next);
             op.edit().putString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL, selected).apply();
-            android.widget.Toast.makeText(context, "🤖 Modelo Gemini: " + selected, android.widget.Toast.LENGTH_SHORT).show();
+            ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "🤖 Modelo Gemini: " : "🤖 Gemini Model: ") + selected);
         } else {
             String cur = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL, AI_OPENROUTER_MODELS[0]);
             int idx = 0;
@@ -3297,7 +3301,7 @@ public class QuickMenuOverlay {
                     String cleanKey = text.toString().trim();
                     op.edit().putString(prefKey, cleanKey).apply();
                     String masked = cleanKey.length() > 8 ? (cleanKey.substring(0, 4) + "..." + cleanKey.substring(cleanKey.length() - 4)) : "***";
-                    android.widget.Toast.makeText(context, "🔑 Clave de " + name + " pegada (" + masked + ")", android.widget.Toast.LENGTH_SHORT).show();
+                    ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "🔑 Clave de " : "🔑 Key for ") + name + (I18n.isSpanish(context) ? " pegada (" : " pasted (") + masked + ")");
                     updateAiSummaryConfigPanel();
                     return;
                 }
@@ -3308,9 +3312,9 @@ public class QuickMenuOverlay {
 
         String existing = op.getString(prefKey, "").trim();
         if (!existing.isEmpty()) {
-            android.widget.Toast.makeText(context, "ℹ️ Clave configurada: " + (existing.length() > 8 ? existing.substring(0, 4) + "..." + existing.substring(existing.length() - 4) : "***") + "\nPara cambiarla, copia la nueva y presiona OK.", android.widget.Toast.LENGTH_LONG).show();
+            ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "ℹ️ Clave configurada: " : "ℹ️ Configured key: ") + (existing.length() > 8 ? existing.substring(0, 4) + "..." + existing.substring(existing.length() - 4) : "***") + (I18n.isSpanish(context) ? "\nPara cambiarla, copia la nueva y presiona OK." : "\nTo change, copy new one and press OK."));
         } else {
-            android.widget.Toast.makeText(context, "💡 Copia la clave en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a " + action + " --es key 'tu-api-key'", android.widget.Toast.LENGTH_LONG).show();
+            ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "💡 Copia la clave en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a " : "💡 Copy key on phone (Google TV Remote) and press OK to paste, or via ADB: adb shell am broadcast -a ") + action + " --es key 'tu-api-key'");
         }
     }
 
@@ -3320,7 +3324,7 @@ public class QuickMenuOverlay {
         String next = "es".equalsIgnoreCase(cur) ? "en" : "es";
         op.edit().putString("ai_ui_language", next).apply();
         String label = "es".equalsIgnoreCase(next) ? "Español" : "English";
-        android.widget.Toast.makeText(context, "🌐 Idioma Interfaz IA: " + label, android.widget.Toast.LENGTH_SHORT).show();
+        ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "🌐 Idioma Interfaz IA: " : "🌐 AI Interface Language: ") + label);
         updateAiSummaryConfigPanel();
     }
 
@@ -3714,7 +3718,7 @@ public class QuickMenuOverlay {
                 String next = I18n.LANG_SPANISH.equalsIgnoreCase(cur) ? I18n.LANG_ENGLISH : I18n.LANG_SPANISH;
                 I18n.setLanguage(context, next);
                 String nextName = I18n.LANG_SPANISH.equalsIgnoreCase(next) ? "Español" : "English";
-                android.widget.Toast.makeText(context, I18n.get(context, R.string.toast_language_changed, nextName), android.widget.Toast.LENGTH_SHORT).show();
+                ButtonMappingService.showOsdToast(context, I18n.get(context, R.string.toast_language_changed, nextName));
                 if (rootView != null && windowManager != null) {
                     try {
                         if (rootView.isAttachedToWindow()) windowManager.removeView(rootView);
@@ -4855,7 +4859,7 @@ public class QuickMenuOverlay {
                             int nextTargetIdx = Math.min(index, currParts.length - 2);
                             updateBrightnessConfigPanel(nextTargetIdx);
                         } else {
-                            android.widget.Toast.makeText(context, "Mínimo 2 niveles de brillo requeridos", android.widget.Toast.LENGTH_SHORT).show();
+                            ButtonMappingService.showOsdToast(context, I18n.isSpanish(context) ? "Mínimo 2 niveles de brillo requeridos" : "Minimum 2 brightness levels required");
                         }
                     }
                 });

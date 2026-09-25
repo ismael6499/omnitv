@@ -34,7 +34,7 @@ public class ToggleUtils {
                 Log.d("ToggleUtils", "Grayscale disabled (enabled=0)");
             }
         } catch (SecurityException e) {
-            Toast.makeText(context, I18n.isSpanish(context) ? "Por favor concede permisos WRITE_SECURE_SETTINGS vía ADB" : "Please grant WRITE_SECURE_SETTINGS permissions via ADB", Toast.LENGTH_LONG).show();
+            ButtonMappingService.showOsdToast(context, I18n.isSpanish(context) ? "Por favor concede permisos WRITE_SECURE_SETTINGS vía ADB" : "Please grant WRITE_SECURE_SETTINGS permissions via ADB");
             Log.e("ToggleUtils", "SecurityException: WRITE_SECURE_SETTINGS not granted", e);
         }
     }
@@ -51,7 +51,7 @@ public class ToggleUtils {
                 Log.d("ToggleUtils", "Grayscale set to disabled (color)");
             }
         } catch (SecurityException e) {
-            Toast.makeText(context, I18n.isSpanish(context) ? "Por favor concede permisos WRITE_SECURE_SETTINGS vía ADB" : "Please grant WRITE_SECURE_SETTINGS permissions via ADB", Toast.LENGTH_LONG).show();
+            ButtonMappingService.showOsdToast(context, I18n.isSpanish(context) ? "Por favor concede permisos WRITE_SECURE_SETTINGS vía ADB" : "Please grant WRITE_SECURE_SETTINGS permissions via ADB");
             Log.e("ToggleUtils", "SecurityException: WRITE_SECURE_SETTINGS not granted", e);
         }
     }
