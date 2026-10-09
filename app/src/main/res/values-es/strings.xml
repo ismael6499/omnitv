@@ -199,6 +199,8 @@
 
     <!-- Subpanels: Button Combos -->
     <string name="combos_title">Combinaciones de Teclas:</string>
+    <string name="combos_title_single">Combinaciones 1 Toque (1x):</string>
+    <string name="combos_title_double">Combinaciones Doble Toque (2x):</string>
     <string name="combos_master">   Combinaciones:  %s</string>
     <string name="combo_mute_ok">   Mute + 1x OK:  %s</string>
     <string name="combo_mute_ok_2">   Mute + 2x OK:  %s</string>

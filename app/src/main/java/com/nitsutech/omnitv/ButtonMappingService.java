@@ -509,6 +509,11 @@ public class ButtonMappingService extends AccessibilityService {
     private final ButtonState youtube190State = new ButtonState("youtube_190", 5, 4, 33, 0, 18, 500);
     private final ButtonState youtube189State = new ButtonState("youtube_189", 5, 0, 33, 0, 4, 2000);
 
+    private long lastMuteDownTime = 0;
+    private long lastMuteUpTime = 0;
+    private long lastYouTubeDownTime = 0;
+    private long lastYouTubeUpTime = 0;
+
     private long lastAutoPauseTime = 0;
     private long lastCountdownDetectTime = 0;
     private boolean isLastPlaylistItem = false;
@@ -4287,6 +4292,18 @@ public class ButtonMappingService extends AccessibilityService {
     protected boolean onKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
         int action = event.getAction();
+        long now = SystemClock.uptimeMillis();
+
+        if (isMuteKeyCode(keyCode)) {
+            if (action == KeyEvent.ACTION_DOWN) lastMuteDownTime = now;
+            else if (action == KeyEvent.ACTION_UP) lastMuteUpTime = now;
+        } else if (isYouTubeKeyCode(keyCode)) {
+            if (action == KeyEvent.ACTION_DOWN) lastYouTubeDownTime = now;
+            else if (action == KeyEvent.ACTION_UP) lastYouTubeUpTime = now;
+        }
+
+        Log.d("OmniKey", "onKeyEvent: code=" + keyCode + " (" + KeyEvent.keyCodeToString(keyCode) + "), action=" + (action == KeyEvent.ACTION_DOWN ? "DOWN" : "UP")
+                + ", repeat=" + event.getRepeatCount() + ", mutePressed=" + muteState.isPressed + ", ytPressed=" + (youtube190State.isPressed || youtube189State.isPressed));
 
         // 0. Quick Brightness Slider Key Interception
         if (isBrightnessSliderActive && !QuickMenuOverlay.getInstance().isShowing()) {
@@ -4363,7 +4380,10 @@ public class ButtonMappingService extends AccessibilityService {
         SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         boolean combosEnabled = prefs.getBoolean("btn_combos_enabled", true);
         if (combosEnabled) {
-            // Combo: MUTE + (OK / Right / Left / Up / Down / YouTube)
+            boolean muteActive = muteState.isPressed || ((now - lastMuteDownTime < 500 || now - lastMuteUpTime < 400) && !muteState.isComboConsumed);
+            boolean ytActive = youtube190State.isPressed || youtube189State.isPressed || ((now - lastYouTubeDownTime < 500 || now - lastYouTubeUpTime < 400) && !youtube190State.isComboConsumed && !youtube189State.isComboConsumed);
+
+            // Combo: MUTE + (OK / Right / Left / Up / Down)
             if (muteState.isPressed) {
                 if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
                     if (handleComboKeyEvent("combo_mute_ok", event, new Runnable() {
@@ -4385,28 +4405,25 @@ public class ButtonMappingService extends AccessibilityService {
                     if (handleComboKeyEvent("combo_mute_down", event, new Runnable() {
                         @Override public void run() { muteState.markComboConsumed(); }
                     })) return true;
-                } else if (isYouTubeKeyCode(keyCode)) {
-                    if (handleComboKeyEvent("combo_youtube190_mute", event, new Runnable() {
-                        @Override public void run() {
-                            muteState.markComboConsumed();
-                            youtube189State.markComboConsumed();
-                            youtube190State.markComboConsumed();
-                        }
-                    })) return true;
                 }
             }
 
-            // Combo: YOUTUBE + MUTE (YouTube button held, Mute pressed)
-            if (youtube190State.isPressed || youtube189State.isPressed) {
-                if (isMuteKeyCode(keyCode)) {
-                    if (handleComboKeyEvent("combo_youtube190_mute", event, new Runnable() {
-                        @Override public void run() {
-                            youtube189State.markComboConsumed();
-                            youtube190State.markComboConsumed();
-                            muteState.markComboConsumed();
+            // Combo: YOUTUBE + MUTE (Either YouTube held/recent and Mute pressed, OR Mute held/recent and YouTube pressed)
+            if ((ytActive && isMuteKeyCode(keyCode)) || (muteActive && isYouTubeKeyCode(keyCode))) {
+                if (handleComboKeyEvent("combo_youtube190_mute", event, new Runnable() {
+                    @Override public void run() {
+                        Log.d("OmniKey", "Triggered combo_youtube190_mute! Dismissing any accidental long-press overlays and resetting states.");
+                        muteState.markComboConsumed();
+                        youtube189State.markComboConsumed();
+                        youtube190State.markComboConsumed();
+                        if (isBlackScreenActive) {
+                            dismissBlackScreen();
                         }
-                    })) return true;
-                }
+                        if (QuickMenuOverlay.getInstance().isShowing()) {
+                            QuickMenuOverlay.getInstance().dismiss();
+                        }
+                    }
+                })) return true;
             }
 
             // Combo: TV INPUT + OK (TV Input held, OK pressed)
