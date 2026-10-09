@@ -2,6 +2,7 @@ package com.nitsutech.omnitv;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.media.MediaMetadata;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
@@ -322,6 +323,130 @@ public class MediaNotificationListener extends NotificationListenerService {
             Log.e(TAG, "Error toggling subtitles via AudioManager", e);
         }
         return handled;
+    }
+
+    public static boolean skipToPrevious(Context context) {
+        boolean handled = false;
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null && !controllers.isEmpty()) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getTransportControls() != null) {
+                            Log.d(TAG, "Calling skipToPrevious on " + mc.getPackageName());
+                            mc.getTransportControls().skipToPrevious();
+                            long now = android.os.SystemClock.uptimeMillis();
+                            mc.dispatchMediaButtonEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS, 0));
+                            mc.dispatchMediaButtonEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS, 0));
+                            handled = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in skipToPrevious via MediaController", e);
+        }
+
+        try {
+            if (!handled && context != null) {
+                android.media.AudioManager am = (android.media.AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) {
+                    long now = android.os.SystemClock.uptimeMillis();
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS, 0));
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS, 0));
+                    handled = true;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in skipToPrevious via AudioManager", e);
+        }
+        return handled;
+    }
+
+    public static boolean skipToNext(Context context) {
+        boolean handled = false;
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null && !controllers.isEmpty()) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getTransportControls() != null) {
+                            Log.d(TAG, "Calling skipToNext on " + mc.getPackageName());
+                            mc.getTransportControls().skipToNext();
+                            long now = android.os.SystemClock.uptimeMillis();
+                            mc.dispatchMediaButtonEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_NEXT, 0));
+                            mc.dispatchMediaButtonEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_NEXT, 0));
+                            handled = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in skipToNext via MediaController", e);
+        }
+
+        try {
+            if (!handled && context != null) {
+                android.media.AudioManager am = (android.media.AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) {
+                    long now = android.os.SystemClock.uptimeMillis();
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_NEXT, 0));
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_NEXT, 0));
+                    handled = true;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in skipToNext via AudioManager", e);
+        }
+        return handled;
+    }
+
+    public static float togglePlaybackSpeed(Context context) {
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null && !controllers.isEmpty()) {
+                    for (MediaController mc : controllers) {
+                        if (mc == null) continue;
+                        PlaybackState ps = mc.getPlaybackState();
+                        if (ps != null) {
+                            List<PlaybackState.CustomAction> customActions = ps.getCustomActions();
+                            if (customActions != null) {
+                                for (PlaybackState.CustomAction ca : customActions) {
+                                    if (ca != null && ca.getAction() != null) {
+                                        String a = ca.getAction().toLowerCase(Locale.US);
+                                        if (a.contains("speed") || a.contains("rate") || a.contains("velocidad")) {
+                                            Log.d(TAG, "Triggering MediaController CustomAction for speed: " + ca.getAction());
+                                            mc.getTransportControls().sendCustomAction(ca, null);
+                                            return ps.getPlaybackSpeed();
+                                        }
+                                    }
+                                }
+                            }
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                                float curSpeed = ps.getPlaybackSpeed();
+                                if (curSpeed <= 0f) curSpeed = 1.0f;
+                                SharedPreferences prefs = context != null ? context.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE) : null;
+                                float customSpeed = prefs != null ? prefs.getFloat("custom_playback_speed", 1.5f) : 1.5f;
+                                if (customSpeed <= 1.0f) customSpeed = 1.5f;
+                                float targetSpeed = (curSpeed > 1.05f) ? 1.0f : customSpeed;
+                                Log.d(TAG, "Setting playback speed on " + mc.getPackageName() + " from " + curSpeed + " to " + targetSpeed);
+                                mc.getTransportControls().setPlaybackSpeed(targetSpeed);
+                                return targetSpeed;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error toggling playback speed via MediaController", e);
+        }
+        return -1f;
     }
 
     public static boolean seekActiveMediaBy(long deltaMs) {

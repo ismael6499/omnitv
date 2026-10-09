@@ -40,6 +40,9 @@
     <string name="action_youtube_music">YouTube Music</string>
     <string name="action_play_pause">Play / Pause Video</string>
     <string name="action_subtitles">Toggle Subtitles (CC)</string>
+    <string name="action_previous_video">Previous Video</string>
+    <string name="action_next_video">Next Video</string>
+    <string name="action_toggle_speed">Toggle Playback Speed (SmartTube)</string>
 
     <!-- Main Menu Items -->
     <string name="menu_manage_apps">Apps  Manage Apps</string>
@@ -543,4 +546,7 @@
     <string name="dialog_select_action_subtitle">Choose an action from the list</string>
     <string name="toast_yt_music_not_found">YouTube Music is not installed</string>
     <string name="toast_subtitles">💬 Subtitles (CC)</string>
+    <string name="osd_previous_video">⏮️ Previous Video</string>
+    <string name="osd_next_video">⏭️ Next Video</string>
+    <string name="osd_toggle_speed">⚡ Playback Speed</string>
 </resources>

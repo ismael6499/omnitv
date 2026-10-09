@@ -1272,6 +1272,9 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_PAUSE_SCREEN_OFF":
             case "ACTION_PAUSE_AND_SCREEN_OFF": pauseMediaAndBlackScreen(); break;
             case "ACTION_TOGGLE_SUBTITLES": toggleSubtitles(); break;
+            case "ACTION_SKIP_PREVIOUS_VIDEO": skipToPreviousVideo(); break;
+            case "ACTION_SKIP_NEXT_VIDEO": skipToNextVideo(); break;
+            case "ACTION_TOGGLE_SPEED": togglePlaybackSpeed(); break;
             case "ACTION_TEST_MINDFUL_DELAY":
                 showMindfulDelayOverlay("YouTube (Prueba)", "test", 10);
                 break;
@@ -1440,6 +1443,15 @@ public class ButtonMappingService extends AccessibilityService {
                 break;
             case 35: // Subtítulos (Activar / Desactivar)
                 toggleSubtitles();
+                break;
+            case 36: // Video Anterior
+                skipToPreviousVideo();
+                break;
+            case 37: // Video Siguiente
+                skipToNextVideo();
+                break;
+            case 38: // Toggle Velocidad (SmartTube)
+                togglePlaybackSpeed();
                 break;
         }
     }
@@ -2232,6 +2244,228 @@ public class ButtonMappingService extends AccessibilityService {
         } catch (Exception e) {
             Log.e(TAG, "Error in sendSubtitleKeyEvent", e);
         }
+    }
+
+    private void skipToPreviousVideo() {
+        Log.d(TAG, "Executing skipToPreviousVideo action");
+        boolean uiClicked = false;
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root != null) {
+                uiClicked = findAndClickMediaNavNode(root, true);
+                root.recycle();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking accessibility previous node", e);
+        }
+
+        if (!uiClicked) {
+            try {
+                MediaNotificationListener.skipToPrevious(this);
+            } catch (Exception e) {
+                Log.e(TAG, "Error in MediaNotificationListener.skipToPrevious", e);
+                sendMediaPreviousKeyEvent();
+            }
+        }
+
+        showOsdMessage(I18n.get(this, R.string.osd_previous_video));
+    }
+
+    private void skipToNextVideo() {
+        Log.d(TAG, "Executing skipToNextVideo action");
+        boolean uiClicked = false;
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root != null) {
+                uiClicked = findAndClickMediaNavNode(root, false);
+                root.recycle();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking accessibility next node", e);
+        }
+
+        if (!uiClicked) {
+            try {
+                MediaNotificationListener.skipToNext(this);
+            } catch (Exception e) {
+                Log.e(TAG, "Error in MediaNotificationListener.skipToNext", e);
+                sendMediaNextKeyEvent();
+            }
+        }
+
+        showOsdMessage(I18n.get(this, R.string.osd_next_video));
+    }
+
+    private boolean findAndClickMediaNavNode(AccessibilityNodeInfo node, boolean isPrevious) {
+        if (node == null) return false;
+
+        CharSequence desc = node.getContentDescription();
+        CharSequence text = node.getText();
+        String viewId = node.getViewIdResourceName();
+
+        boolean match = false;
+        if (desc != null) {
+            String d = desc.toString().toLowerCase(Locale.US);
+            if (isPrevious) {
+                if (d.contains("skip previous") || d.contains("previous") || d.contains("anterior") || d.equals("prev")) {
+                    match = true;
+                }
+            } else {
+                if (d.contains("skip next") || d.contains("next") || d.contains("siguiente")) {
+                    match = true;
+                }
+            }
+        }
+        if (!match && text != null) {
+            String t = text.toString().toLowerCase(Locale.US).trim();
+            if (isPrevious) {
+                if (t.contains("previous") || t.contains("anterior") || t.equals("prev")) {
+                    match = true;
+                }
+            } else {
+                if (t.contains("next") || t.contains("siguiente")) {
+                    match = true;
+                }
+            }
+        }
+        if (!match && viewId != null) {
+            String v = viewId.toLowerCase(Locale.US);
+            if (isPrevious) {
+                if (v.contains("prev") || v.contains("previous") || v.contains("skip_prev")) {
+                    match = true;
+                }
+            } else {
+                if (v.contains("next") || v.contains("skip_next")) {
+                    match = true;
+                }
+            }
+        }
+
+        if (match) {
+            AccessibilityNodeInfo target = node;
+            while (target != null && !target.isClickable()) {
+                AccessibilityNodeInfo parent = target.getParent();
+                if (target != node) target.recycle();
+                target = parent;
+            }
+            if (target != null && target.isClickable()) {
+                Log.d(TAG, "Found media nav node in UI (" + (isPrevious ? "prev" : "next") + "): " + (desc != null ? desc : text));
+                boolean clicked = target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                if (target != node) target.recycle();
+                return clicked;
+            }
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                boolean clicked = findAndClickMediaNavNode(child, isPrevious);
+                child.recycle();
+                if (clicked) return true;
+            }
+        }
+        return false;
+    }
+
+    private void sendMediaPreviousKeyEvent() {
+        try {
+            if (audioManager != null) {
+                long now = android.os.SystemClock.uptimeMillis();
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS, 0));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PREVIOUS, 0));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in sendMediaPreviousKeyEvent", e);
+        }
+    }
+
+    private void sendMediaNextKeyEvent() {
+        try {
+            if (audioManager != null) {
+                long now = android.os.SystemClock.uptimeMillis();
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_NEXT, 0));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_NEXT, 0));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in sendMediaNextKeyEvent", e);
+        }
+    }
+
+    private void togglePlaybackSpeed() {
+        Log.d(TAG, "Executing togglePlaybackSpeed action");
+        boolean uiClicked = false;
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root != null) {
+                uiClicked = findAndClickSpeedNode(root);
+                root.recycle();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking accessibility speed node", e);
+        }
+
+        if (!uiClicked) {
+            try {
+                MediaNotificationListener.togglePlaybackSpeed(this);
+            } catch (Exception e) {
+                Log.e(TAG, "Error in MediaNotificationListener.togglePlaybackSpeed", e);
+            }
+        }
+
+        showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
+    }
+
+    private boolean findAndClickSpeedNode(AccessibilityNodeInfo node) {
+        if (node == null) return false;
+
+        CharSequence desc = node.getContentDescription();
+        CharSequence text = node.getText();
+        String viewId = node.getViewIdResourceName();
+
+        boolean match = false;
+        if (desc != null) {
+            String d = desc.toString().toLowerCase(Locale.US);
+            if (d.contains("video speed") || d.contains("playback speed") || d.contains("velocidad") || d.equals("speed")) {
+                match = true;
+            }
+        }
+        if (!match && text != null) {
+            String t = text.toString().toLowerCase(Locale.US).trim();
+            if (t.matches("^[0-9]+(\\.[0-9]+)?x$") || t.equalsIgnoreCase("Speed") || t.equalsIgnoreCase("Velocidad")) {
+                match = true;
+            }
+        }
+        if (!match && viewId != null) {
+            String v = viewId.toLowerCase(Locale.US);
+            if (v.contains("speed") || v.contains("playback_speed") || v.contains("btn_speed")) {
+                match = true;
+            }
+        }
+
+        if (match) {
+            AccessibilityNodeInfo target = node;
+            while (target != null && !target.isClickable()) {
+                AccessibilityNodeInfo parent = target.getParent();
+                if (target != node) target.recycle();
+                target = parent;
+            }
+            if (target != null && target.isClickable()) {
+                Log.d(TAG, "Found speed node in UI, performing click: " + (desc != null ? desc : text));
+                boolean clicked = target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                if (target != node) target.recycle();
+                return clicked;
+            }
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                boolean clicked = findAndClickSpeedNode(child);
+                child.recycle();
+                if (clicked) return true;
+            }
+        }
+        return false;
     }
 
     private void launchSmartTube() {
