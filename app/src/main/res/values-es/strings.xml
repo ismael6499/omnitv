@@ -200,13 +200,20 @@
     <!-- Subpanels: Button Combos -->
     <string name="combos_title">Combinaciones de Teclas:</string>
     <string name="combos_master">   Combinaciones:  %s</string>
-    <string name="combo_mute_ok">   Mute + OK:  %s</string>
-    <string name="combo_mute_right">   Mute + Flecha Der:  %s</string>
-    <string name="combo_mute_left">   Mute + Flecha Izq:  %s</string>
-    <string name="combo_mute_up">   Mute + Flecha Arriba:  %s</string>
-    <string name="combo_mute_down">   Mute + Flecha Abajo:  %s</string>
-    <string name="combo_yt_mute">   YouTube + Mute:  %s</string>
-    <string name="combo_input_ok">   TV Input + OK:  %s</string>
+    <string name="combo_mute_ok">   Mute + 1x OK:  %s</string>
+    <string name="combo_mute_ok_2">   Mute + 2x OK:  %s</string>
+    <string name="combo_mute_right">   Mute + 1x Flecha Der:  %s</string>
+    <string name="combo_mute_right_2">   Mute + 2x Flecha Der:  %s</string>
+    <string name="combo_mute_left">   Mute + 1x Flecha Izq:  %s</string>
+    <string name="combo_mute_left_2">   Mute + 2x Flecha Izq:  %s</string>
+    <string name="combo_mute_up">   Mute + 1x Flecha Arriba:  %s</string>
+    <string name="combo_mute_up_2">   Mute + 2x Flecha Arriba:  %s</string>
+    <string name="combo_mute_down">   Mute + 1x Flecha Abajo:  %s</string>
+    <string name="combo_mute_down_2">   Mute + 2x Flecha Abajo:  %s</string>
+    <string name="combo_yt_mute">   YouTube + 1x Mute:  %s</string>
+    <string name="combo_yt_mute_2">   YouTube + 2x Mute:  %s</string>
+    <string name="combo_input_ok">   TV Input + 1x OK:  %s</string>
+    <string name="combo_input_ok_2">   TV Input + 2x OK:  %s</string>
 
     <!-- Subpanels: Still Watching -->
     <string name="still_watching_title">¿Sigues viendo?:</string>

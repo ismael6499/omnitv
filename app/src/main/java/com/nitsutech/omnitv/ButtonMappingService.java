@@ -91,7 +91,10 @@ public class ButtonMappingService extends AccessibilityService {
 
     private boolean isInputPressed = false;
     private boolean isInputLongPressTriggered = false;
+    private boolean isInputComboConsumed = false;
     private boolean isDismissingComboKey = false;
+    private String pendingComboKey = null;
+    private int pendingComboClickCount = 0;
     private boolean isTranslationOverlayActive = false;
     private View translationOverlayView = null;
 
@@ -346,12 +349,13 @@ public class ButtonMappingService extends AccessibilityService {
         boolean isPressed = false;
         boolean isLongPressTriggered = false;
         boolean isInOverClickState = false;
+        boolean isComboConsumed = false;
         int clickCount = 0;
 
         final Runnable longPressRunnable = new Runnable() {
             @Override
             public void run() {
-                if (isPressed && !isInOverClickState) {
+                if (isPressed && !isInOverClickState && !isComboConsumed) {
                     isLongPressTriggered = true;
                     SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                     int actionId = prefs.getInt("btn_" + name + "_long_action", defaultLong);
@@ -439,6 +443,7 @@ public class ButtonMappingService extends AccessibilityService {
             if (!isPressed) {
                 isPressed = true;
                 isLongPressTriggered = false;
+                isComboConsumed = false;
                 SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                 int durationMs = prefs.getInt("btn_" + name + "_long_duration_ms", defaultDurationMs);
                 Log.d(TAG, name + " DOWN, starting long-press timer with duration: " + durationMs);
@@ -448,6 +453,14 @@ public class ButtonMappingService extends AccessibilityService {
 
         void onUp() {
             handler.removeCallbacks(longPressRunnable);
+            if (isComboConsumed) {
+                isComboConsumed = false;
+                isPressed = false;
+                isLongPressTriggered = false;
+                clickCount = 0;
+                Log.d(TAG, name + " UP after combo consumed. Suppressed normal clicks.");
+                return;
+            }
             if (isInOverClickState) {
                 handler.removeCallbacks(overClickResetRunnable);
                 handler.postDelayed(overClickResetRunnable, 400);
@@ -473,6 +486,13 @@ public class ButtonMappingService extends AccessibilityService {
             isLongPressTriggered = false;
         }
 
+        void markComboConsumed() {
+            isComboConsumed = true;
+            handler.removeCallbacks(longPressRunnable);
+            handler.removeCallbacks(clickTimeoutRunnable);
+            clickCount = 0;
+        }
+
         void cancel() {
             handler.removeCallbacks(longPressRunnable);
             handler.removeCallbacks(clickTimeoutRunnable);
@@ -481,6 +501,7 @@ public class ButtonMappingService extends AccessibilityService {
             isInOverClickState = false;
             isPressed = false;
             isLongPressTriggered = false;
+            isComboConsumed = false;
         }
     }
 
@@ -1326,7 +1347,7 @@ public class ButtonMappingService extends AccessibilityService {
     private final Runnable inputLongPressRunnable = new Runnable() {
         @Override
         public void run() {
-            if (isInputPressed) {
+            if (isInputPressed && !isInputComboConsumed) {
                 Log.d(TAG, "Input long press detected! Opening Bluetooth settings...");
                 isInputLongPressTriggered = true;
                 openBluetoothSettings();
@@ -4163,6 +4184,105 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
+    private boolean isMuteKeyCode(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_VOLUME_MUTE || keyCode == 140 || keyCode == KeyEvent.KEYCODE_MUTE;
+    }
+
+    private boolean isYouTubeKeyCode(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190 || keyCode == KeyEvent.KEYCODE_BUTTON_2 || keyCode == 189;
+    }
+
+    private int getDefaultComboAction(String comboKey) {
+        if ("combo_mute_ok".equals(comboKey)) return 23;
+        if ("combo_mute_right".equals(comboKey)) return 24;
+        if ("combo_mute_left".equals(comboKey)) return 25;
+        return 0;
+    }
+
+    private final Runnable comboTimeoutRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (pendingComboKey != null) {
+                String key = pendingComboKey;
+                pendingComboKey = null;
+                pendingComboClickCount = 0;
+                SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+                int action1 = prefs.getInt(key + "_action", getDefaultComboAction(key));
+                if (action1 > 0) {
+                    Log.d(TAG, "Combo 1-click timeout executed: " + key + " (action: " + action1 + ")");
+                    executeAction(action1);
+                }
+            }
+        }
+    };
+
+    private boolean handleComboKeyEvent(String comboKey, KeyEvent event, Runnable markBaseConsumed) {
+        SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        int action1 = prefs.getInt(comboKey + "_action", getDefaultComboAction(comboKey));
+        int action2 = prefs.getInt(comboKey + "_2_action", 0);
+
+        if (action1 <= 0 && action2 <= 0) {
+            return false;
+        }
+
+        int action = event.getAction();
+        int repeat = event.getRepeatCount();
+
+        // 1. Fast-Path: Zero-Delay when double-click (action2) is disabled
+        if (action2 <= 0) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                if (markBaseConsumed != null) markBaseConsumed.run();
+                if (pendingComboKey != null && !pendingComboKey.equals(comboKey)) {
+                    handler.removeCallbacks(comboTimeoutRunnable);
+                    comboTimeoutRunnable.run();
+                }
+                if (repeat == 0) {
+                    Log.d(TAG, "Combo Zero-Delay 1-click executed: " + comboKey + " (action: " + action1 + ")");
+                    executeAction(action1);
+                }
+            }
+            return true;
+        }
+
+        // 2. Multi-Click Path: Distinguish between single and double click
+        if (action == KeyEvent.ACTION_DOWN) {
+            if (markBaseConsumed != null) markBaseConsumed.run();
+            if (pendingComboKey != null && !pendingComboKey.equals(comboKey)) {
+                handler.removeCallbacks(comboTimeoutRunnable);
+                comboTimeoutRunnable.run();
+            }
+
+            if (repeat == 0) {
+                if (comboKey.equals(pendingComboKey) && pendingComboClickCount == 1) {
+                    // Double-click detected!
+                    handler.removeCallbacks(comboTimeoutRunnable);
+                    pendingComboClickCount = 2; // Mark double-click triggered so UP cleans up
+                    Log.d(TAG, "Combo 2-click executed: " + comboKey + " (action: " + action2 + ")");
+                    executeAction(action2);
+                    return true;
+                }
+            }
+            return true;
+        } else if (action == KeyEvent.ACTION_UP) {
+            if (pendingComboClickCount == 2) {
+                // Release of the 2nd click: clean up completely
+                pendingComboKey = null;
+                pendingComboClickCount = 0;
+                return true;
+            }
+            if (pendingComboClickCount == 0 || !comboKey.equals(pendingComboKey)) {
+                // First click released: start 300ms window for potential 2nd click
+                pendingComboKey = comboKey;
+                pendingComboClickCount = 1;
+                handler.removeCallbacks(comboTimeoutRunnable);
+                handler.postDelayed(comboTimeoutRunnable, 300);
+            }
+            return true;
+        }
+
+        return true;
+    }
+
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
@@ -4239,115 +4359,67 @@ public class ButtonMappingService extends AccessibilityService {
             return true;
         }
 
-        // 0. Zero-Delay Button Combos Detection
+        // 0. Zero-Delay Button Combos Detection (Single & Double Click Support)
         SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         boolean combosEnabled = prefs.getBoolean("btn_combos_enabled", true);
         if (combosEnabled) {
-            // Combo: MUTE + (OK / YouTube)
+            // Combo: MUTE + (OK / Right / Left / Up / Down / YouTube)
             if (muteState.isPressed) {
                 if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
-                    int actionId = prefs.getInt("combo_mute_ok_action", 23); // default Traducir Pantalla
-                    if (actionId > 0) {
-                        if (action == KeyEvent.ACTION_DOWN) {
-                            muteState.cancel();
-                            isDismissingComboKey = true;
-                            executeAction(actionId);
-                        }
-                        return true;
-                    }
+                    if (handleComboKeyEvent("combo_mute_ok", event, new Runnable() {
+                        @Override public void run() { muteState.markComboConsumed(); }
+                    })) return true;
                 } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                    int actionId = prefs.getInt("combo_mute_right_action", 24);
-                    if (actionId > 0) {
-                        if (action == KeyEvent.ACTION_DOWN) {
-                            muteState.cancel();
-                            isDismissingComboKey = true;
-                            executeAction(actionId);
-                        }
-                        return true;
-                    }
+                    if (handleComboKeyEvent("combo_mute_right", event, new Runnable() {
+                        @Override public void run() { muteState.markComboConsumed(); }
+                    })) return true;
                 } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                    int actionId = prefs.getInt("combo_mute_left_action", 25);
-                    if (actionId > 0) {
-                        if (action == KeyEvent.ACTION_DOWN) {
-                            muteState.cancel();
-                            isDismissingComboKey = true;
-                            executeAction(actionId);
-                        }
-                        return true;
-                    }
+                    if (handleComboKeyEvent("combo_mute_left", event, new Runnable() {
+                        @Override public void run() { muteState.markComboConsumed(); }
+                    })) return true;
                 } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                    int actionId = prefs.getInt("combo_mute_up_action", 0);
-                    if (actionId > 0) {
-                        if (action == KeyEvent.ACTION_DOWN) {
-                            muteState.cancel();
-                            isDismissingComboKey = true;
-                            executeAction(actionId);
-                        }
-                        return true;
-                    }
+                    if (handleComboKeyEvent("combo_mute_up", event, new Runnable() {
+                        @Override public void run() { muteState.markComboConsumed(); }
+                    })) return true;
                 } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    int actionId = prefs.getInt("combo_mute_down_action", 0);
-                    if (actionId > 0) {
-                        if (action == KeyEvent.ACTION_DOWN) {
-                            muteState.cancel();
-                            isDismissingComboKey = true;
-                            executeAction(actionId);
+                    if (handleComboKeyEvent("combo_mute_down", event, new Runnable() {
+                        @Override public void run() { muteState.markComboConsumed(); }
+                    })) return true;
+                } else if (isYouTubeKeyCode(keyCode)) {
+                    if (handleComboKeyEvent("combo_youtube190_mute", event, new Runnable() {
+                        @Override public void run() {
+                            muteState.markComboConsumed();
+                            youtube189State.markComboConsumed();
+                            youtube190State.markComboConsumed();
                         }
-                        return true;
-                    }
-                } else if (keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190) {
-                    int actionId = prefs.getInt("combo_youtube190_mute_action", 0);
-                    if (actionId > 0) {
-                        if (action == KeyEvent.ACTION_DOWN) {
-                            muteState.cancel();
-                            youtube190State.cancel();
-                            isDismissingComboKey = true;
-                            executeAction(actionId);
-                        }
-                        return true;
-                    }
+                    })) return true;
                 }
             }
 
-            // Combo: YOUTUBE (190) + MUTE
-            if (youtube190State.isPressed) {
-                if (keyCode == KeyEvent.KEYCODE_VOLUME_MUTE || keyCode == 140) {
-                    int actionId = prefs.getInt("combo_youtube190_mute_action", 0);
-                    if (actionId > 0) {
-                        if (action == KeyEvent.ACTION_DOWN) {
-                            youtube190State.cancel();
-                            muteState.cancel();
-                            isDismissingComboKey = true;
-                            executeAction(actionId);
+            // Combo: YOUTUBE + MUTE (YouTube button held, Mute pressed)
+            if (youtube190State.isPressed || youtube189State.isPressed) {
+                if (isMuteKeyCode(keyCode)) {
+                    if (handleComboKeyEvent("combo_youtube190_mute", event, new Runnable() {
+                        @Override public void run() {
+                            youtube189State.markComboConsumed();
+                            youtube190State.markComboConsumed();
+                            muteState.markComboConsumed();
                         }
-                        return true;
-                    }
+                    })) return true;
                 }
             }
 
-            // Combo: TV INPUT + OK
+            // Combo: TV INPUT + OK (TV Input held, OK pressed)
             if (isInputPressed) {
-                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
-                    int actionId = prefs.getInt("combo_input_ok_action", 0);
-                    if (actionId > 0) {
-                        if (action == KeyEvent.ACTION_DOWN) {
-                            isInputPressed = false;
-                            isInputLongPressTriggered = false;
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+                    if (handleComboKeyEvent("combo_input_ok", event, new Runnable() {
+                        @Override public void run() {
+                            isInputComboConsumed = true;
                             handler.removeCallbacks(inputLongPressRunnable);
-                            isDismissingComboKey = true;
-                            executeAction(actionId);
                         }
-                        return true;
-                    }
+                    })) return true;
                 }
             }
-        }
-
-        if (isDismissingComboKey) {
-            if (action == KeyEvent.ACTION_UP) {
-                isDismissingComboKey = false;
-            }
-            return true;
         }
 
         // 0. Mindful Delay key interception: Back/Home cancels and goes to Home; all other keys are blocked
@@ -4420,12 +4492,19 @@ public class ButtonMappingService extends AccessibilityService {
                     // Reset all button state machines so next press starts completely fresh
                     youtube190State.isPressed = false;
                     youtube190State.isLongPressTriggered = false;
+                    youtube190State.isComboConsumed = false;
                     youtube189State.isPressed = false;
                     youtube189State.isLongPressTriggered = false;
+                    youtube189State.isComboConsumed = false;
                     muteState.isPressed = false;
                     muteState.isLongPressTriggered = false;
+                    muteState.isComboConsumed = false;
                     isInputPressed = false;
                     isInputLongPressTriggered = false;
+                    isInputComboConsumed = false;
+                    pendingComboKey = null;
+                    pendingComboClickCount = 0;
+                    handler.removeCallbacks(comboTimeoutRunnable);
 
                     // If user pressed YouTube, Home (Casita), or TV Input while screen was black,
                     // do NOT consume the key press so the app/home launches naturally!
@@ -4442,12 +4521,19 @@ public class ButtonMappingService extends AccessibilityService {
                     blackScreenDismissKeyCode = 0;
                     youtube190State.isPressed = false;
                     youtube190State.isLongPressTriggered = false;
+                    youtube190State.isComboConsumed = false;
                     youtube189State.isPressed = false;
                     youtube189State.isLongPressTriggered = false;
+                    youtube189State.isComboConsumed = false;
                     muteState.isPressed = false;
                     muteState.isLongPressTriggered = false;
+                    muteState.isComboConsumed = false;
                     isInputPressed = false;
                     isInputLongPressTriggered = false;
+                    isInputComboConsumed = false;
+                    pendingComboKey = null;
+                    pendingComboClickCount = 0;
+                    handler.removeCallbacks(comboTimeoutRunnable);
                 }
             }
             return true; // Consume wake-up keypresses (DOWN & UP) so screen wakes up cleanly
@@ -4475,8 +4561,8 @@ public class ButtonMappingService extends AccessibilityService {
             }
         }
 
-        // 4. Mute keys: VOLUME_MUTE (164), MUTE (140)
-        if (keyCode == KeyEvent.KEYCODE_VOLUME_MUTE || keyCode == 140) {
+        // 4. Mute keys: VOLUME_MUTE (164), MUTE (140), KEYCODE_MUTE (91)
+        if (isMuteKeyCode(keyCode)) {
             if (action == KeyEvent.ACTION_DOWN) {
                 muteState.onDown();
                 return true;
@@ -4492,6 +4578,7 @@ public class ButtonMappingService extends AccessibilityService {
                 if (!isInputPressed) {
                     isInputPressed = true;
                     isInputLongPressTriggered = false;
+                    isInputComboConsumed = false;
                     Log.d(TAG, "Input button DOWN, starting timer...");
                     handler.postDelayed(inputLongPressRunnable, BLACK_SCREEN_LONG_PRESS_MS);
                 }
@@ -4499,6 +4586,14 @@ public class ButtonMappingService extends AccessibilityService {
             } else if (action == KeyEvent.ACTION_UP) {
                 Log.d(TAG, "Input button UP. Long press triggered? " + isInputLongPressTriggered);
                 handler.removeCallbacks(inputLongPressRunnable);
+
+                if (isInputComboConsumed) {
+                    Log.d(TAG, "Input button UP after combo consumed. Suppressed passthrough.");
+                    isInputComboConsumed = false;
+                    isInputPressed = false;
+                    isInputLongPressTriggered = false;
+                    return true;
+                }
 
                 if (!isInputLongPressTriggered && isInputPressed) {
                     Log.d(TAG, "Short press detected, letting Input event pass through");
