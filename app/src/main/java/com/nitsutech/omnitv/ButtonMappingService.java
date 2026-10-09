@@ -4197,11 +4197,35 @@ public class ButtonMappingService extends AccessibilityService {
         return keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == 190 || keyCode == KeyEvent.KEYCODE_BUTTON_2 || keyCode == 189;
     }
 
+    private static final int COMBO_DOUBLE_CLICK_TIMEOUT_MS = 450;
+
     private int getDefaultComboAction(String comboKey) {
         if ("combo_mute_ok".equals(comboKey)) return 23;
         if ("combo_mute_right".equals(comboKey)) return 24;
         if ("combo_mute_left".equals(comboKey)) return 25;
         return 0;
+    }
+
+    private boolean isComboKeyMatch(String comboKey, int keyCode) {
+        if ("combo_mute_ok".equals(comboKey) || "combo_input_ok".equals(comboKey)) {
+            return keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A;
+        }
+        if ("combo_mute_right".equals(comboKey)) {
+            return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+        }
+        if ("combo_mute_left".equals(comboKey)) {
+            return keyCode == KeyEvent.KEYCODE_DPAD_LEFT;
+        }
+        if ("combo_mute_up".equals(comboKey)) {
+            return keyCode == KeyEvent.KEYCODE_DPAD_UP;
+        }
+        if ("combo_mute_down".equals(comboKey)) {
+            return keyCode == KeyEvent.KEYCODE_DPAD_DOWN;
+        }
+        if ("combo_youtube190_mute".equals(comboKey)) {
+            return isMuteKeyCode(keyCode) || isYouTubeKeyCode(keyCode);
+        }
+        return false;
     }
 
     private final Runnable comboTimeoutRunnable = new Runnable() {
@@ -4276,11 +4300,11 @@ public class ButtonMappingService extends AccessibilityService {
                 return true;
             }
             if (pendingComboClickCount == 0 || !comboKey.equals(pendingComboKey)) {
-                // First click released: start 300ms window for potential 2nd click
+                // First click released: start window for potential 2nd click
                 pendingComboKey = comboKey;
                 pendingComboClickCount = 1;
                 handler.removeCallbacks(comboTimeoutRunnable);
-                handler.postDelayed(comboTimeoutRunnable, 300);
+                handler.postDelayed(comboTimeoutRunnable, COMBO_DOUBLE_CLICK_TIMEOUT_MS);
             }
             return true;
         }
@@ -4380,6 +4404,25 @@ public class ButtonMappingService extends AccessibilityService {
         SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         boolean combosEnabled = prefs.getBoolean("btn_combos_enabled", true);
         if (combosEnabled) {
+            // Check if there is a pending multi-click combo awaiting its 2nd click!
+            if (pendingComboKey != null) {
+                if (isComboKeyMatch(pendingComboKey, keyCode)) {
+                    if (handleComboKeyEvent(pendingComboKey, event, new Runnable() {
+                        @Override public void run() {
+                            muteState.markComboConsumed();
+                            youtube189State.markComboConsumed();
+                            youtube190State.markComboConsumed();
+                            isInputComboConsumed = true;
+                            handler.removeCallbacks(inputLongPressRunnable);
+                        }
+                    })) return true;
+                } else if (action == KeyEvent.ACTION_DOWN) {
+                    // Another key was pressed while waiting for 2nd click: flush 1st click action immediately
+                    handler.removeCallbacks(comboTimeoutRunnable);
+                    comboTimeoutRunnable.run();
+                }
+            }
+
             boolean muteActive = muteState.isPressed || ((now - lastMuteDownTime < 500 || now - lastMuteUpTime < 400) && !muteState.isComboConsumed);
             boolean ytActive = youtube190State.isPressed || youtube189State.isPressed || ((now - lastYouTubeDownTime < 500 || now - lastYouTubeUpTime < 400) && !youtube190State.isComboConsumed && !youtube189State.isComboConsumed);
 
