@@ -5,9 +5,9 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -17,7 +17,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -29,7 +31,6 @@ import com.nitsutech.omnitv.R;
 import com.nitsutech.omnitv.I18n;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class YouTubeCommentOverlay {
@@ -61,6 +62,11 @@ public class YouTubeCommentOverlay {
     private final List<YouTubeCommentItem> currentReplies = new ArrayList<>();
     private boolean isShowingReplies = false;
     private String activeVideoId = null;
+
+    // Pagination / Infinite Scroll
+    private String nextContinuationToken = null;
+    private boolean isLoadingMore = false;
+    private TextView btnLoadMore = null;
 
     public YouTubeCommentOverlay(Context context) {
         this.context = context;
@@ -164,6 +170,8 @@ public class YouTubeCommentOverlay {
             overlayView = null;
             isShowing = false;
             isShowingReplies = false;
+            nextContinuationToken = null;
+            isLoadingMore = false;
         }
     }
 
@@ -210,22 +218,6 @@ public class YouTubeCommentOverlay {
             btnBackThreads.setVisibility(View.GONE);
             renderCommentsList(mainComments);
         });
-
-        overlayView.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_BACK) {
-                    if (isShowingReplies) {
-                        isShowingReplies = false;
-                        btnBackThreads.setVisibility(View.GONE);
-                        renderCommentsList(mainComments);
-                        return true;
-                    }
-                    dismiss();
-                    return true;
-                }
-            }
-            return false;
-        });
     }
 
     private void updateSourceButtonLabel() {
@@ -248,6 +240,8 @@ public class YouTubeCommentOverlay {
 
     private void loadCommentsForCurrentMode() {
         isShowingReplies = false;
+        nextContinuationToken = null;
+        isLoadingMore = false;
         btnBackThreads.setVisibility(View.GONE);
         textStatus.setText(I18n.get(context, R.string.comments_loading));
         containerItems.removeAllViews();
@@ -267,14 +261,45 @@ public class YouTubeCommentOverlay {
         }
 
         List<YouTubeCommentItem> extracted = new ArrayList<>();
+        String extractedTitle = null;
+
         try {
-            AccessibilityNodeInfo root = svc.getRootInActiveWindow();
-            if (root != null) {
-                scrapeCommentsFromNode(root, extracted);
-                root.recycle();
+            List<AccessibilityWindowInfo> windows = svc.getWindows();
+            if (windows != null && !windows.isEmpty()) {
+                for (AccessibilityWindowInfo win : windows) {
+                    if (win == null) continue;
+                    // Skip our own accessibility overlay windows
+                    if (win.getType() == AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY) continue;
+                    AccessibilityNodeInfo root = win.getRoot();
+                    if (root != null) {
+                        CharSequence pkg = root.getPackageName();
+                        if (pkg != null && !pkg.toString().equals("com.nitsutech.omnitv")) {
+                            scrapeCommentsFromNode(root, extracted);
+                            if (extractedTitle == null) {
+                                extractedTitle = findVideoTitleInNode(root);
+                            }
+                        }
+                        root.recycle();
+                    }
+                }
+            } else {
+                AccessibilityNodeInfo root = svc.getRootInActiveWindow();
+                if (root != null) {
+                    CharSequence pkg = root.getPackageName();
+                    if (pkg != null && !pkg.toString().equals("com.nitsutech.omnitv")) {
+                        scrapeCommentsFromNode(root, extracted);
+                        extractedTitle = findVideoTitleInNode(root);
+                    }
+                    root.recycle();
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error scraping screen comments", e);
+        }
+
+        // Cache title if found on screen
+        if (extractedTitle != null && (activeVideoId == null || activeVideoId.isEmpty())) {
+            activeVideoId = com.nitsutech.omnitv.vot.YouTubeCaptionFetcher.resolveVideoId(extractedTitle);
         }
 
         mainComments.clear();
@@ -291,17 +316,45 @@ public class YouTubeCommentOverlay {
         }
     }
 
+    private String findVideoTitleInNode(AccessibilityNodeInfo node) {
+        if (node == null) return null;
+        CharSequence pkg = node.getPackageName();
+        if (pkg != null && pkg.toString().equals("com.nitsutech.omnitv")) return null;
+
+        CharSequence text = node.getText();
+        if (text != null) {
+            String str = text.toString().trim();
+            if (str.length() > 15 && !str.contains("@") && !str.startsWith("http")
+                    && !str.contains("OmniTV") && !str.contains("SmartTube")
+                    && !str.contains("Comment") && !str.contains("Comentario")) {
+                return str;
+            }
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                String t = findVideoTitleInNode(child);
+                child.recycle();
+                if (t != null) return t;
+            }
+        }
+        return null;
+    }
+
     private void scrapeCommentsFromNode(AccessibilityNodeInfo node, List<YouTubeCommentItem> outList) {
         if (node == null) return;
+        CharSequence pkg = node.getPackageName();
+        if (pkg != null && pkg.toString().equals("com.nitsutech.omnitv")) return;
 
         CharSequence text = node.getText();
         CharSequence desc = node.getContentDescription();
-        String viewId = node.getViewIdResourceName();
 
         // Detect if text looks like a YouTube comment (paragraph with reasonable length, not button labels)
-        if (text != null && text.length() > 10) {
+        if (text != null && text.length() > 8) {
             String str = text.toString().trim();
-            if (!str.contains("OmniTV") && !str.startsWith("http") && !str.equals("SmartTube") && !str.equals("YouTube")) {
+            if (!str.contains("OmniTV") && !str.startsWith("http") && !str.equals("SmartTube") && !str.equals("YouTube")
+                    && !str.equals("Translate All") && !str.equals("Traducir Todos")
+                    && !str.equals("Comment Translator") && !str.equals("Traductor de Comentarios")) {
                 boolean duplicate = false;
                 for (YouTubeCommentItem c : outList) {
                     if (str.equals(c.originalText)) {
@@ -309,7 +362,7 @@ public class YouTubeCommentOverlay {
                         break;
                     }
                 }
-                if (!duplicate && outList.size() < 30) {
+                if (!duplicate && outList.size() < 40) {
                     YouTubeCommentItem item = new YouTubeCommentItem();
                     item.commentId = "screen_" + outList.size();
                     item.originalText = str;
@@ -330,6 +383,9 @@ public class YouTubeCommentOverlay {
 
     private void loadCommentsFromAllVideo() {
         textStatus.setText(I18n.get(context, R.string.comments_loading));
+        nextContinuationToken = null;
+        isLoadingMore = false;
+
         executor.execute(() -> {
             String vId = activeVideoId;
             if (vId == null || vId.isEmpty()) {
@@ -353,10 +409,11 @@ public class YouTubeCommentOverlay {
 
             YouTubeCommentFetcher.fetchVideoCommentsAsync(resolvedId, null, new YouTubeCommentFetcher.CommentsCallback() {
                 @Override
-                public void onSuccess(List<YouTubeCommentItem> comments, String nextContinuationToken) {
+                public void onSuccess(List<YouTubeCommentItem> comments, String nextToken) {
                     handler.post(() -> {
                         mainComments.clear();
                         mainComments.addAll(comments);
+                        nextContinuationToken = nextToken;
                         if (mainComments.isEmpty()) {
                             textStatus.setText(I18n.get(context, R.string.comments_empty));
                         } else {
@@ -374,6 +431,41 @@ public class YouTubeCommentOverlay {
         });
     }
 
+    private void loadMoreComments() {
+        if (isLoadingMore || nextContinuationToken == null || nextContinuationToken.isEmpty()) return;
+        isLoadingMore = true;
+        if (btnLoadMore != null) {
+            btnLoadMore.setText(I18n.get(context, R.string.comments_loading));
+        }
+
+        YouTubeCommentFetcher.fetchVideoCommentsAsync(null, nextContinuationToken, new YouTubeCommentFetcher.CommentsCallback() {
+            @Override
+            public void onSuccess(List<YouTubeCommentItem> newComments, String nextToken) {
+                handler.post(() -> {
+                    isLoadingMore = false;
+                    nextContinuationToken = nextToken;
+                    if (newComments != null && !newComments.isEmpty()) {
+                        mainComments.addAll(newComments);
+                        textStatus.setText(mainComments.size() + " " + I18n.get(context, R.string.comments_source_all));
+                        renderCommentsList(mainComments);
+                    } else if (btnLoadMore != null) {
+                        btnLoadMore.setVisibility(View.GONE);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                handler.post(() -> {
+                    isLoadingMore = false;
+                    if (btnLoadMore != null) {
+                        btnLoadMore.setText(I18n.get(context, R.string.comments_load_more));
+                    }
+                });
+            }
+        });
+    }
+
     private void renderCommentsList(List<YouTubeCommentItem> list) {
         containerItems.removeAllViews();
         float density = context.getResources().getDisplayMetrics().density;
@@ -382,12 +474,24 @@ public class YouTubeCommentOverlay {
             final YouTubeCommentItem item = list.get(i);
             final int index = i;
 
-            LinearLayout card = new LinearLayout(context);
+            final LinearLayout card = new LinearLayout(context);
             card.setOrientation(LinearLayout.VERTICAL);
             card.setFocusable(true);
             card.setClickable(true);
-            card.setBackgroundResource(R.drawable.card_chip_content);
             card.setPadding(Math.round(14 * density), Math.round(12 * density), Math.round(14 * density), Math.round(12 * density));
+
+            // Default state background
+            final GradientDrawable defaultBg = new GradientDrawable();
+            defaultBg.setColor(0xFF1B1D24);
+            defaultBg.setCornerRadius(10 * density);
+            defaultBg.setStroke(Math.round(1 * density), 0x33FFFFFF);
+
+            final GradientDrawable focusedBg = new GradientDrawable();
+            focusedBg.setColor(0xFF2C3246);
+            focusedBg.setCornerRadius(10 * density);
+            focusedBg.setStroke(Math.round(2 * density), 0xFF8AB4F8);
+
+            card.setBackground(defaultBg);
 
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -423,43 +527,16 @@ public class YouTubeCommentOverlay {
 
             final TextView btnItemTranslate = new TextView(context);
             btnItemTranslate.setBackgroundResource(R.drawable.pill_youtube_tv);
-            btnItemTranslate.setText((CharSequence) (item.isTranslated ? I18n.get(context, R.string.comments_btn_orig) : I18n.get(context, R.string.comments_btn_translate)));
+            btnItemTranslate.setText(item.isTranslated ? I18n.get(context, R.string.comments_btn_orig) : I18n.get(context, R.string.comments_btn_translate));
             btnItemTranslate.setTextColor(0xFF81D4FA);
             btnItemTranslate.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             btnItemTranslate.setPadding(Math.round(10 * density), Math.round(4 * density), Math.round(10 * density), Math.round(4 * density));
-            btnItemTranslate.setFocusable(true);
-            btnItemTranslate.setClickable(true);
+            btnItemTranslate.setFocusable(false); // Let card handle click & OK navigation cleanly
+            btnItemTranslate.setClickable(false);
 
-            btnItemTranslate.setOnClickListener(v -> {
-                if (item.isTranslated) {
-                    item.isTranslated = false;
-                    tvBody.setText(item.originalText);
-                    btnItemTranslate.setText(I18n.get(context, R.string.comments_btn_translate));
-                } else {
-                    String target = "orig".equals(currentTargetLang) ? "es" : currentTargetLang;
-                    btnItemTranslate.setText(I18n.get(context, R.string.comments_translating));
-                    YouTubeCommentTranslator.translateAsync(item.originalText, target, new YouTubeCommentTranslator.TranslationCallback() {
-                        @Override
-                        public void onSuccess(String translatedText) {
-                            handler.post(() -> {
-                                item.translatedText = translatedText;
-                                item.isTranslated = true;
-                                item.targetLanguage = target;
-                                tvBody.setText(translatedText);
-                                btnItemTranslate.setText(I18n.get(context, R.string.comments_btn_orig));
-                            });
-                        }
-
-                        @Override
-                        public void onError(String error) {
-                            handler.post(() -> btnItemTranslate.setText(I18n.get(context, R.string.comments_btn_translate)));
-                        }
-                    });
-                }
-            });
             actionsRow.addView(btnItemTranslate);
 
-            // Nested replies button
+            // Nested replies button (can be clicked via D-Pad or separate indicator)
             if (item.replyCount > 0 && item.replyContinuationToken != null) {
                 final TextView btnReplies = new TextView(context);
                 btnReplies.setBackgroundResource(R.drawable.pill_youtube_tv);
@@ -474,12 +551,97 @@ public class YouTubeCommentOverlay {
                 btnReplies.setLayoutParams(rLp);
 
                 btnReplies.setOnClickListener(v -> openReplyThread(item));
+                btnReplies.setOnFocusChangeListener((v, hasFocus) -> {
+                    if (hasFocus) centerViewInScrollView(v);
+                });
                 actionsRow.addView(btnReplies);
             }
 
             card.addView(actionsRow);
+
+            // Card click toggles translation directly!
+            card.setOnClickListener(v -> toggleCommentTranslation(item, tvBody, btnItemTranslate));
+
+            card.setOnFocusChangeListener((v, hasFocus) -> {
+                card.setBackground(hasFocus ? focusedBg : defaultBg);
+                if (hasFocus) {
+                    centerViewInScrollView(card);
+                }
+            });
+
             containerItems.addView(card);
         }
+
+        // Add [ ⬇️ Load More Comments ] button at the bottom if more comments exist
+        if (!isShowingReplies && nextContinuationToken != null && !nextContinuationToken.isEmpty()) {
+            btnLoadMore = new TextView(context);
+            btnLoadMore.setBackgroundResource(R.drawable.pill_youtube_tv);
+            btnLoadMore.setText(I18n.get(context, R.string.comments_load_more));
+            btnLoadMore.setTextColor(0xFF81D4FA);
+            btnLoadMore.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnLoadMore.setTypeface(Typeface.DEFAULT_BOLD);
+            btnLoadMore.setGravity(Gravity.CENTER);
+            btnLoadMore.setPadding(Math.round(16 * density), Math.round(10 * density), Math.round(16 * density), Math.round(10 * density));
+            btnLoadMore.setFocusable(true);
+            btnLoadMore.setClickable(true);
+
+            LinearLayout.LayoutParams lpMore = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            lpMore.topMargin = Math.round(8 * density);
+            lpMore.bottomMargin = Math.round(20 * density);
+            btnLoadMore.setLayoutParams(lpMore);
+
+            btnLoadMore.setOnClickListener(v -> loadMoreComments());
+            btnLoadMore.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) {
+                    centerViewInScrollView(btnLoadMore);
+                    // Automatic load-on-scroll when reaching the bottom!
+                    loadMoreComments();
+                }
+            });
+
+            containerItems.addView(btnLoadMore);
+        }
+    }
+
+    private void toggleCommentTranslation(final YouTubeCommentItem item, final TextView tvBody, final TextView btnItemTranslate) {
+        if (item.isTranslated) {
+            item.isTranslated = false;
+            tvBody.setText(item.originalText);
+            btnItemTranslate.setText(I18n.get(context, R.string.comments_btn_translate));
+        } else {
+            String target = "orig".equals(currentTargetLang) ? "es" : currentTargetLang;
+            btnItemTranslate.setText(I18n.get(context, R.string.comments_translating));
+            YouTubeCommentTranslator.translateAsync(item.originalText, target, new YouTubeCommentTranslator.TranslationCallback() {
+                @Override
+                public void onSuccess(String translatedText) {
+                    handler.post(() -> {
+                        item.translatedText = translatedText;
+                        item.isTranslated = true;
+                        item.targetLanguage = target;
+                        tvBody.setText(translatedText);
+                        btnItemTranslate.setText(I18n.get(context, R.string.comments_btn_orig));
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    handler.post(() -> btnItemTranslate.setText(I18n.get(context, R.string.comments_btn_translate)));
+                }
+            });
+        }
+    }
+
+    private void centerViewInScrollView(View v) {
+        if (scrollList == null || v == null) return;
+        int[] vLoc = new int[2];
+        int[] svLoc = new int[2];
+        v.getLocationOnScreen(vLoc);
+        scrollList.getLocationOnScreen(svLoc);
+        int targetY = vLoc[1] - svLoc[1] + scrollList.getScrollY() - (scrollList.getHeight() - v.getHeight()) / 2;
+        scrollList.smoothScrollTo(0, Math.max(0, targetY));
     }
 
     private void openReplyThread(final YouTubeCommentItem parentItem) {
@@ -547,15 +709,21 @@ public class YouTubeCommentOverlay {
     private void updateMenuInternalFilters() {
         try {
             SharedPreferences prefs = context.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE);
-            boolean dimmerEnabled = prefs.getBoolean("dimmer_enabled", false);
-            int dimmerBrightnessPct = prefs.getInt("dimmer_brightness_pct", 50);
-            boolean blueLightEnabled = prefs.getBoolean("blue_light_enabled", false);
-            int blueLightPct = prefs.getInt("blue_light_pct", 30);
+            boolean isDimmerActive = prefs.getBoolean("dimmer", false)
+                    || prefs.getBoolean("night_dimmer", false)
+                    || (ButtonMappingService.instance != null && ButtonMappingService.instance.isDimmerActive());
+            int dimmerPct = prefs.getInt("dimmer_brightness_pct", 50);
+
+            boolean isBlueLightActive = prefs.getBoolean("blue_light", false)
+                    || prefs.getBoolean("night_blue_light", false)
+                    || (ButtonMappingService.instance != null && ButtonMappingService.instance.isBlueLightActive());
+            int blueLightPct = prefs.getInt("blue_light_pct", 50);
+            if (blueLightPct == 0) blueLightPct = 50;
 
             if (dimmerFilter != null) {
-                if (dimmerEnabled) {
+                if (isDimmerActive && dimmerPct < 100) {
                     dimmerFilter.setVisibility(View.VISIBLE);
-                    int alpha = Math.round((100 - dimmerBrightnessPct) * 2.55f);
+                    int alpha = (int) ((100 - dimmerPct) * 2.55);
                     dimmerFilter.setBackgroundColor(Color.argb(alpha, 0, 0, 0));
                 } else {
                     dimmerFilter.setVisibility(View.GONE);
@@ -563,10 +731,10 @@ public class YouTubeCommentOverlay {
             }
 
             if (blueLightFilter != null) {
-                if (blueLightEnabled) {
+                if (isBlueLightActive && blueLightPct > 0) {
                     blueLightFilter.setVisibility(View.VISIBLE);
-                    int alpha = Math.round(blueLightPct * 1.8f);
-                    blueLightFilter.setBackgroundColor(Color.argb(alpha, 255, 140, 0));
+                    int alpha = (int) ((blueLightPct / 1000.0f) * 150);
+                    blueLightFilter.setBackgroundColor(Color.argb(alpha, 240, 120, 0));
                 } else {
                     blueLightFilter.setVisibility(View.GONE);
                 }
@@ -588,6 +756,7 @@ public class YouTubeCommentOverlay {
         if (!isShowing || overlayView == null) return false;
         int keyCode = event.getKeyCode();
         int action = event.getAction();
+
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (action == KeyEvent.ACTION_DOWN) {
                 if (isShowingReplies) {
@@ -598,6 +767,69 @@ public class YouTubeCommentOverlay {
             }
             return true;
         }
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                View focused = overlayView.findFocus();
+                if (focused != null && focused.isClickable()) {
+                    focused.performClick();
+                    return true;
+                }
+            }
+        }
+
+        // Section jumping between Controls Row and Comments List
+        if (action == KeyEvent.ACTION_DOWN) {
+            View current = overlayView.findFocus();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (current != null && (current == btnSource || current == btnLang || current == btnTranslateAll || current == btnBackThreads)) {
+                    View target = findFirstFocusable(containerItems);
+                    if (target != null) {
+                        target.requestFocus();
+                        centerViewInScrollView(target);
+                        return true;
+                    }
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (current != null && isViewInside(current, scrollList)) {
+                    View upNeighbor = current.focusSearch(View.FOCUS_UP);
+                    if (upNeighbor == null || !isViewInside(upNeighbor, scrollList)) {
+                        if (btnSource != null) {
+                            btnSource.requestFocus();
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
         return overlayView.dispatchKeyEvent(event);
+    }
+
+    private boolean isViewInside(View child, View parent) {
+        if (child == null || parent == null) return false;
+        View p = child;
+        while (p != null) {
+            if (p == parent) return true;
+            if (p.getParent() instanceof View) {
+                p = (View) p.getParent();
+            } else {
+                break;
+            }
+        }
+        return false;
+    }
+
+    private View findFirstFocusable(View view) {
+        if (view == null || view.getVisibility() != View.VISIBLE) return null;
+        if (view.isFocusable()) return view;
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                View found = findFirstFocusable(vg.getChildAt(i));
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 }

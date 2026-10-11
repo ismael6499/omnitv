@@ -577,6 +577,8 @@
     <string name="comments_btn_translate">🌐 Translate</string>
     <string name="comments_btn_orig">Original</string>
     <string name="comments_action_pill">💬 Comments</string>
+    <string name="comments_load_more">⬇️ Load More Comments</string>
+
 
     <!-- AI Search Grounding & UX Polish -->
     <string name="ai_web_toggle_on">🌐 Web: ON</string>

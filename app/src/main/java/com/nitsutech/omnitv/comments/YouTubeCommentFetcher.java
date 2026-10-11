@@ -86,6 +86,33 @@ public class YouTubeCommentFetcher {
     private static String extractCommentsAndContinuation(JSONObject root, List<YouTubeCommentItem> outList) {
         String nextContinuation = null;
         try {
+            // Build comment entities map from frameworkUpdates (Modern YouTube InnerTube web responses)
+            java.util.Map<String, JSONObject> entityMap = new java.util.HashMap<>();
+            JSONObject fw = root.optJSONObject("frameworkUpdates");
+            if (fw != null) {
+                JSONObject batch = fw.optJSONObject("entityBatchUpdate");
+                if (batch != null) {
+                    JSONArray mutations = batch.optJSONArray("mutations");
+                    if (mutations != null) {
+                        for (int m = 0; m < mutations.length(); m++) {
+                            JSONObject mut = mutations.optJSONObject(m);
+                            if (mut == null) continue;
+                            JSONObject payload = mut.optJSONObject("payload");
+                            if (payload != null && payload.has("commentEntityPayload")) {
+                                JSONObject cep = payload.optJSONObject("commentEntityPayload");
+                                if (cep != null) {
+                                    JSONObject props = cep.optJSONObject("properties");
+                                    String cid = props != null ? props.optString("commentId", "") : "";
+                                    String key = cep.optString("key", "");
+                                    if (!cid.isEmpty()) entityMap.put(cid, cep);
+                                    if (!key.isEmpty()) entityMap.put(key, cep);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Check direct continuationItems (typical for comment continuation or reply requests)
             JSONArray continuationItems = null;
             if (root.has("onResponseReceivedEndpoints")) {
@@ -96,11 +123,13 @@ public class YouTubeCommentFetcher {
                         if (ep == null) continue;
                         JSONObject reloadContinuation = ep.optJSONObject("reloadContinuationItemsCommand");
                         if (reloadContinuation != null) {
-                            continuationItems = reloadContinuation.optJSONArray("continuationItems");
+                            JSONArray items = reloadContinuation.optJSONArray("continuationItems");
+                            if (items != null) continuationItems = items;
                         }
                         JSONObject appendContinuation = ep.optJSONObject("appendContinuationItemsAction");
                         if (appendContinuation != null) {
-                            continuationItems = appendContinuation.optJSONArray("continuationItems");
+                            JSONArray items = appendContinuation.optJSONArray("continuationItems");
+                            if (items != null) continuationItems = items;
                         }
                     }
                 }
@@ -122,8 +151,45 @@ public class YouTubeCommentFetcher {
                                         JSONObject item = items.optJSONObject(i);
                                         if (item != null && item.has("itemSectionRenderer")) {
                                             JSONObject isr = item.optJSONObject("itemSectionRenderer");
-                                            if (isr != null && "comments-section".equals(isr.optString("sectionIdentifier"))) {
-                                                continuationItems = isr.optJSONArray("contents");
+                                            if (isr != null) {
+                                                String secId = isr.optString("sectionIdentifier", "");
+                                                String targetId = isr.optString("targetId", "");
+                                                if ("comments-section".equals(secId) || "comments-section".equals(targetId) || secId.contains("comment")) {
+                                                    continuationItems = isr.optJSONArray("contents");
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check engagementPanels for initial comments section token if not found yet
+            if (continuationItems == null && root.has("engagementPanels")) {
+                JSONArray panels = root.optJSONArray("engagementPanels");
+                if (panels != null) {
+                    for (int p = 0; p < panels.length(); p++) {
+                        JSONObject panel = panels.optJSONObject(p);
+                        if (panel == null) continue;
+                        JSONObject epsl = panel.optJSONObject("engagementPanelSectionListRenderer");
+                        if (epsl != null) {
+                            String pId = epsl.optString("panelIdentifier", "");
+                            if (pId.contains("comments-section")) {
+                                JSONObject content = epsl.optJSONObject("content");
+                                if (content != null) {
+                                    JSONObject slr = content.optJSONObject("sectionListRenderer");
+                                    if (slr != null) {
+                                        JSONArray slrContents = slr.optJSONArray("contents");
+                                        if (slrContents != null && slrContents.length() > 0) {
+                                            for (int s = 0; s < slrContents.length(); s++) {
+                                                JSONObject sec = slrContents.optJSONObject(s);
+                                                if (sec != null && sec.has("itemSectionRenderer")) {
+                                                    continuationItems = sec.optJSONObject("itemSectionRenderer").optJSONArray("contents");
+                                                    break;
+                                                }
                                             }
                                         }
                                     }
@@ -143,39 +209,74 @@ public class YouTubeCommentFetcher {
                     if (cItem.has("commentThreadRenderer")) {
                         JSONObject thread = cItem.optJSONObject("commentThreadRenderer");
                         if (thread != null) {
+                            YouTubeCommentItem item = null;
+
+                            // A. Check classic commentRenderer
                             JSONObject commentRenderer = thread.optJSONObject("comment");
                             if (commentRenderer != null) {
                                 JSONObject cr = commentRenderer.optJSONObject("commentRenderer");
                                 if (cr != null) {
-                                    YouTubeCommentItem item = parseCommentRenderer(cr);
-                                    if (item != null) {
-                                        // Check for replies token inside thread
-                                        JSONObject repliesObj = thread.optJSONObject("replies");
-                                        if (repliesObj != null) {
-                                            JSONObject crr = repliesObj.optJSONObject("commentRepliesRenderer");
-                                            if (crr != null) {
-                                                JSONArray replyContinuations = crr.optJSONArray("contents");
-                                                if (replyContinuations != null && replyContinuations.length() > 0) {
-                                                    for (int r = 0; r < replyContinuations.length(); r++) {
-                                                        JSONObject rObj = replyContinuations.optJSONObject(r);
-                                                        if (rObj != null && rObj.has("continuationItemRenderer")) {
-                                                            JSONObject cir = rObj.optJSONObject("continuationItemRenderer");
-                                                            JSONObject button = cir != null ? cir.optJSONObject("button") : null;
-                                                            JSONObject buttonRenderer = button != null ? button.optJSONObject("buttonRenderer") : null;
-                                                            JSONObject command = buttonRenderer != null ? buttonRenderer.optJSONObject("command") : null;
-                                                            JSONObject ce = command != null ? command.optJSONObject("continuationEndpoint") : null;
-                                                            JSONObject cc = ce != null ? ce.optJSONObject("continuationCommand") : null;
-                                                            if (cc != null) {
-                                                                item.replyContinuationToken = cc.optString("token", null);
-                                                            }
-                                                        }
+                                    item = parseCommentRenderer(cr);
+                                }
+                            }
+
+                            // B. Check modern commentViewModel + entityMap
+                            if (item == null && thread.has("commentViewModel")) {
+                                JSONObject cvmContainer = thread.optJSONObject("commentViewModel");
+                                JSONObject cvm = cvmContainer != null ? cvmContainer.optJSONObject("commentViewModel") : null;
+                                if (cvm != null) {
+                                    String cid = cvm.optString("commentId", "");
+                                    JSONObject cep = entityMap.get(cid);
+                                    if (cep != null) {
+                                        item = parseCommentEntityPayload(cep);
+                                    }
+                                }
+                            }
+
+                            if (item != null) {
+                                // Check for replies token inside thread
+                                JSONObject repliesObj = thread.optJSONObject("replies");
+                                if (repliesObj != null) {
+                                    JSONObject crr = repliesObj.optJSONObject("commentRepliesRenderer");
+                                    if (crr != null) {
+                                        // Extract reply count from viewReplies if not yet set
+                                        if (item.replyCount == 0) {
+                                            JSONObject viewReplies = crr.optJSONObject("viewReplies");
+                                            if (viewReplies != null) {
+                                                JSONObject btn = viewReplies.optJSONObject("buttonRenderer");
+                                                JSONObject txt = btn != null ? btn.optJSONObject("text") : null;
+                                                JSONArray runs = txt != null ? txt.optJSONArray("runs") : null;
+                                                if (runs != null && runs.length() > 0) {
+                                                    String rText = runs.optJSONObject(0).optString("text", "");
+                                                    try {
+                                                        String numStr = rText.replaceAll("[^0-9]", "");
+                                                        if (!numStr.isEmpty()) item.replyCount = Integer.parseInt(numStr);
+                                                    } catch (Exception ignored) {}
+                                                }
+                                            }
+                                        }
+
+                                        JSONArray replyContinuations = crr.optJSONArray("contents");
+                                        if (replyContinuations != null && replyContinuations.length() > 0) {
+                                            for (int r = 0; r < replyContinuations.length(); r++) {
+                                                JSONObject rObj = replyContinuations.optJSONObject(r);
+                                                if (rObj != null && rObj.has("continuationItemRenderer")) {
+                                                    JSONObject cir = rObj.optJSONObject("continuationItemRenderer");
+                                                    JSONObject button = cir != null ? cir.optJSONObject("button") : null;
+                                                    JSONObject buttonRenderer = button != null ? button.optJSONObject("buttonRenderer") : null;
+                                                    JSONObject command = buttonRenderer != null ? buttonRenderer.optJSONObject("command") : null;
+                                                    JSONObject ce = command != null ? command.optJSONObject("continuationEndpoint") : null;
+                                                    if (ce == null && cir != null) ce = cir.optJSONObject("continuationEndpoint");
+                                                    JSONObject cc = ce != null ? ce.optJSONObject("continuationCommand") : null;
+                                                    if (cc != null) {
+                                                        item.replyContinuationToken = cc.optString("token", null);
                                                     }
                                                 }
                                             }
                                         }
-                                        outList.add(item);
                                     }
                                 }
+                                outList.add(item);
                             }
                         }
                     }
@@ -184,7 +285,20 @@ public class YouTubeCommentFetcher {
                         YouTubeCommentItem item = parseCommentRenderer(cItem.optJSONObject("commentRenderer"));
                         if (item != null) outList.add(item);
                     }
-                    // 3. Next page continuation token
+                    // 3. Direct commentViewModel in replies list
+                    else if (cItem.has("commentViewModel")) {
+                        JSONObject cvmContainer = cItem.optJSONObject("commentViewModel");
+                        JSONObject cvm = cvmContainer != null ? cvmContainer.optJSONObject("commentViewModel") : null;
+                        if (cvm != null) {
+                            String cid = cvm.optString("commentId", "");
+                            JSONObject cep = entityMap.get(cid);
+                            if (cep != null) {
+                                YouTubeCommentItem item = parseCommentEntityPayload(cep);
+                                if (item != null) outList.add(item);
+                            }
+                        }
+                    }
+                    // 4. Next page continuation token
                     else if (cItem.has("continuationItemRenderer")) {
                         JSONObject cir = cItem.optJSONObject("continuationItemRenderer");
                         if (cir != null) {
@@ -213,6 +327,41 @@ public class YouTubeCommentFetcher {
             Log.e(TAG, "Error extracting comments and continuation", e);
         }
         return nextContinuation;
+    }
+
+    private static YouTubeCommentItem parseCommentEntityPayload(JSONObject cep) {
+        if (cep == null) return null;
+        try {
+            YouTubeCommentItem item = new YouTubeCommentItem();
+            JSONObject props = cep.optJSONObject("properties");
+            if (props != null) {
+                item.commentId = props.optString("commentId", "");
+                JSONObject contentObj = props.optJSONObject("content");
+                if (contentObj != null) {
+                    item.originalText = contentObj.optString("content", "").trim();
+                }
+                item.publishedTimeText = props.optString("publishedTime", "");
+            }
+
+            JSONObject author = cep.optJSONObject("author");
+            if (author != null) {
+                item.authorName = author.optString("displayName", "Viewer");
+            }
+
+            JSONObject toolbar = cep.optJSONObject("toolbar");
+            if (toolbar != null) {
+                String repStr = toolbar.optString("replyCount", "0");
+                try {
+                    String clean = repStr.replaceAll("[^0-9]", "");
+                    if (!clean.isEmpty()) item.replyCount = Integer.parseInt(clean);
+                } catch (Exception ignored) {}
+            }
+
+            return item;
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing commentEntityPayload", e);
+            return null;
+        }
     }
 
     private static YouTubeCommentItem parseCommentRenderer(JSONObject cr) {
