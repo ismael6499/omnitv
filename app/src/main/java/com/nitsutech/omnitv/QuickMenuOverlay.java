@@ -3791,7 +3791,7 @@ public class QuickMenuOverlay {
                 break;
             case "trigger_comments":
                 dismiss();
-                com.nitsutech.omnitv.comments.YouTubeCommentOverlay.getInstance(context).show();
+                sendServiceAction("ACTION_OPEN_COMMENTS");
                 break;
             case "trigger_translate":
                 dismiss();

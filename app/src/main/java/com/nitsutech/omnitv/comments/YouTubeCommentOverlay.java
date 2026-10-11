@@ -36,8 +36,9 @@ public class YouTubeCommentOverlay {
     private static final String TAG = "YouTubeCommentOverlay";
     private static YouTubeCommentOverlay instance;
 
-    private final Context context;
+    private Context context;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
     private WindowManager windowManager;
     private View overlayView;
     private boolean isShowing = false;
@@ -67,7 +68,9 @@ public class YouTubeCommentOverlay {
 
     public static synchronized YouTubeCommentOverlay getInstance(Context context) {
         if (instance == null) {
-            instance = new YouTubeCommentOverlay(context.getApplicationContext());
+            instance = new YouTubeCommentOverlay(context);
+        } else if (context != null) {
+            instance.context = context;
         }
         return instance;
     }
@@ -76,24 +79,28 @@ public class YouTubeCommentOverlay {
         return isShowing;
     }
 
-    public void show() {
+    public synchronized void show() {
+        show(null);
+    }
+
+    public synchronized void show(Context serviceContext) {
+        if (serviceContext != null) {
+            this.context = serviceContext;
+        }
         if (isShowing) return;
 
         windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         if (windowManager == null) return;
 
-        LayoutInflater inflater = LayoutInflater.from(context);
+        LayoutInflater inflater = LayoutInflater.from(com.nitsutech.omnitv.I18n.getLocalizedContext(context));
         overlayView = inflater.inflate(R.layout.view_comments_translator_overlay, null);
 
         bindViews();
         setupListeners();
         updateMenuInternalFilters();
 
-        DisplayMetrics dm = context.getResources().getDisplayMetrics();
-        int widthPx = Math.round(560 * dm.density);
-
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                widthPx,
+                WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
@@ -101,12 +108,26 @@ public class YouTubeCommentOverlay {
                         | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT
         );
-        params.gravity = Gravity.END | Gravity.TOP;
 
         try {
+            if (overlayView.getParent() != null) {
+                try {
+                    windowManager.removeViewImmediate(overlayView);
+                } catch (Exception ignored) {}
+            }
             windowManager.addView(overlayView, params);
             isShowing = true;
             Log.d(TAG, "YouTubeCommentOverlay added to WindowManager");
+
+            // Dismiss when clicking outside (on the scrim)
+            View rootScrim = overlayView.findViewById(R.id.comments_overlay_root);
+            if (rootScrim != null) {
+                rootScrim.setOnClickListener(v -> dismiss());
+            }
+            View drawerPanel = overlayView.findViewById(R.id.comments_panel_drawer);
+            if (drawerPanel != null) {
+                drawerPanel.setOnClickListener(v -> {}); // prevent clicks inside drawer from dismissing
+            }
 
             // Resolve current video ID
             MediaNotificationListener.LiveVideoInfo info = MediaNotificationListener.getLiveVideoInfo(context);
@@ -127,6 +148,7 @@ public class YouTubeCommentOverlay {
 
         } catch (Exception e) {
             Log.e(TAG, "Error displaying YouTubeCommentOverlay", e);
+            dismiss();
         }
     }
 
@@ -259,7 +281,10 @@ public class YouTubeCommentOverlay {
         mainComments.addAll(extracted);
 
         if (mainComments.isEmpty()) {
-            textStatus.setText(I18n.get(context, R.string.comments_empty));
+            Log.d(TAG, "No comments found on screen, automatically switching to All Video mode");
+            currentSourceMode = 1;
+            updateSourceButtonLabel();
+            loadCommentsFromAllVideo();
         } else {
             textStatus.setText(mainComments.size() + " " + I18n.get(context, R.string.comments_source_screen));
             renderCommentsList(mainComments);
@@ -304,37 +329,48 @@ public class YouTubeCommentOverlay {
     }
 
     private void loadCommentsFromAllVideo() {
-        if (activeVideoId == null || activeVideoId.isEmpty()) {
-            MediaNotificationListener.LiveVideoInfo info = MediaNotificationListener.getLiveVideoInfo(context);
-            if (info != null && info.title != null && !info.title.isEmpty()) {
-                activeVideoId = com.nitsutech.omnitv.vot.YouTubeCaptionFetcher.resolveVideoId(info.title);
-            }
-        }
-
-        if (activeVideoId == null || activeVideoId.isEmpty()) {
-            textStatus.setText(I18n.get(context, R.string.comments_empty));
-            return;
-        }
-
-        YouTubeCommentFetcher.fetchVideoCommentsAsync(activeVideoId, null, new YouTubeCommentFetcher.CommentsCallback() {
-            @Override
-            public void onSuccess(List<YouTubeCommentItem> comments, String nextContinuationToken) {
-                handler.post(() -> {
-                    mainComments.clear();
-                    mainComments.addAll(comments);
-                    if (mainComments.isEmpty()) {
-                        textStatus.setText(I18n.get(context, R.string.comments_empty));
-                    } else {
-                        textStatus.setText(mainComments.size() + " " + I18n.get(context, R.string.comments_source_all));
-                        renderCommentsList(mainComments);
+        textStatus.setText(I18n.get(context, R.string.comments_loading));
+        executor.execute(() -> {
+            String vId = activeVideoId;
+            if (vId == null || vId.isEmpty()) {
+                MediaNotificationListener.LiveVideoInfo info = MediaNotificationListener.getLiveVideoInfo(context);
+                if (info != null && info.mediaId != null && !info.mediaId.isEmpty()) {
+                    vId = MediaNotificationListener.extractCleanVideoId(info.mediaId);
+                }
+                if (vId == null || vId.isEmpty()) {
+                    if (info != null && info.title != null && !info.title.isEmpty()) {
+                        vId = com.nitsutech.omnitv.vot.YouTubeCaptionFetcher.resolveVideoId(info.title);
                     }
-                });
+                }
+                activeVideoId = vId;
             }
 
-            @Override
-            public void onError(String error) {
+            final String resolvedId = vId;
+            if (resolvedId == null || resolvedId.isEmpty()) {
                 handler.post(() -> textStatus.setText(I18n.get(context, R.string.comments_empty)));
+                return;
             }
+
+            YouTubeCommentFetcher.fetchVideoCommentsAsync(resolvedId, null, new YouTubeCommentFetcher.CommentsCallback() {
+                @Override
+                public void onSuccess(List<YouTubeCommentItem> comments, String nextContinuationToken) {
+                    handler.post(() -> {
+                        mainComments.clear();
+                        mainComments.addAll(comments);
+                        if (mainComments.isEmpty()) {
+                            textStatus.setText(I18n.get(context, R.string.comments_empty));
+                        } else {
+                            textStatus.setText(mainComments.size() + " " + I18n.get(context, R.string.comments_source_all));
+                            renderCommentsList(mainComments);
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    handler.post(() -> textStatus.setText(I18n.get(context, R.string.comments_empty)));
+                }
+            });
         });
     }
 
@@ -538,5 +574,30 @@ public class YouTubeCommentOverlay {
         } catch (Exception e) {
             Log.e(TAG, "Error applying internal filter values", e);
         }
+    }
+
+    private void showMainComments() {
+        isShowingReplies = false;
+        if (btnBackThreads != null) {
+            btnBackThreads.setVisibility(View.GONE);
+        }
+        renderCommentsList(mainComments);
+    }
+
+    public boolean onKeyEvent(KeyEvent event) {
+        if (!isShowing || overlayView == null) return false;
+        int keyCode = event.getKeyCode();
+        int action = event.getAction();
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                if (isShowingReplies) {
+                    showMainComments();
+                } else {
+                    dismiss();
+                }
+            }
+            return true;
+        }
+        return overlayView.dispatchKeyEvent(event);
     }
 }

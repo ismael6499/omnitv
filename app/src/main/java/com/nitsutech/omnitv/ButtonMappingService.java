@@ -310,9 +310,6 @@ public class ButtonMappingService extends AccessibilityService {
     private View systemInfoOverlayView = null;
     private View frameStepHudView = null;
     private boolean isFrameStepHudActive = false;
-    private static final float[] SLOW_MOTION_SPEEDS = {1.0f, 0.75f, 0.50f, 0.25f, 0.10f, 0.05f};
-    private int currentSlowMotionIdx = 0;
-    private float savedPlaybackSpeedBeforeHud = 1.0f;
     private long mBaseFrameStepPositionMs = -1;
 
     // Quick Brightness Slider fields
@@ -4385,26 +4382,8 @@ public class ButtonMappingService extends AccessibilityService {
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A
                     || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY || keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    float targetSpeed = SLOW_MOTION_SPEEDS[currentSlowMotionIdx];
-                    if (targetSpeed < 1.0f) {
-                        isSlowMotionLoopActive = !isSlowMotionLoopActive;
-                        if (isSlowMotionLoopActive) {
-                            MediaNotificationListener.pauseAllActiveMedia(ButtonMappingService.this);
-                            handler.removeCallbacks(mSlowMotionLoopRunnable);
-                            handler.post(mSlowMotionLoopRunnable);
-                            updateFrameStepHudFeedback(String.format(Locale.US, "🐢 Slow-Mo: Playing (%.2fx)", targetSpeed));
-                        } else {
-                            handler.removeCallbacks(mSlowMotionLoopRunnable);
-                            updateFrameStepHudFeedback("⏸️ Slow-Mo: Paused");
-                        }
-                    } else {
-                        if (isSlowMotionLoopActive) {
-                            isSlowMotionLoopActive = false;
-                            handler.removeCallbacks(mSlowMotionLoopRunnable);
-                        }
-                        sendMediaPlayPause();
-                        updateFrameStepHudFeedback("⏯️ Play / Pause");
-                    }
+                    sendMediaPlayPause();
+                    updateFrameStepHudFeedback("⏯️ Play / Pause");
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
@@ -4414,7 +4393,7 @@ public class ButtonMappingService extends AccessibilityService {
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    cycleSlowMotionSpeed();
+                    toggleFrameStepHudVisibility();
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE) {
@@ -4766,6 +4745,12 @@ public class ButtonMappingService extends AccessibilityService {
             if (handled) return true;
         }
 
+        // 8. Intercept keys if YouTubeCommentOverlay is active
+        if (com.nitsutech.omnitv.comments.YouTubeCommentOverlay.getInstance(this).isShowing()) {
+            boolean handled = com.nitsutech.omnitv.comments.YouTubeCommentOverlay.getInstance(this).onKeyEvent(event);
+            if (handled) return true;
+        }
+
         return super.onKeyEvent(event);
     }
 
@@ -4911,45 +4896,6 @@ public class ButtonMappingService extends AccessibilityService {
         int mode = op.getInt("frame_step_mode", 0);
         String label = getFrameStepModeLabel(mode);
         return "🎞️ " + label;
-    }
-
-    private boolean isSlowMotionLoopActive = false;
-    private final Runnable mSlowMotionLoopRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (!isFrameStepHudActive || !isSlowMotionLoopActive) return;
-            float targetSpeed = SLOW_MOTION_SPEEDS[currentSlowMotionIdx];
-            if (targetSpeed >= 1.0f) {
-                isSlowMotionLoopActive = false;
-                return;
-            }
-            long stepDelta = getCalculatedFrameStepMs();
-            if (stepDelta <= 0) stepDelta = 33;
-            MediaNotificationListener.seekActiveMediaBy(stepDelta);
-
-            double frameDur = getFrameDurationMs();
-            if (frameDur <= 0) frameDur = 33.3;
-            long intervalMs = Math.max(30, Math.round(frameDur / targetSpeed));
-            handler.postDelayed(this, intervalMs);
-        }
-    };
-
-    private void cycleSlowMotionSpeed() {
-        currentSlowMotionIdx = (currentSlowMotionIdx + 1) % SLOW_MOTION_SPEEDS.length;
-        float targetSpeed = SLOW_MOTION_SPEEDS[currentSlowMotionIdx];
-        MediaNotificationListener.setPlaybackSpeed(targetSpeed);
-        String speedLabel = (targetSpeed == 1.0f) ? "1.0x (Normal)" : String.format(Locale.US, "%.2fx Slow-Mo", targetSpeed);
-        updateFrameStepHudFeedback("🐢 " + speedLabel);
-        Log.d(TAG, "Slow motion speed switched to: " + targetSpeed + "x");
-        if (isSlowMotionLoopActive) {
-            handler.removeCallbacks(mSlowMotionLoopRunnable);
-            if (targetSpeed < 1.0f) {
-                handler.post(mSlowMotionLoopRunnable);
-            } else {
-                isSlowMotionLoopActive = false;
-                sendMediaPlayPause();
-            }
-        }
     }
 
     private int mRapidFrameStepAccumulator = 0;
@@ -5141,8 +5087,6 @@ public class ButtonMappingService extends AccessibilityService {
         if (lastSeenMediaTitle != null && !lastSeenMediaTitle.isEmpty()) {
             com.nitsutech.omnitv.vot.YouTubeCaptionFetcher.fetchVideoFpsAsync(lastSeenMediaTitle, null);
         }
-        savedPlaybackSpeedBeforeHud = MediaNotificationListener.getCurrentPlaybackSpeed();
-        currentSlowMotionIdx = 0;
         handler.post(new Runnable() {
             @Override
             public void run() {
@@ -5226,23 +5170,12 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void dismissFrameStepHud() {
-        isSlowMotionLoopActive = false;
-        handler.removeCallbacks(mSlowMotionLoopRunnable);
         handler.removeCallbacks(resetFrameStepFeedbackRunnable);
         handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
         mRapidFrameStepAccumulator = 0;
         mBaseFrameStepPositionMs = -1L;
         isFrameStepHudHidden = false;
         MediaNotificationListener.resetFrameStepState();
-
-        // Restore playback speed if slow-mo was used
-        if (savedPlaybackSpeedBeforeHud > 0.0f) {
-            float curSpeed = MediaNotificationListener.getCurrentPlaybackSpeed();
-            if (Math.abs(curSpeed - savedPlaybackSpeedBeforeHud) > 0.01f) {
-                MediaNotificationListener.setPlaybackSpeed(savedPlaybackSpeedBeforeHud);
-                Log.d(TAG, "Restored playback speed upon dismissing HUD to: " + savedPlaybackSpeedBeforeHud + "x");
-            }
-        }
 
         if (frameStepHudView != null) {
             final View v = frameStepHudView;
