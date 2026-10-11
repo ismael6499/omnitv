@@ -74,7 +74,9 @@ public class AiSummaryOverlay {
     private TextView btnAiMic;
     private TextView btnAiPlayPause;
     private TextView btnAiChatLang;
+    private TextView btnAiWebSearch;
     private TextView btnPillVisionScan;
+    private TextView btnPillWebSearch;
 
     // Vision Panel views
     private LinearLayout panelAiVisionOptions;
@@ -371,6 +373,19 @@ public class AiSummaryOverlay {
             });
         }
 
+        btnAiWebSearch = overlayView.findViewById(R.id.btn_ai_web_search);
+        if (btnAiWebSearch != null) {
+            SharedPreferences prefs = context.getSharedPreferences("overlay_prefs", Context.MODE_PRIVATE);
+            boolean webOn = prefs.getBoolean("ai_web_search_enabled", true);
+            updateWebSearchButtonState(webOn);
+            btnAiWebSearch.setOnClickListener(v -> {
+                boolean cur = prefs.getBoolean("ai_web_search_enabled", true);
+                boolean next = !cur;
+                prefs.edit().putBoolean("ai_web_search_enabled", next).apply();
+                updateWebSearchButtonState(next);
+            });
+        }
+
         // Vision Subpanel Views
         panelAiVisionOptions = overlayView.findViewById(R.id.panel_ai_vision_options);
         txtVisionHeader = overlayView.findViewById(R.id.txt_vision_header);
@@ -516,6 +531,15 @@ public class AiSummaryOverlay {
             btnMoments.setOnClickListener(v -> executePrompt(context, isEn ? "Detail the most important moments or sections of this video with timestamps if available." : "Detalla los momentos o temas más importantes del video con marcas de tiempo si están disponibles.", false));
         }
 
+        btnPillWebSearch = overlayView.findViewById(R.id.btn_pill_web_search);
+        if (btnPillWebSearch != null) {
+            btnPillWebSearch.setOnClickListener(v -> {
+                String q = isEn ? "Search Google for the latest news, updates, background facts and external reviews related to this video topic."
+                                : "Busca en Google las últimas noticias, datos de contexto, novedades y reseñas externas sobre el tema de este video.";
+                executePrompt(context, q, false);
+            });
+        }
+
         // Suggested Follow-up Buttons (Bottom)
         btnSuggested1.setOnClickListener(v -> executePrompt(context, btnSuggested1.getText().toString(), false));
         btnSuggested2.setOnClickListener(v -> executePrompt(context, btnSuggested2.getText().toString(), false));
@@ -539,6 +563,12 @@ public class AiSummaryOverlay {
                 if (keyCode == KeyEvent.KEYCODE_BACK) {
                     handleBackPress(overlayView != null ? overlayView.getContext() : ButtonMappingService.instance);
                     return true;
+                } else if (keyCode == KeyEvent.KEYCODE_VOICE_ASSIST || keyCode == KeyEvent.KEYCODE_SEARCH) {
+                    Context ctx = overlayView != null ? overlayView.getContext() : ButtonMappingService.instance;
+                    if (ctx != null) {
+                        toggleVoiceInput(ctx);
+                        return true;
+                    }
                 }
             }
             return false;
@@ -1080,6 +1110,13 @@ public class AiSummaryOverlay {
         if (btnPillVisionScan != null) {
             btnPillVisionScan.setText(isEn ? "👁️ Analyze Screen (Lens)" : "👁️ Analizar Pantalla (Lens)");
         }
+        if (btnPillWebSearch != null) {
+            btnPillWebSearch.setText(isEn ? "🌐 Search Google" : "🌐 Buscar en Google");
+        }
+
+        if (btnAiWebSearch != null) {
+            updateWebSearchButtonState(prefs.getBoolean("ai_web_search_enabled", true));
+        }
 
         if (txtVisionHeader != null) {
             txtVisionHeader.setText(isEn ? "🔍 Visual Analysis & Lens" : "🔍 Análisis Visual y Lens");
@@ -1109,6 +1146,18 @@ public class AiSummaryOverlay {
             btnAiMic.setText(isListening
                     ? (isEn ? "🔴 Listening..." : "🔴 Escuchando...")
                     : (isEn ? "🎙️ Talk" : "🎙️ Hablar"));
+        }
+    }
+
+    private void updateWebSearchButtonState(boolean enabled) {
+        if (btnAiWebSearch == null) return;
+        boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+        if (enabled) {
+            btnAiWebSearch.setText(isEn ? "🌐 Web: ON" : "🌐 Web: SÍ");
+            btnAiWebSearch.setTextColor(0xFF81D4FA);
+        } else {
+            btnAiWebSearch.setText(isEn ? "🌐 Web: OFF" : "🌐 Web: NO");
+            btnAiWebSearch.setTextColor(0xFF888888);
         }
     }
 
@@ -2106,7 +2155,7 @@ public class AiSummaryOverlay {
             if (turn.isUser) {
                 addUserQuestionCard(context, turn.text);
             } else {
-                appendChips(context, turn.items, turn.text, false, turn.lensBoxes);
+                appendChips(context, turn.items, turn.text, false, turn.lensBoxes, turn.suggestedQuestions);
             }
         }
 
@@ -2247,7 +2296,7 @@ public class AiSummaryOverlay {
                         if (btnAiReset != null) btnAiReset.setVisibility(View.VISIBLE);
                         saveConversationToPrefs(context);
 
-                        appendChips(context, items, rawAnswer, true);
+                        appendChips(context, items, rawAnswer, true, null, suggestedQuestions);
                         renderSuggestedQuestions(context, suggestedQuestions);
                     }
 
@@ -2278,10 +2327,14 @@ public class AiSummaryOverlay {
     }
 
     private void appendChips(Context context, List<AiSummaryEngine.AiPointItem> items, String fallbackRawAnswer, boolean autoFocusFirst) {
-        appendChips(context, items, fallbackRawAnswer, autoFocusFirst, null);
+        appendChips(context, items, fallbackRawAnswer, autoFocusFirst, null, null);
     }
 
     private void appendChips(Context context, List<AiSummaryEngine.AiPointItem> items, String fallbackRawAnswer, boolean autoFocusFirst, List<AiSummaryEngine.LensBoxItem> lensBoxes) {
+        appendChips(context, items, fallbackRawAnswer, autoFocusFirst, lensBoxes, null);
+    }
+
+    private void appendChips(Context context, List<AiSummaryEngine.AiPointItem> items, String fallbackRawAnswer, boolean autoFocusFirst, List<AiSummaryEngine.LensBoxItem> lensBoxes, List<String> suggestedQuestionsForTurn) {
         if (containerAiChips == null) return;
         if (textAiWelcome != null) textAiWelcome.setVisibility(View.GONE);
 
@@ -2411,6 +2464,11 @@ public class AiSummaryOverlay {
             }
         }
 
+        // Attach persistent interactive suggested pills & voice re-trigger directly into the conversation turn!
+        if (suggestedQuestionsForTurn != null && !suggestedQuestionsForTurn.isEmpty()) {
+            appendEmbeddedTurnQuestions(context, suggestedQuestionsForTurn);
+        }
+
         if (autoFocusFirst && firstNewCard != null) {
             final View target = firstNewCard;
             mainHandler.post(() -> {
@@ -2418,6 +2476,69 @@ public class AiSummaryOverlay {
                 centerViewInScrollView(target);
             });
         }
+    }
+
+    private void appendEmbeddedTurnQuestions(Context context, List<String> turnQuestions) {
+        if (containerAiChips == null || turnQuestions == null || turnQuestions.isEmpty()) return;
+        float density = context.getResources().getDisplayMetrics().density;
+        int mb8 = (int) (8 * density);
+        int p10 = (int) (10 * density);
+        int p14 = (int) (14 * density);
+        boolean isEn = "en".equalsIgnoreCase(uiLanguage);
+
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        rowParams.topMargin = mb8;
+        rowParams.bottomMargin = mb8;
+        row.setLayoutParams(rowParams);
+
+        for (String q : turnQuestions) {
+            if (q == null || q.trim().isEmpty()) continue;
+            final String cleanQ = q.replaceAll("^[0-9]+[.)-]\\s*", "").trim();
+            TextView btnQ = new TextView(context);
+            btnQ.setBackgroundResource(R.drawable.pill_youtube_tv);
+            btnQ.setText("💡 " + cleanQ);
+            btnQ.setTextColor(0xFFDDDDDD);
+            btnQ.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+            btnQ.setPadding(p14, p10, p14, p10);
+            btnQ.setFocusable(true);
+            btnQ.setClickable(true);
+
+            LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            btnLp.bottomMargin = (int) (6 * density);
+            btnQ.setLayoutParams(btnLp);
+
+            btnQ.setOnClickListener(v -> executePrompt(context, cleanQ, false));
+            btnQ.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) centerViewInScrollView(v);
+            });
+            row.addView(btnQ);
+        }
+
+        // Quick voice pill inside turn: [ 🎙️ Hablar de nuevo / 🎙️ Talk again ]
+        TextView btnVoiceReplay = new TextView(context);
+        btnVoiceReplay.setBackgroundResource(R.drawable.pill_youtube_tv);
+        btnVoiceReplay.setText(isEn ? "🎙️ Talk again" : "🎙️ Hablar de nuevo");
+        btnVoiceReplay.setTextColor(0xFF8AB4F8);
+        btnVoiceReplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+        btnVoiceReplay.setTypeface(btnVoiceReplay.getTypeface(), Typeface.BOLD);
+        btnVoiceReplay.setPadding(p14, p10, p14, p10);
+        btnVoiceReplay.setFocusable(true);
+        btnVoiceReplay.setClickable(true);
+        btnVoiceReplay.setOnClickListener(v -> toggleVoiceInput(context));
+        btnVoiceReplay.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) centerViewInScrollView(v);
+        });
+        row.addView(btnVoiceReplay);
+
+        containerAiChips.addView(row);
     }
 
     private void renderSuggestedQuestions(Context context, List<String> rawSuggestedQuestions) {

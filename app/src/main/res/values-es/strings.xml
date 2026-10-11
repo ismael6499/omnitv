@@ -576,4 +576,11 @@
     <string name="comments_btn_translate">🌐 Traducir</string>
     <string name="comments_btn_orig">Original</string>
     <string name="comments_action_pill">💬 Comentarios</string>
+
+    <!-- AI Search Grounding & UX Polish -->
+    <string name="ai_web_toggle_on">🌐 Web: SÍ</string>
+    <string name="ai_web_toggle_off">🌐 Web: NO</string>
+    <string name="ai_pill_google_search">🌐 Buscar en Google</string>
+    <string name="ai_talk_again">🎙️ Hablar de nuevo</string>
+    <string name="ai_sources_badge">🔗 Fuentes: %d resultados web</string>
 </resources>

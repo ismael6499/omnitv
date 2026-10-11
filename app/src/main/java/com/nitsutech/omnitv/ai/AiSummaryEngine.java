@@ -319,6 +319,16 @@ public class AiSummaryEngine {
             }
             body.put("generationConfig", genConfig);
 
+            // Google Search Grounding tool (if enabled in preferences or requested)
+            boolean webSearchEnabled = prefs.getBoolean("ai_web_search_enabled", true);
+            if (webSearchEnabled) {
+                JSONArray toolsArr = new JSONArray();
+                JSONObject googleSearchTool = new JSONObject();
+                googleSearchTool.put("googleSearch", new JSONObject());
+                toolsArr.put(googleSearchTool);
+                body.put("tools", toolsArr);
+            }
+
             // System instruction
             JSONObject systemInstruction = new JSONObject();
             JSONArray sysParts = new JSONArray();
@@ -432,6 +442,31 @@ public class AiSummaryEngine {
                     JSONArray partsArr = contentObj.optJSONArray("parts");
                     if (partsArr != null && partsArr.length() > 0) {
                         String fullText = partsArr.getJSONObject(0).optString("text", "");
+
+                        // Extract Grounding metadata / web search citations
+                        JSONObject groundingMeta = first.optJSONObject("groundingMetadata");
+                        if (groundingMeta != null) {
+                            JSONArray webSearchQueries = groundingMeta.optJSONArray("webSearchQueries");
+                            JSONArray searchChunks = groundingMeta.optJSONArray("groundingChunks");
+                            if (searchChunks != null && searchChunks.length() > 0) {
+                                StringBuilder sourcesSb = new StringBuilder();
+                                boolean isEn = "en".equalsIgnoreCase(chatLang);
+                                sourcesSb.append("\n\n").append(isEn ? "🔗 Web Sources & References:" : "🔗 Fuentes y Referencias Web:").append("\n");
+                                for (int c = 0; c < Math.min(searchChunks.length(), 4); c++) {
+                                    JSONObject chunk = searchChunks.optJSONObject(c);
+                                    if (chunk != null) {
+                                        JSONObject web = chunk.optJSONObject("web");
+                                        if (web != null) {
+                                            String uri = web.optString("uri", "");
+                                            String title = web.optString("title", uri);
+                                            sourcesSb.append("• ").append(title).append("\n");
+                                        }
+                                    }
+                                }
+                                fullText = fullText + sourcesSb.toString();
+                            }
+                        }
+
                         parseAndDeliver(fullText, callback);
                         return;
                     }

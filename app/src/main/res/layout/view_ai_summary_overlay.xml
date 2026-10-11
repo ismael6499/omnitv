@@ -41,6 +41,22 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/btn_ai_web_search"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/pill_youtube_tv"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:layout_marginEnd="6dp"
+                android:gravity="center"
+                android:text="@string/ai_web_toggle_on"
+                android:textColor="#81D4FA"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:focusable="true"
+                android:clickable="true" />
+
+            <TextView
                 android:id="@+id/btn_ai_play_pause"
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
@@ -211,6 +227,22 @@
                     android:gravity="center"
                     android:text="@string/ai_pill_conclusions"
                     android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/btn_pill_web_search"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:text="@string/ai_pill_google_search"
+                    android:textColor="#81D4FA"
                     android:textSize="13sp"
                     android:textStyle="bold"
                     android:focusable="true"
