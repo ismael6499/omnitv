@@ -449,6 +449,70 @@ public class MediaNotificationListener extends NotificationListenerService {
         return -1f;
     }
 
+    public static boolean setPlaybackSpeed(float speed) {
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null && !controllers.isEmpty()) {
+                    for (MediaController mc : controllers) {
+                        if (mc == null) continue;
+                        String pkg = mc.getPackageName();
+                        if (pkg != null && (pkg.contains("smarttube") || pkg.contains("youtube") || pkg.contains("netflix") || pkg.contains("disney"))) {
+                            Log.d(TAG, "Explicitly setting playback speed on " + pkg + " to " + speed);
+                            mc.getTransportControls().setPlaybackSpeed(speed);
+                            return true;
+                        }
+                    }
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getTransportControls() != null) {
+                            mc.getTransportControls().setPlaybackSpeed(speed);
+                            return true;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting playback speed to " + speed, e);
+        }
+        return false;
+    }
+
+    public static float getCurrentPlaybackSpeed() {
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null && !controllers.isEmpty()) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getPlaybackState() != null) {
+                            float s = mc.getPlaybackState().getPlaybackSpeed();
+                            if (s > 0f) return s;
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return 1.0f;
+    }
+
+    public static long getActiveMediaPosition() {
+        try {
+            if (instance != null && instance.mediaSessionManager != null) {
+                ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+                List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+                if (controllers != null && !controllers.isEmpty()) {
+                    for (MediaController mc : controllers) {
+                        if (mc != null && mc.getPlaybackState() != null) {
+                            return mc.getPlaybackState().getPosition();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return -1;
+    }
+
     public static boolean seekActiveMediaBy(long deltaMs) {
         try {
             if (instance != null && instance.mediaSessionManager != null) {

@@ -95,6 +95,7 @@ public class ButtonMappingService extends AccessibilityService {
     private boolean isDismissingComboKey = false;
     private String pendingComboKey = null;
     private int pendingComboClickCount = 0;
+    private int activeComboSecondaryKeyCode = -1;
     private boolean isTranslationOverlayActive = false;
     private View translationOverlayView = null;
 
@@ -309,6 +310,10 @@ public class ButtonMappingService extends AccessibilityService {
     private View systemInfoOverlayView = null;
     private View frameStepHudView = null;
     private boolean isFrameStepHudActive = false;
+    private static final float[] SLOW_MOTION_SPEEDS = {1.0f, 0.75f, 0.50f, 0.25f, 0.10f, 0.05f};
+    private int currentSlowMotionIdx = 0;
+    private float savedPlaybackSpeedBeforeHud = 1.0f;
+    private long mBaseFrameStepPositionMs = -1;
 
     // Quick Brightness Slider fields
     private View brightnessSliderView = null;
@@ -1438,10 +1443,10 @@ public class ButtonMappingService extends AccessibilityService {
                 toggleFrameStepHud();
                 break;
             case 25: // Avanzar 1 Frame (YouTube)
-                stepVideoFrame(1);
+                handleRapidFrameStep(1);
                 break;
             case 26: // Retroceder 1 Frame (YouTube)
-                stepVideoFrame(-1);
+                handleRapidFrameStep(-1);
                 break;
             case 27: // Opciones de Desarrollador
                 launchDeveloperOptions();
@@ -4260,6 +4265,7 @@ public class ButtonMappingService extends AccessibilityService {
         // 1. Fast-Path: Zero-Delay when double-click (action2) is disabled
         if (action2 <= 0) {
             if (action == KeyEvent.ACTION_DOWN) {
+                activeComboSecondaryKeyCode = event.getKeyCode();
                 if (markBaseConsumed != null) markBaseConsumed.run();
                 if (pendingComboKey != null && !pendingComboKey.equals(comboKey)) {
                     handler.removeCallbacks(comboTimeoutRunnable);
@@ -4269,12 +4275,17 @@ public class ButtonMappingService extends AccessibilityService {
                     Log.d(TAG, "Combo Zero-Delay 1-click executed: " + comboKey + " (action: " + action1 + ")");
                     executeAction(action1);
                 }
+            } else if (action == KeyEvent.ACTION_UP) {
+                if (event.getKeyCode() == activeComboSecondaryKeyCode) {
+                    activeComboSecondaryKeyCode = -1;
+                }
             }
             return true;
         }
 
         // 2. Multi-Click Path: Distinguish between single and double click
         if (action == KeyEvent.ACTION_DOWN) {
+            activeComboSecondaryKeyCode = event.getKeyCode();
             if (markBaseConsumed != null) markBaseConsumed.run();
             if (pendingComboKey != null && !pendingComboKey.equals(comboKey)) {
                 handler.removeCallbacks(comboTimeoutRunnable);
@@ -4293,6 +4304,9 @@ public class ButtonMappingService extends AccessibilityService {
             }
             return true;
         } else if (action == KeyEvent.ACTION_UP) {
+            if (event.getKeyCode() == activeComboSecondaryKeyCode) {
+                activeComboSecondaryKeyCode = -1;
+            }
             if (pendingComboClickCount == 2) {
                 // Release of the 2nd click: clean up completely
                 pendingComboKey = null;
@@ -4329,6 +4343,14 @@ public class ButtonMappingService extends AccessibilityService {
         Log.d("OmniKey", "onKeyEvent: code=" + keyCode + " (" + KeyEvent.keyCodeToString(keyCode) + "), action=" + (action == KeyEvent.ACTION_DOWN ? "DOWN" : "UP")
                 + ", repeat=" + event.getRepeatCount() + ", mutePressed=" + muteState.isPressed + ", ytPressed=" + (youtube190State.isPressed || youtube189State.isPressed));
 
+        // 0. Shield against orphan repeats and stuck keys from combos (e.g. Mute + DPAD UP)
+        if (activeComboSecondaryKeyCode != -1 && keyCode == activeComboSecondaryKeyCode) {
+            if (action == KeyEvent.ACTION_UP) {
+                activeComboSecondaryKeyCode = -1;
+            }
+            return true;
+        }
+
         // 0. Quick Brightness Slider Key Interception
         if (isBrightnessSliderActive && !QuickMenuOverlay.getInstance().isShowing()) {
             if (handleBrightnessSliderKeyEvent(event)) {
@@ -4361,7 +4383,7 @@ public class ButtonMappingService extends AccessibilityService {
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    toggleFrameStepHudVisibility();
+                    cycleSlowMotionSpeed();
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE) {
@@ -4795,11 +4817,17 @@ public class ButtonMappingService extends AccessibilityService {
 
     public double getFrameDurationMs() {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
-        int mode = op.getInt("frame_step_mode", 0); // 0: Auto, 1: 24fps, 2: 30fps, 3: 60fps
+        int mode = op.getInt("frame_step_mode", 0); // 0: Auto, 1: 24fps, 2: 30fps, 3: 60fps, 4: 100ms, 5: 250ms, 6: 500ms, 7: 1s, 8: 2s, 9: 5s
         switch (mode) {
             case 1: return 1000.0 / 23.976; // 24 fps (41.708ms)
             case 2: return 1000.0 / 29.97;  // 30 fps (33.367ms)
             case 3: return 1000.0 / 59.94;  // 60 fps (16.683ms)
+            case 4: return 100.0;           // 100 ms
+            case 5: return 250.0;           // 250 ms
+            case 6: return 500.0;           // 500 ms
+            case 7: return 1000.0;          // 1.0 s
+            case 8: return 2000.0;          // 2.0 s
+            case 9: return 5000.0;          // 5.0 s
             default: { // Auto detection
                 if (detectedVideoFps >= 55) return 1000.0 / 59.94; // 60 fps
                 if (detectedVideoFps >= 45) return 1000.0 / 50.0;  // 50 fps
@@ -4817,13 +4845,14 @@ public class ButtonMappingService extends AccessibilityService {
     private void cycleFrameStepMode() {
         handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
         mRapidFrameStepAccumulator = 0;
+        mBaseFrameStepPositionMs = -1;
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int mode = op.getInt("frame_step_mode", 0);
-        int nextMode = (mode + 1) % 4; // 0: Auto, 1: 24fps (42ms), 2: 30fps (33ms), 3: 60fps (16ms)
+        int nextMode = (mode + 1) % 10;
         op.edit().putInt("frame_step_mode", nextMode).apply();
         MediaNotificationListener.resetFrameStepState();
         String label = getFrameStepModeLabel(nextMode);
-        updateFrameStepHudFeedback("Modo: " + label);
+        updateFrameStepHudFeedback("Paso: " + label);
         Log.d(TAG, "Frame step mode switched to: " + label);
     }
 
@@ -4832,6 +4861,12 @@ public class ButtonMappingService extends AccessibilityService {
             case 1: return "24 FPS (42ms)";
             case 2: return "30 FPS (33ms)";
             case 3: return "60 FPS (16ms)";
+            case 4: return "100 ms";
+            case 5: return "250 ms";
+            case 6: return "500 ms";
+            case 7: return "1.0 s";
+            case 8: return "2.0 s";
+            case 9: return "5.0 s";
             default: {
                 int fps = (detectedVideoFps > 0) ? detectedVideoFps : 30;
                 long ms = getCalculatedFrameStepMs();
@@ -4844,7 +4879,16 @@ public class ButtonMappingService extends AccessibilityService {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int mode = op.getInt("frame_step_mode", 0);
         String label = getFrameStepModeLabel(mode);
-        return "🎞️ " + label + " (◄ / ► | ▲ FPS)";
+        return "🎞️ " + label + " (◄ / ► | ▲ Paso | ▼ Slow-Mo)";
+    }
+
+    private void cycleSlowMotionSpeed() {
+        currentSlowMotionIdx = (currentSlowMotionIdx + 1) % SLOW_MOTION_SPEEDS.length;
+        float targetSpeed = SLOW_MOTION_SPEEDS[currentSlowMotionIdx];
+        MediaNotificationListener.setPlaybackSpeed(targetSpeed);
+        String speedLabel = (targetSpeed == 1.0f) ? "▶️ 1.0x (Normal)" : String.format(Locale.US, "🐢 %.2fx Slow-Mo", targetSpeed);
+        updateFrameStepHudFeedback(speedLabel);
+        Log.d(TAG, "Slow motion speed switched to: " + targetSpeed + "x");
     }
 
     private int mRapidFrameStepAccumulator = 0;
@@ -4861,8 +4905,14 @@ public class ButtonMappingService extends AccessibilityService {
         long now = SystemClock.elapsedRealtime();
         if (mLastRapidFrameStepTime > 0 && (now - mLastRapidFrameStepTime) > 350) {
             mRapidFrameStepAccumulator = 0;
+            mBaseFrameStepPositionMs = -1L;
         }
         mLastRapidFrameStepTime = now;
+
+        if (mBaseFrameStepPositionMs < 0) {
+            long currentPos = MediaNotificationListener.getActiveMediaPosition();
+            mBaseFrameStepPositionMs = (currentPos >= 0) ? currentPos : 0;
+        }
 
         mRapidFrameStepAccumulator += direction;
         int count = Math.abs(mRapidFrameStepAccumulator);
@@ -4880,23 +4930,34 @@ public class ButtonMappingService extends AccessibilityService {
         updateFrameStepHudFeedback(feedback);
 
         handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
-        handler.postDelayed(mExecuteBatchedFrameStepRunnable, 140);
+        handler.postDelayed(mExecuteBatchedFrameStepRunnable, 220);
     }
 
     private void executeBatchedFrameStep() {
         int framesToStep = mRapidFrameStepAccumulator;
+        long basePos = mBaseFrameStepPositionMs;
         mRapidFrameStepAccumulator = 0;
+        mBaseFrameStepPositionMs = -1L;
         if (framesToStep == 0) return;
 
         double frameDur = getFrameDurationMs();
+        long totalDelta = framesToStep * getCalculatedFrameStepMs();
+
+        if (basePos >= 0) {
+            long targetPos = Math.max(0, basePos + totalDelta);
+            if (MediaNotificationListener.seekToPosition(targetPos)) {
+                Log.d(TAG, "Batched frame step via consolidated seekToPosition (" + targetPos + "ms, delta=" + totalDelta + "ms)");
+                return;
+            }
+        }
+
         if (MediaNotificationListener.stepActiveMediaFrameByCount(framesToStep, frameDur)) {
             Log.d(TAG, "Batched frame step executed successfully (" + framesToStep + " frames, dur=" + frameDur + "ms)");
             return;
         }
 
-        long totalDelta = framesToStep * getCalculatedFrameStepMs();
         if (MediaNotificationListener.seekActiveMediaBy(totalDelta)) {
-            Log.d(TAG, "Batched frame step via seekTo (" + totalDelta + "ms, detectedFps=" + detectedVideoFps + ")");
+            Log.d(TAG, "Batched frame step via seekActiveMediaBy (" + totalDelta + "ms, detectedFps=" + detectedVideoFps + ")");
         }
     }
 
@@ -5019,6 +5080,8 @@ public class ButtonMappingService extends AccessibilityService {
         if (lastSeenMediaTitle != null && !lastSeenMediaTitle.isEmpty()) {
             com.nitsutech.omnitv.vot.YouTubeCaptionFetcher.fetchVideoFpsAsync(lastSeenMediaTitle, null);
         }
+        savedPlaybackSpeedBeforeHud = MediaNotificationListener.getCurrentPlaybackSpeed();
+        currentSlowMotionIdx = 0;
         handler.post(new Runnable() {
             @Override
             public void run() {
@@ -5105,8 +5168,19 @@ public class ButtonMappingService extends AccessibilityService {
         handler.removeCallbacks(resetFrameStepFeedbackRunnable);
         handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
         mRapidFrameStepAccumulator = 0;
+        mBaseFrameStepPositionMs = -1L;
         isFrameStepHudHidden = false;
         MediaNotificationListener.resetFrameStepState();
+
+        // Restore playback speed if slow-mo was used
+        if (savedPlaybackSpeedBeforeHud > 0.0f) {
+            float curSpeed = MediaNotificationListener.getCurrentPlaybackSpeed();
+            if (Math.abs(curSpeed - savedPlaybackSpeedBeforeHud) > 0.01f) {
+                MediaNotificationListener.setPlaybackSpeed(savedPlaybackSpeedBeforeHud);
+                Log.d(TAG, "Restored playback speed upon dismissing HUD to: " + savedPlaybackSpeedBeforeHud + "x");
+            }
+        }
+
         if (frameStepHudView != null) {
             final View v = frameStepHudView;
             frameStepHudView = null;
