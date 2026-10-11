@@ -1313,6 +1313,10 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_TRANSLATE_SCREEN":
                 triggerScreenTranslation();
                 break;
+            case "ACTION_OPEN_COMMENTS":
+            case "ACTION_TRANSLATE_COMMENTS":
+                openCommentTranslator();
+                break;
             case "SHOW_OSD":
             case "ACTION_SHOW_OSD":
                 if (extras != null && extras.getString("message") != null) {
@@ -1484,7 +1488,15 @@ public class ButtonMappingService extends AccessibilityService {
             case 38: // Toggle Velocidad (SmartTube)
                 togglePlaybackSpeed();
                 break;
+            case 39: // Traductor de Comentarios (SmartTube / YouTube)
+                openCommentTranslator();
+                break;
         }
+    }
+
+    private void openCommentTranslator() {
+        Log.d(TAG, "Opening Comment Translator Overlay");
+        handler.post(() -> com.nitsutech.omnitv.comments.YouTubeCommentOverlay.getInstance(this).show());
     }
 
     private void openAiSummary() {

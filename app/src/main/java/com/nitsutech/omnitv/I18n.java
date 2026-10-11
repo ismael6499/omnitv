@@ -55,7 +55,8 @@ public class I18n {
         R.string.action_subtitles,
         R.string.action_previous_video,
         R.string.action_next_video,
-        R.string.action_toggle_speed
+        R.string.action_toggle_speed,
+        R.string.action_comments
     };
 
     public static String getLanguage(Context context) {

@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/comments_overlay_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#66000000"
+    android:clickable="true"
+    android:focusable="true">
+
+    <LinearLayout
+        android:id="@+id/comments_panel_drawer"
+        android:layout_width="560dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:background="#1B1D24"
+        android:elevation="16dp"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="14dp"
+        android:clickable="true"
+        android:focusable="true">
+
+        <!-- Header Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="10dp">
+
+            <TextView
+                android:id="@+id/comments_text_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/comments_overlay_title"
+                android:textColor="#8AB4F8"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/comments_btn_close"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/pill_youtube_tv"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:gravity="center"
+                android:text="@string/ai_close"
+                android:textColor="#DDDDDD"
+                android:textSize="12sp"
+                android:focusable="true"
+                android:clickable="true" />
+        </LinearLayout>
+
+        <!-- Source & Language Controls Pill Row -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:layout_marginBottom="10dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/comments_btn_source"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:gravity="center"
+                    android:text="@string/comments_source_screen"
+                    android:textColor="#8AB4F8"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_marginEnd="6dp" />
+
+                <TextView
+                    android:id="@+id/comments_btn_lang"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:gravity="center"
+                    android:text="@string/comments_lang_es"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_marginEnd="6dp" />
+
+                <TextView
+                    android:id="@+id/comments_btn_translate_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:gravity="center"
+                    android:text="@string/comments_translate_all"
+                    android:textColor="#81D4FA"
+                    android:textSize="12sp"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_marginEnd="6dp" />
+
+                <TextView
+                    android:id="@+id/comments_btn_back_threads"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:background="@drawable/pill_youtube_tv"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:gravity="center"
+                    android:text="@string/comments_back_to_threads"
+                    android:textColor="#FFEB3B"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- Status / Counter Info -->
+        <TextView
+            android:id="@+id/comments_text_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/comments_loading"
+            android:textColor="#9AA0A6"
+            android:textSize="12sp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Scrollable List of Comments -->
+        <ScrollView
+            android:id="@+id/comments_scroll_list"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fadeScrollbars="false"
+            android:scrollbars="vertical">
+
+            <LinearLayout
+                android:id="@+id/comments_container_items"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </ScrollView>
+
+        <!-- Footer Navigation Hint -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/ai_footer_nav"
+            android:textColor="#666666"
+            android:textSize="11sp"
+            android:layout_marginTop="6dp" />
+    </LinearLayout>
+
+    <!-- Internal filter views to match system Dimmer and Blue Light from Frame 0 without flashes -->
+    <View
+        android:id="@+id/comments_menu_blue_light_filter"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:elevation="98dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/comments_menu_dimmer_filter"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:elevation="99dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+</FrameLayout>

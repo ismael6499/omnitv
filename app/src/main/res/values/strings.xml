@@ -43,6 +43,7 @@
     <string name="action_previous_video">Previous Video</string>
     <string name="action_next_video">Next Video</string>
     <string name="action_toggle_speed">Toggle Playback Speed (SmartTube)</string>
+    <string name="action_comments">Translate Comments (SmartTube / YouTube)</string>
 
     <!-- Main Menu Items -->
     <string name="menu_manage_apps">Apps  Manage Apps</string>
@@ -558,4 +559,21 @@
     <string name="osd_previous_video">⏮️ Previous Video</string>
     <string name="osd_next_video">⏭️ Next Video</string>
     <string name="osd_toggle_speed">⚡ Playback Speed</string>
+
+    <!-- SmartTube Comment Translator -->
+    <string name="comments_overlay_title">💬 Comment Translator</string>
+    <string name="comments_source_screen">📺 On Screen</string>
+    <string name="comments_source_all">🌐 All Video</string>
+    <string name="comments_lang_es">🇪🇸 Spanish</string>
+    <string name="comments_lang_en">🇺🇸 English</string>
+    <string name="comments_lang_orig">🌐 Original</string>
+    <string name="comments_translate_all">🔄 Translate All</string>
+    <string name="comments_back_to_threads">◀ Back to Comments</string>
+    <string name="comments_loading">⏳ Loading comments...</string>
+    <string name="comments_empty">No comments found</string>
+    <string name="comments_translating">⏳ Translating...</string>
+    <string name="comments_show_replies">💬 %d Replies ▶</string>
+    <string name="comments_btn_translate">🌐 Translate</string>
+    <string name="comments_btn_orig">Original</string>
+    <string name="comments_action_pill">💬 Comments</string>
 </resources>
