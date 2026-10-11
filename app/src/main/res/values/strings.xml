@@ -610,5 +610,13 @@
     <string name="tt_card_ui">UI Text</string>
     <string name="tt_card_ocr">Visual OCR</string>
     <string name="tt_card_lens">Lens AI</string>
+    <string name="tt_show_background">👁 Show background</string>
+    <string name="tt_hide_background">👁 Hide background</string>
+    <string name="tt_temporary_show_background">👁 Show background (temporary)</string>
+    <string name="tt_temporary_background_visible">👁 Background visible</string>
+    <string name="tt_page_previous">◀ Previous</string>
+    <string name="tt_page_next">Next ▶</string>
+    <string name="tt_page_label">Page %1$d</string>
+    <string name="tt_translate_progress">Translated %1$d of %2$d</string>
     <string name="tt_viewer">Viewer</string>
 </resources>

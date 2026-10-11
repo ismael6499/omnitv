@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
@@ -47,11 +48,14 @@ import java.util.Map;
 public class TextTranslatorOverlay {
     private static final String TAG = "TextTranslatorOverlay";
     private static final String OWN_PACKAGE = "com.nitsutech.omnitv";
+    private static final int COMMENTS_PAGE_SIZE = 10;
     private static final String PREFS_NAME = "overlay_prefs";
     private static final String PREF_ENGINE = "tt_engine";
     private static final String PREF_LANG = "tt_lang";
+    private static final String PREF_TRANSPARENCY = "tt_background_transparency";
 
-    public static final int SRC_UI = 0, SRC_OCR = 1, SRC_COMMENTS = 2, SRC_LENS = 3;
+    // Keep source indices aligned with the pill order used by horizontal D-pad navigation.
+    public static final int SRC_UI = 0, SRC_COMMENTS = 1, SRC_OCR = 2, SRC_LENS = 3;
     private static final String[] LANGS = {"es", "en", "ko", "ja", "pt-BR"};
 
     private static TextTranslatorOverlay instance;
@@ -68,10 +72,21 @@ public class TextTranslatorOverlay {
     private TextView btnEngine;
     private TextView btnLang;
     private TextView btnTranslateAll;
+    private TextView btnTransparency;
+    private TextView btnTemporaryTransparency;
     private View btnClose;
+    private View overlayScrim;
+    private View drawerPanel;
+    private boolean isTransparencyEnabled;
+    private boolean isTemporaryTransparencyEnabled;
+    private final Map<View, GradientDrawable[]> cardBackgrounds = new HashMap<>();
     private TextView textStatus;
     private ScrollView scrollList;
     private LinearLayout containerItems;
+    private LinearLayout paginationControls;
+    private TextView btnPreviousPage;
+    private TextView btnNextPage;
+    private TextView textPageIndicator;
     private View dimmerFilter;
     private View blueLightFilter;
 
@@ -91,7 +106,8 @@ public class TextTranslatorOverlay {
     // Comments pagination
     private String nextContinuationToken = null;
     private boolean isLoadingMore = false;
-    private TextView btnLoadMore = null;
+    private int currentCommentsPage = 0;
+    private int mainReturnPage = 0;
     private int preserveScrollY = -1;
     private boolean suppressCenter = false;
 
@@ -140,11 +156,14 @@ public class TextTranslatorOverlay {
         }
         if (isShowing) return;
 
+        isTemporaryTransparencyEnabled = false;
+
         windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         if (windowManager == null) return;
 
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         currentEngine = prefs.getInt(PREF_ENGINE, 0);
+        isTransparencyEnabled = prefs.getBoolean(PREF_TRANSPARENCY, false);
         currentTargetLang = prefs.getString(PREF_LANG, "es");
         if (!isSupportedTargetLanguage(currentTargetLang)) {
             // Migrate the former "original" destination to Spanish, its previous effective target.
@@ -180,14 +199,13 @@ public class TextTranslatorOverlay {
             windowManager.addView(overlayView, params);
             isShowing = true;
 
-            View rootScrim = overlayView.findViewById(R.id.tt_overlay_root);
-            if (rootScrim != null) {
-                rootScrim.setOnClickListener(v -> dismiss());
+            if (overlayScrim != null) {
+                overlayScrim.setOnClickListener(v -> dismiss());
             }
-            View drawerPanel = overlayView.findViewById(R.id.tt_panel_drawer);
             if (drawerPanel != null) {
                 drawerPanel.setOnClickListener(v -> {});
             }
+            applyTransparencyAppearance();
 
             // Default origin is UI Text (native accessible, lightweight, no comments auto-loaded)
             resolveVideoIdFromMedia();
@@ -224,6 +242,8 @@ public class TextTranslatorOverlay {
             scrollList = null;
             containerItems = null;
             isShowing = false;
+            isTemporaryTransparencyEnabled = false;
+            cardBackgrounds.clear();
             isShowingReplies = false;
             nextContinuationToken = null;
             isLoadingMore = false;
@@ -232,15 +252,23 @@ public class TextTranslatorOverlay {
 
     private void bindViews() {
         srcButtons[SRC_UI] = overlayView.findViewById(R.id.tt_src_ui);
-        srcButtons[SRC_OCR] = overlayView.findViewById(R.id.tt_src_ocr);
         srcButtons[SRC_COMMENTS] = overlayView.findViewById(R.id.tt_src_comments);
+        srcButtons[SRC_OCR] = overlayView.findViewById(R.id.tt_src_ocr);
         srcButtons[SRC_LENS] = overlayView.findViewById(R.id.tt_src_lens);
         btnEngine = overlayView.findViewById(R.id.tt_btn_engine);
         btnLang = overlayView.findViewById(R.id.tt_btn_lang);
         btnTranslateAll = overlayView.findViewById(R.id.tt_btn_translate_all);
+        btnTransparency = overlayView.findViewById(R.id.tt_btn_transparency);
+        btnTemporaryTransparency = overlayView.findViewById(R.id.tt_btn_temporary_transparency);
+        overlayScrim = overlayView.findViewById(R.id.tt_overlay_root);
+        drawerPanel = overlayView.findViewById(R.id.tt_panel_drawer);
         textStatus = overlayView.findViewById(R.id.tt_text_status);
         scrollList = overlayView.findViewById(R.id.tt_scroll_list);
         containerItems = overlayView.findViewById(R.id.tt_container_items);
+        paginationControls = overlayView.findViewById(R.id.tt_pagination_controls);
+        btnPreviousPage = overlayView.findViewById(R.id.tt_btn_previous_page);
+        btnNextPage = overlayView.findViewById(R.id.tt_btn_next_page);
+        textPageIndicator = overlayView.findViewById(R.id.tt_page_indicator);
         dimmerFilter = overlayView.findViewById(R.id.tt_menu_dimmer_filter);
         blueLightFilter = overlayView.findViewById(R.id.tt_menu_blue_light_filter);
 
@@ -253,11 +281,18 @@ public class TextTranslatorOverlay {
     private void setupListeners() {
         for (int i = 0; i < srcButtons.length; i++) {
             final int mode = i;
+            srcButtons[i].setOnFocusChangeListener((v, hasFocus) -> setBackgroundAlpha(v, getPillAlpha()));
             srcButtons[i].setOnClickListener(v -> {
                 currentSource = mode;
                 updateSourceButtons();
                 loadCurrentSource();
             });
+        }
+
+        View[] focusablePills = {btnClose, btnEngine, btnLang, btnTranslateAll, btnTransparency,
+                btnTemporaryTransparency};
+        for (View pill : focusablePills) {
+            if (pill != null) pill.setOnFocusChangeListener((v, hasFocus) -> setBackgroundAlpha(v, getPillAlpha()));
         }
 
         btnEngine.setOnClickListener(v -> {
@@ -279,6 +314,13 @@ public class TextTranslatorOverlay {
         });
 
         btnTranslateAll.setOnClickListener(v -> translateAllCurrentItems());
+        btnTransparency.setOnClickListener(v -> setTransparencyEnabled(!isTransparencyEnabled));
+        btnTemporaryTransparency.setOnClickListener(v -> setTemporaryTransparencyEnabled(!isTemporaryTransparencyEnabled));
+        btnPreviousPage.setOnClickListener(v -> showCommentsPage(currentCommentsPage - 1, btnPreviousPage));
+        btnNextPage.setOnClickListener(v -> goToNextCommentsPage());
+        btnPreviousPage.setOnFocusChangeListener((v, hasFocus) -> setBackgroundAlpha(v, getPillAlpha()));
+        btnNextPage.setOnFocusChangeListener((v, hasFocus) -> setBackgroundAlpha(v, getPillAlpha()));
+        updatePaginationControls();
 
     }
 
@@ -351,11 +393,13 @@ public class TextTranslatorOverlay {
     private void loadCurrentSource() {
         final int gen = ++loadGeneration;
         isShowingReplies = false;
+        currentCommentsPage = 0;
         nextContinuationToken = null;
         isLoadingMore = false;
         mainItems.clear();
         replyItems.clear();
         containerItems.removeAllViews();
+        updatePaginationControls();
 
         switch (currentSource) {
             case SRC_UI:
@@ -476,7 +520,7 @@ public class TextTranslatorOverlay {
             textStatus.setText(I18n.get(context, R.string.tt_no_text));
             return;
         }
-        LinkedHashSet<String> texts = new LinkedHashSet<>();
+        UiTextCollector collector = new UiTextCollector();
         try {
             List<AccessibilityWindowInfo> windows = svc.getWindows();
             if (windows != null && !windows.isEmpty()) {
@@ -486,41 +530,66 @@ public class TextTranslatorOverlay {
                     if (win.getType() == AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY) continue;
                     AccessibilityNodeInfo root = win.getRoot();
                     if (root != null) {
-                        collectNodeTexts(root, texts);
+                        collectNodeTexts(root, collector, 0);
                         root.recycle();
                     }
                 }
             } else {
                 AccessibilityNodeInfo root = svc.getRootInActiveWindow();
                 if (root != null) {
-                    collectNodeTexts(root, texts);
+                    collectNodeTexts(root, collector, 0);
                     root.recycle();
                 }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error scraping UI text", e);
         }
-        List<String> list = new ArrayList<>(texts);
+        // Put focused/selected UI content first, then retain the original accessibility-tree order.
+        LinkedHashSet<String> orderedTexts = new LinkedHashSet<>();
+        orderedTexts.addAll(collector.focused);
+        orderedTexts.addAll(collector.selected);
+        orderedTexts.addAll(collector.normal);
+        List<String> list = new ArrayList<>();
+        for (String text : orderedTexts) {
+            if (list.size() >= 150) break;
+            list.add(text);
+        }
         applyTextBlocks(list, I18n.get(context, R.string.tt_card_ui));
     }
 
-    private void collectNodeTexts(AccessibilityNodeInfo node, LinkedHashSet<String> out) {
-        if (node == null || out.size() >= 150) return;
+    private static final class UiTextCollector {
+        final LinkedHashSet<String> focused = new LinkedHashSet<>();
+        final LinkedHashSet<String> selected = new LinkedHashSet<>();
+        final LinkedHashSet<String> normal = new LinkedHashSet<>();
+        int visitedNodes = 0;
+    }
+
+    private void collectNodeTexts(AccessibilityNodeInfo node, UiTextCollector collector, int inheritedPriority) {
+        if (node == null || collector.visitedNodes >= 5000) return;
+        collector.visitedNodes++;
         CharSequence pkg = node.getPackageName();
         if (pkg != null && pkg.toString().equals(OWN_PACKAGE)) return;
+
+        int priority = inheritedPriority;
+        if (node.isSelected()) priority = Math.max(priority, 1);
+        if (node.isFocused() || node.isAccessibilityFocused()) priority = 2;
 
         if (node.isVisibleToUser()) {
             CharSequence text = node.getText();
             if (text == null || text.toString().trim().isEmpty()) text = node.getContentDescription();
             if (text != null) {
                 String s = text.toString().trim();
-                if (s.length() >= 2 && !s.matches("[\\d\\W]*")) out.add(s);
+                if (s.length() >= 2 && !s.matches("[\\d\\W]*")) {
+                    LinkedHashSet<String> target = priority == 2 ? collector.focused
+                            : priority == 1 ? collector.selected : collector.normal;
+                    if (target.size() < 150) target.add(s);
+                }
             }
         }
         for (int i = 0; i < node.getChildCount(); i++) {
             AccessibilityNodeInfo child = node.getChild(i);
             if (child != null) {
-                collectNodeTexts(child, out);
+                collectNodeTexts(child, collector, priority);
                 child.recycle();
             }
         }
@@ -580,7 +649,8 @@ public class TextTranslatorOverlay {
                         } else {
                             textStatus.setText(String.format(I18n.get(context, R.string.tt_comments_count), mainItems.size()));
                         }
-                        renderList(mainItems, -1);
+                        currentCommentsPage = 0;
+                        renderCurrentCommentsPage(-1);
                     });
                 }
 
@@ -640,29 +710,93 @@ public class TextTranslatorOverlay {
         return null;
     }
 
-    private void loadMoreComments() {
+    private List<YouTubeCommentItem> getCurrentCommentsPageItems() {
+        int start = currentCommentsPage * COMMENTS_PAGE_SIZE;
+        if (start >= mainItems.size()) return new ArrayList<>();
+        int end = Math.min(start + COMMENTS_PAGE_SIZE, mainItems.size());
+        return new ArrayList<>(mainItems.subList(start, end));
+    }
+
+    private void renderCurrentCommentsPage(int focusIndex) {
+        renderList(getCurrentCommentsPageItems(), focusIndex);
+        updatePaginationControls();
+    }
+
+    private void updatePaginationControls() {
+        if (paginationControls == null) return;
+        boolean visible = currentSource == SRC_COMMENTS && !isShowingReplies && !mainItems.isEmpty();
+        paginationControls.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (!visible) return;
+
+        boolean canGoPrevious = currentCommentsPage > 0;
+        boolean canGoNext = ((currentCommentsPage + 1) * COMMENTS_PAGE_SIZE) < mainItems.size()
+                || (nextContinuationToken != null && !nextContinuationToken.isEmpty());
+        btnPreviousPage.setEnabled(canGoPrevious && !isLoadingMore);
+        btnPreviousPage.setFocusable(canGoPrevious && !isLoadingMore);
+        btnPreviousPage.setAlpha(canGoPrevious && !isLoadingMore ? 1f : 0.45f);
+        btnNextPage.setEnabled(canGoNext && !isLoadingMore);
+        btnNextPage.setFocusable(canGoNext && !isLoadingMore);
+        btnNextPage.setAlpha(canGoNext && !isLoadingMore ? 1f : 0.45f);
+        textPageIndicator.setText(String.format(I18n.get(context, R.string.tt_page_label), currentCommentsPage + 1));
+        setBackgroundAlpha(btnPreviousPage, getPillAlpha());
+        setBackgroundAlpha(btnNextPage, getPillAlpha());
+    }
+
+    private void showCommentsPage(int page, View restoreFocus) {
+        if (page < 0 || page * COMMENTS_PAGE_SIZE >= mainItems.size()) return;
+        currentCommentsPage = page;
+        textStatus.setText(String.format(I18n.get(context, R.string.tt_comments_count), mainItems.size()));
+        preserveScrollY = -1;
+        renderCurrentCommentsPage(-1);
+        if (scrollList != null) {
+            scrollList.post(() -> {
+                if (scrollList == null) return;
+                scrollList.scrollTo(0, 0);
+                View focusTarget = restoreFocus != null && restoreFocus.isEnabled() ? restoreFocus
+                        : btnPreviousPage.isEnabled() ? btnPreviousPage
+                        : btnNextPage.isEnabled() ? btnNextPage : null;
+                if (focusTarget != null) focusTarget.requestFocus();
+            });
+        }
+    }
+
+    private void goToNextCommentsPage() {
+        if (isShowingReplies || isLoadingMore) return;
+        final int requestedPage = currentCommentsPage + 1;
+        int requestedStart = requestedPage * COMMENTS_PAGE_SIZE;
+        if (requestedStart < mainItems.size()) {
+            showCommentsPage(requestedPage, btnNextPage);
+            return;
+        }
+        if (nextContinuationToken == null || nextContinuationToken.isEmpty()) return;
+        fetchCommentsUntilPageAvailable(requestedPage, btnNextPage);
+    }
+
+    private void fetchCommentsUntilPageAvailable(final int requestedPage, final View restoreFocus) {
         if (isLoadingMore || nextContinuationToken == null || nextContinuationToken.isEmpty()) return;
         isLoadingMore = true;
         final int gen = loadGeneration;
-        if (btnLoadMore != null) {
-            btnLoadMore.setText(I18n.get(context, R.string.comments_loading));
-        }
+        final String requestedToken = nextContinuationToken;
+        updatePaginationControls();
+        textStatus.setText(I18n.get(context, R.string.comments_loading));
 
-        YouTubeCommentFetcher.fetchVideoCommentsAsync(null, nextContinuationToken, new YouTubeCommentFetcher.CommentsCallback() {
+        YouTubeCommentFetcher.fetchVideoCommentsAsync(null, requestedToken, new YouTubeCommentFetcher.CommentsCallback() {
             @Override
             public void onSuccess(List<YouTubeCommentItem> newComments, String nextToken) {
                 handler.post(() -> {
                     isLoadingMore = false;
-                    if (gen != loadGeneration || !isShowing) return;
+                    if (gen != loadGeneration || !isShowing || currentSource != SRC_COMMENTS || isShowingReplies) return;
+                    if (newComments != null && !newComments.isEmpty()) mainItems.addAll(newComments);
                     nextContinuationToken = nextToken;
-                    if (newComments != null && !newComments.isEmpty()) {
-                        int firstNew = mainItems.size();
-                        mainItems.addAll(newComments);
-                        textStatus.setText(String.format(I18n.get(context, R.string.tt_comments_count), mainItems.size()));
-                        preserveScrollY = scrollList.getScrollY();
-                        renderList(mainItems, firstNew);
-                    } else if (btnLoadMore != null) {
-                        btnLoadMore.setVisibility(View.GONE);
+                    textStatus.setText(String.format(I18n.get(context, R.string.tt_comments_count), mainItems.size()));
+
+                    if (requestedPage * COMMENTS_PAGE_SIZE < mainItems.size()) {
+                        showCommentsPage(requestedPage, restoreFocus);
+                    } else if (nextContinuationToken != null && !nextContinuationToken.isEmpty()
+                            && !nextContinuationToken.equals(requestedToken)) {
+                        fetchCommentsUntilPageAvailable(requestedPage, restoreFocus);
+                    } else {
+                        updatePaginationControls();
                     }
                 });
             }
@@ -671,9 +805,9 @@ public class TextTranslatorOverlay {
             public void onError(String error) {
                 handler.post(() -> {
                     isLoadingMore = false;
-                    if (btnLoadMore != null) {
-                        btnLoadMore.setText(I18n.get(context, R.string.comments_load_more));
-                    }
+                    if (gen != loadGeneration || !isShowing) return;
+                    textStatus.setText(String.format(I18n.get(context, R.string.tt_comments_count), mainItems.size()));
+                    updatePaginationControls();
                 });
             }
         });
@@ -686,7 +820,7 @@ public class TextTranslatorOverlay {
     private void renderList(List<YouTubeCommentItem> list, int focusIndex) {
         containerItems.removeAllViews();
         cardViews.clear();
-        btnLoadMore = null;
+        cardBackgrounds.clear();
         float density = context.getResources().getDisplayMetrics().density;
         View toFocus = null;
 
@@ -720,7 +854,9 @@ public class TextTranslatorOverlay {
             parentFocusedBg.setCornerRadius(10 * density);
             parentFocusedBg.setStroke(Math.round(3 * density), 0xFF80CBC4);
 
+            applyCardBackgroundColors(new GradientDrawable[]{defaultBg, focusedBg, parentBg, parentFocusedBg});
             card.setBackground(isThreadParent ? parentBg : defaultBg);
+            cardBackgrounds.put(card, new GradientDrawable[]{defaultBg, focusedBg, parentBg, parentFocusedBg});
 
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.bottomMargin = Math.round(10 * density);
@@ -788,12 +924,14 @@ public class TextTranslatorOverlay {
 
                 btnReplies.setOnClickListener(v -> openReplyThread(item));
                 btnReplies.setOnFocusChangeListener((v, hasFocus) -> {
+                    setBackgroundAlpha(v, getPillAlpha());
                     if (hasFocus) centerViewInScrollView(card);
                 });
                 actionsRow.addView(btnReplies);
             }
 
             card.addView(actionsRow);
+            applyCardActionTransparency(card, getPillAlpha());
 
             card.setOnClickListener(v -> {
                 if (!isThreadParent && item.replyCount > 0 && item.replyContinuationToken != null) {
@@ -805,41 +943,12 @@ public class TextTranslatorOverlay {
                 return true;
             });
             card.setOnFocusChangeListener((v, hasFocus) -> {
-                card.setBackground(hasFocus
-                        ? (isThreadParent ? parentFocusedBg : focusedBg)
-                        : (isThreadParent ? parentBg : defaultBg));
+                updateCardBackground(card, isThreadParent, hasFocus);
                 if (hasFocus && !suppressCenter) centerViewInScrollView(card);
             });
 
             containerItems.addView(card);
             if (i == focusIndex) toFocus = card;
-        }
-
-        if (currentSource == SRC_COMMENTS && !isShowingReplies && nextContinuationToken != null && !nextContinuationToken.isEmpty()) {
-            btnLoadMore = new TextView(context);
-            btnLoadMore.setBackgroundResource(R.drawable.pill_youtube_tv);
-            btnLoadMore.setText(I18n.get(context, R.string.comments_load_more));
-            btnLoadMore.setTextColor(0xFF81D4FA);
-            btnLoadMore.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            btnLoadMore.setTypeface(Typeface.DEFAULT_BOLD);
-            btnLoadMore.setGravity(Gravity.CENTER);
-            btnLoadMore.setPadding(Math.round(16 * density), Math.round(10 * density), Math.round(16 * density), Math.round(10 * density));
-            btnLoadMore.setFocusable(true);
-            btnLoadMore.setClickable(true);
-
-            LinearLayout.LayoutParams lpMore = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lpMore.topMargin = Math.round(8 * density);
-            lpMore.bottomMargin = Math.round(20 * density);
-            btnLoadMore.setLayoutParams(lpMore);
-
-            final TextView more = btnLoadMore;
-            btnLoadMore.setOnClickListener(v -> loadMoreComments());
-            btnLoadMore.setOnFocusChangeListener((v, hasFocus) -> {
-                if (hasFocus) {
-                    centerViewInScrollView(more); // loading requires pressing OK (no auto-load, avoids runaway scroll)
-                }
-            });
-            containerItems.addView(btnLoadMore);
         }
 
         if (toFocus != null) {
@@ -900,9 +1009,11 @@ public class TextTranslatorOverlay {
         if (parentItem.replyContinuationToken == null && parentItem.replies.isEmpty()) return;
         if (!isShowingReplies) {
             mainReturnIndex = getFocusedMainItemIndex();
+            mainReturnPage = currentCommentsPage;
             mainReturnScrollY = scrollList != null ? scrollList.getScrollY() : 0;
         }
         isShowingReplies = true;
+        updatePaginationControls();
         if (!parentItem.replies.isEmpty()) {
             showReplyItems(parentItem, parentItem.replies);
             return;
@@ -948,14 +1059,17 @@ public class TextTranslatorOverlay {
             child = (View) child.getParent();
         }
         int index = containerItems.indexOfChild(child);
-        return index >= 0 ? Math.min(index, Math.max(0, mainItems.size() - 1)) : mainReturnIndex;
+        int visibleCount = getCurrentCommentsPageItems().size();
+        return index >= 0 ? Math.min(index, Math.max(0, visibleCount - 1)) : mainReturnIndex;
     }
 
     private void showMainItems() {
         isShowingReplies = false;
+        currentCommentsPage = mainReturnPage;
         textStatus.setText(String.format(I18n.get(context, currentSource == SRC_COMMENTS ? R.string.tt_comments_count : R.string.tt_items_count), mainItems.size()));
         preserveScrollY = mainReturnScrollY;
-        renderList(mainItems, mainReturnIndex);
+        renderList(currentSource == SRC_COMMENTS ? getCurrentCommentsPageItems() : mainItems, mainReturnIndex);
+        updatePaginationControls();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -967,6 +1081,7 @@ public class TextTranslatorOverlay {
     }
 
     private void toggleItemTranslation(final YouTubeCommentItem item) {
+        setTemporaryTransparencyEnabled(false);
         if (hasTranslationForCurrentLanguage(item)) {
             item.isTranslated = false;
             updateCardViews(item);
@@ -980,11 +1095,15 @@ public class TextTranslatorOverlay {
     }
 
     private void translateAllCurrentItems() {
-        final List<YouTubeCommentItem> target = isShowingReplies ? replyItems : mainItems;
+        final List<YouTubeCommentItem> target = isShowingReplies ? replyItems
+                : currentSource == SRC_COMMENTS ? getCurrentCommentsPageItems() : mainItems;
         if (target.isEmpty()) return;
+        setTemporaryTransparencyEnabled(false);
         textStatus.setText(I18n.get(context, R.string.comments_translating));
         translateItems(target, () -> {
-            textStatus.setText(String.format(I18n.get(context, currentSource == SRC_COMMENTS ? (isShowingReplies ? R.string.tt_replies_count : R.string.tt_comments_count) : R.string.tt_items_count), target.size()));
+            textStatus.setText(String.format(I18n.get(context, currentSource == SRC_COMMENTS
+                    ? (isShowingReplies ? R.string.tt_replies_count : R.string.tt_comments_count)
+                    : R.string.tt_items_count), isShowingReplies ? target.size() : mainItems.size()));
             for (YouTubeCommentItem it : target) updateCardViews(it);
         });
     }
@@ -994,11 +1113,103 @@ public class TextTranslatorOverlay {
         for (YouTubeCommentItem item : target) updateCardViews(item);
     }
 
+    private void setTransparencyEnabled(boolean enabled) {
+        if (isTransparencyEnabled == enabled) return;
+        isTransparencyEnabled = enabled;
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putBoolean(PREF_TRANSPARENCY, enabled).apply();
+        applyTransparencyAppearance();
+    }
+
+    private void setTemporaryTransparencyEnabled(boolean enabled) {
+        if (isTemporaryTransparencyEnabled == enabled) return;
+        isTemporaryTransparencyEnabled = enabled;
+        applyTransparencyAppearance();
+    }
+
+    private int getPillAlpha() {
+        if (isTemporaryTransparencyEnabled) return 0;
+        return isTransparencyEnabled ? 38 : 255;
+    }
+
+    private void applyTransparencyAppearance() {
+        int surfaceAlpha = isTemporaryTransparencyEnabled ? 0 : isTransparencyEnabled ? 0x26 : 0xFF;
+        if (overlayScrim != null) {
+            overlayScrim.setBackgroundColor(isTransparencyEnabled || isTemporaryTransparencyEnabled
+                    ? Color.TRANSPARENT : 0x66000000);
+        }
+        if (drawerPanel != null) {
+            drawerPanel.setBackgroundColor(Color.argb(surfaceAlpha, 0x1B, 0x1D, 0x24));
+        }
+        int pillAlpha = getPillAlpha();
+        for (TextView sourceButton : srcButtons) setBackgroundAlpha(sourceButton, pillAlpha);
+        setBackgroundAlpha(btnClose, pillAlpha);
+        setBackgroundAlpha(btnEngine, pillAlpha);
+        setBackgroundAlpha(btnLang, pillAlpha);
+        setBackgroundAlpha(btnTranslateAll, pillAlpha);
+        setBackgroundAlpha(btnTransparency, pillAlpha);
+        setBackgroundAlpha(btnTemporaryTransparency, pillAlpha);
+        setBackgroundAlpha(btnPreviousPage, pillAlpha);
+        setBackgroundAlpha(btnNextPage, pillAlpha);
+        for (Map.Entry<View, GradientDrawable[]> entry : cardBackgrounds.entrySet()) {
+            applyCardBackgroundColors(entry.getValue());
+            applyCardActionTransparency(entry.getKey(), pillAlpha);
+        }
+        if (btnTransparency != null) {
+            btnTransparency.setText(I18n.get(context, isTransparencyEnabled
+                    ? R.string.tt_hide_background : R.string.tt_show_background));
+            btnTransparency.setTextColor(isTransparencyEnabled ? 0xFFFFCC80 : 0xFFCE93D8);
+        }
+        if (btnTemporaryTransparency != null) {
+            btnTemporaryTransparency.setText(I18n.get(context, isTemporaryTransparencyEnabled
+                    ? R.string.tt_temporary_background_visible : R.string.tt_temporary_show_background));
+            btnTemporaryTransparency.setTextColor(isTemporaryTransparencyEnabled ? 0xFFFFCC80 : 0xFF80CBC4);
+        }
+    }
+
+    private void updateCardBackground(View card, boolean isThreadParent, boolean focused) {
+        GradientDrawable[] backgrounds = cardBackgrounds.get(card);
+        if (backgrounds == null) return;
+        card.setBackground(focused
+                ? backgrounds[isThreadParent ? 3 : 1]
+                : backgrounds[isThreadParent ? 2 : 0]);
+    }
+
+    private void applyCardBackgroundColors(GradientDrawable[] backgrounds) {
+        int alpha = isTemporaryTransparencyEnabled ? 0 : isTransparencyEnabled ? 0x26 : 0xFF;
+        backgrounds[0].setColor(Color.argb(alpha, 0x1B, 0x1D, 0x24));
+        backgrounds[1].setColor(Color.argb(alpha, 0x2C, 0x32, 0x46));
+        backgrounds[2].setColor(Color.argb(alpha, 0x20, 0x2A, 0x38));
+        backgrounds[3].setColor(Color.argb(alpha, 0x29, 0x38, 0x49));
+    }
+
+    private void applyCardActionTransparency(View card, int alpha) {
+        if (!(card instanceof ViewGroup)) return;
+        ViewGroup group = (ViewGroup) card;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            setBackgroundAlpha(child, alpha);
+            if (child instanceof ViewGroup) applyCardActionTransparency(child, alpha);
+        }
+    }
+
+    private void setBackgroundAlpha(View view, int alpha) {
+        if (view == null) return;
+        Drawable background = view.getBackground();
+        if (background == null) return;
+        // Keep the focused selector visible in temporary transparency mode.
+        background.mutate().setAlpha(view.hasFocus() ? 255 : alpha);
+    }
+
     /** Translates the given items with the selected engine and runs onDone on the main thread. */
     private void translateItems(final List<YouTubeCommentItem> items, final Runnable onDone) {
         final String target = effectiveTarget();
         if (currentEngine == 0) {
-            YouTubeCommentTranslator.translateBatchAsync(items, target, () -> handler.post(onDone));
+            YouTubeCommentTranslator.translateBatchAsync(items, target, (item, completed, total) -> handler.post(() -> {
+                if (!isShowing) return;
+                updateCardViews(item);
+                textStatus.setText(String.format(I18n.get(context, R.string.tt_translate_progress), completed, total));
+            }), () -> handler.post(onDone));
             return;
         }
 
@@ -1188,6 +1399,24 @@ public class TextTranslatorOverlay {
             return;
         }
 
+        // Page controls sit outside the scrolling list so the visible comments remain a clean page.
+        if (current == btnPreviousPage || current == btnNextPage) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                View other = current == btnPreviousPage ? btnNextPage : btnPreviousPage;
+                if (other != null && other.isEnabled()) other.requestFocus();
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP && containerItems != null) {
+                for (int i = containerItems.getChildCount() - 1; i >= 0; i--) {
+                    View last = containerItems.getChildAt(i);
+                    if (last.isFocusable()) {
+                        last.requestFocus();
+                        centerViewInScrollView(last);
+                        break;
+                    }
+                }
+            }
+            return;
+        }
+
         // 1. Current is in list of items/comments
         boolean inList = isViewInside(current, containerItems);
         if (inList) {
@@ -1215,6 +1444,11 @@ public class TextTranslatorOverlay {
                         View nextView = containerItems.getChildAt(next);
                         nextView.requestFocus();
                         centerViewInScrollView(nextView);
+                    } else if (currentSource == SRC_COMMENTS && !isShowingReplies) {
+                        View pageControl = btnNextPage != null && btnNextPage.isEnabled()
+                                ? btnNextPage : btnPreviousPage != null && btnPreviousPage.isEnabled()
+                                ? btnPreviousPage : null;
+                        if (pageControl != null) pageControl.requestFocus();
                     }
                     return;
                 }
@@ -1282,11 +1516,13 @@ public class TextTranslatorOverlay {
             }
         }
 
-        // 4. Current is in Action Pills row: [btnEngine, btnLang, btnTranslateAll]
+        // 4. Current is in Action Pills row, including permanent and temporary background toggles.
         java.util.List<View> actionPills = new java.util.ArrayList<>();
         if (btnEngine != null && btnEngine.getVisibility() == View.VISIBLE) actionPills.add(btnEngine);
         if (btnLang != null && btnLang.getVisibility() == View.VISIBLE) actionPills.add(btnLang);
         if (btnTranslateAll != null && btnTranslateAll.getVisibility() == View.VISIBLE) actionPills.add(btnTranslateAll);
+        if (btnTransparency != null && btnTransparency.getVisibility() == View.VISIBLE) actionPills.add(btnTransparency);
+        if (btnTemporaryTransparency != null && btnTemporaryTransparency.getVisibility() == View.VISIBLE) actionPills.add(btnTemporaryTransparency);
 
         int actionIdx = actionPills.indexOf(current);
         if (actionIdx >= 0) {

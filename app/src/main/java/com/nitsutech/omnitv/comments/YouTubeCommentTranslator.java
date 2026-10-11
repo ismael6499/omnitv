@@ -24,6 +24,10 @@ public class YouTubeCommentTranslator {
         void onError(String error);
     }
 
+    public interface BatchProgressCallback {
+        void onItemTranslated(YouTubeCommentItem item, int completed, int total);
+    }
+
     public static void translateAsync(final String text, final String targetLang, final TranslationCallback callback) {
         if (text == null || text.trim().isEmpty()) {
             if (callback != null) callback.onSuccess("");
@@ -72,12 +76,18 @@ public class YouTubeCommentTranslator {
     }
 
     public static void translateBatchAsync(final List<YouTubeCommentItem> items, final String targetLang, final Runnable onComplete) {
+        translateBatchAsync(items, targetLang, null, onComplete);
+    }
+
+    public static void translateBatchAsync(final List<YouTubeCommentItem> items, final String targetLang,
+                                           final BatchProgressCallback progressCallback, final Runnable onComplete) {
         if (items == null || items.isEmpty()) {
             if (onComplete != null) onComplete.run();
             return;
         }
 
         new Thread(() -> {
+            int completed = 0;
             for (YouTubeCommentItem item : items) {
                 if (item == null || item.originalText == null || item.originalText.trim().isEmpty()) continue;
                 String cacheKey = targetLang + "::" + item.originalText.trim();
@@ -85,6 +95,8 @@ public class YouTubeCommentTranslator {
                     item.translatedText = translationCache.get(cacheKey);
                     item.isTranslated = true;
                     item.targetLanguage = targetLang;
+                    completed++;
+                    if (progressCallback != null) progressCallback.onItemTranslated(item, completed, items.size());
                     continue;
                 }
 
@@ -112,6 +124,8 @@ public class YouTubeCommentTranslator {
                                 item.isTranslated = true;
                                 item.targetLanguage = targetLang;
                                 translationCache.put(cacheKey, translated);
+                                completed++;
+                                if (progressCallback != null) progressCallback.onItemTranslated(item, completed, items.size());
                             }
                         }
                     }
