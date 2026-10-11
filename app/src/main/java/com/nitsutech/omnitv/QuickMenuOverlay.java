@@ -3791,7 +3791,7 @@ public class QuickMenuOverlay {
                 break;
             case "trigger_comments":
                 dismiss();
-                sendServiceAction("ACTION_OPEN_COMMENTS");
+                sendServiceAction("ACTION_OPEN_TEXT_TRANSLATOR");
                 break;
             case "trigger_translate":
                 dismiss();

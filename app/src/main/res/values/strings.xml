@@ -43,7 +43,7 @@
     <string name="action_previous_video">Previous Video</string>
     <string name="action_next_video">Next Video</string>
     <string name="action_toggle_speed">Toggle Playback Speed (SmartTube)</string>
-    <string name="action_comments">Translate Comments (SmartTube / YouTube)</string>
+    <string name="action_comments">Text Translator (any app)</string>
 
     <!-- Main Menu Items -->
     <string name="menu_manage_apps">Apps  Manage Apps</string>
@@ -72,7 +72,7 @@
     <string name="menu_vot">🎙️  Real-Time Voiceover (VOT)</string>
     <string name="menu_trigger_ai_summary">🤖  AI Assistant (Current Video)</string>
     <string name="menu_ai_summary_config">⚙️  Configure AI Assistant</string>
-    <string name="menu_trigger_comments">💬  Translate Comments (SmartTube)</string>
+    <string name="menu_trigger_comments">🔤  Text Translator</string>
     <string name="menu_trigger_translate">🌐  Translate Screen Now</string>
     <string name="menu_translate_config">⚙️  Configure Translator (CTS)</string>
     <string name="menu_button_combos">⚡  Button Combos</string>
@@ -586,4 +586,27 @@
     <string name="ai_pill_google_search">🌐 Search Google</string>
     <string name="ai_talk_again">🎙️ Talk again</string>
     <string name="ai_sources_badge">🔗 Sources: %d web results</string>
+
+    <!-- Text Translator -->
+    <string name="tt_overlay_title">🔤 Text Translator</string>
+    <string name="tt_src_ui">📺 UI Text</string>
+    <string name="tt_src_ocr">📸 Visual OCR</string>
+    <string name="tt_src_comments">💬 Comments</string>
+    <string name="tt_src_lens">👁️ Lens AI</string>
+    <string name="tt_engine_standard">🌐 Standard</string>
+    <string name="tt_engine_ai">✨ AI Engine</string>
+    <string name="tt_lang_ko">🇰🇷 한국어</string>
+    <string name="tt_lang_ja">🇯🇵 日本語</string>
+    <string name="tt_scanning">⏳ Scanning screen...</string>
+    <string name="tt_no_text">No text found</string>
+    <string name="tt_items_count">%1$d items</string>
+    <string name="tt_comments_count">%1$d comments</string>
+    <string name="tt_replies_count">%1$d replies</string>
+    <string name="tt_ai_no_key">⚠️ Gemini API key not configured</string>
+    <string name="tt_capture_error">Screen capture failed</string>
+    <string name="tt_ai_error">AI request failed</string>
+    <string name="tt_card_ui">UI Text</string>
+    <string name="tt_card_ocr">Visual OCR</string>
+    <string name="tt_card_lens">Lens AI</string>
+    <string name="tt_viewer">Viewer</string>
 </resources>

@@ -1310,9 +1310,10 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_TRANSLATE_SCREEN":
                 triggerScreenTranslation();
                 break;
+            case "ACTION_OPEN_TEXT_TRANSLATOR":
             case "ACTION_OPEN_COMMENTS":
             case "ACTION_TRANSLATE_COMMENTS":
-                openCommentTranslator();
+                openTextTranslator();
                 break;
             case "SHOW_OSD":
             case "ACTION_SHOW_OSD":
@@ -1485,15 +1486,15 @@ public class ButtonMappingService extends AccessibilityService {
             case 38: // Toggle Velocidad (SmartTube)
                 togglePlaybackSpeed();
                 break;
-            case 39: // Traductor de Comentarios (SmartTube / YouTube)
-                openCommentTranslator();
+            case 39: // Text Translator (any app)
+                openTextTranslator();
                 break;
         }
     }
 
-    private void openCommentTranslator() {
-        Log.d(TAG, "Opening Comment Translator Overlay");
-        handler.post(() -> com.nitsutech.omnitv.comments.YouTubeCommentOverlay.getInstance(this).show());
+    private void openTextTranslator() {
+        Log.d(TAG, "Opening Text Translator Overlay");
+        handler.post(() -> com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).show());
     }
 
     private void openAiSummary() {
@@ -4745,9 +4746,9 @@ public class ButtonMappingService extends AccessibilityService {
             if (handled) return true;
         }
 
-        // 8. Intercept keys if YouTubeCommentOverlay is active
-        if (com.nitsutech.omnitv.comments.YouTubeCommentOverlay.getInstance(this).isShowing()) {
-            boolean handled = com.nitsutech.omnitv.comments.YouTubeCommentOverlay.getInstance(this).onKeyEvent(event);
+        // 8. Intercept keys if TextTranslatorOverlay is active
+        if (com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing()) {
+            boolean handled = com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).onKeyEvent(event);
             if (handled) return true;
         }
 
