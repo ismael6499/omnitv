@@ -205,6 +205,7 @@ public class ButtonMappingService extends AccessibilityService {
     private int stillWatchingDismissKeyCode = 0;
     private boolean isDismissingQuickMenuKey = false;
     private boolean isDismissingAiSummaryKey = false;
+    private boolean isDismissingTextTranslatorKey = false;
     private View stillWatchingOverlayView = null;
     private int stillWatchingCountdownSeconds = 30;
     private long cachedStillWatchingIntervalMs = 30 * 60 * 1000L;
@@ -4353,14 +4354,6 @@ public class ButtonMappingService extends AccessibilityService {
         Log.d("OmniKey", "onKeyEvent: code=" + keyCode + " (" + KeyEvent.keyCodeToString(keyCode) + "), action=" + (action == KeyEvent.ACTION_DOWN ? "DOWN" : "UP")
                 + ", repeat=" + event.getRepeatCount() + ", mutePressed=" + muteState.isPressed + ", ytPressed=" + (youtube190State.isPressed || youtube189State.isPressed));
 
-        // 0. Shield against orphan repeats and stuck keys from combos (e.g. Mute + DPAD UP)
-        if (activeComboSecondaryKeyCode != -1 && keyCode == activeComboSecondaryKeyCode) {
-            if (action == KeyEvent.ACTION_UP) {
-                activeComboSecondaryKeyCode = -1;
-            }
-            return true;
-        }
-
         // 0. Quick Brightness Slider Key Interception
         if (isBrightnessSliderActive && !QuickMenuOverlay.getInstance().isShowing()) {
             if (handleBrightnessSliderKeyEvent(event)) {
@@ -4460,7 +4453,7 @@ public class ButtonMappingService extends AccessibilityService {
             boolean ytActive = youtube190State.isPressed || youtube189State.isPressed || ((now - lastYouTubeDownTime < 500 || now - lastYouTubeUpTime < 400) && !youtube190State.isComboConsumed && !youtube189State.isComboConsumed);
 
             // Combo: MUTE + (OK / Right / Left / Up / Down)
-            if (muteState.isPressed) {
+            if (muteActive) {
                 if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
                     if (handleComboKeyEvent("combo_mute_ok", event, new Runnable() {
                         @Override public void run() { muteState.markComboConsumed(); }
@@ -4513,6 +4506,14 @@ public class ButtonMappingService extends AccessibilityService {
                     })) return true;
                 }
             }
+        }
+
+        // Shield against orphan repeats and stuck keys from combos (after combo processing)
+        if (activeComboSecondaryKeyCode != -1 && keyCode == activeComboSecondaryKeyCode) {
+            if (action == KeyEvent.ACTION_UP) {
+                activeComboSecondaryKeyCode = -1;
+            }
+            return true;
         }
 
         // 0. Mindful Delay key interception: Back/Home cancels and goes to Home; all other keys are blocked
@@ -4746,9 +4747,19 @@ public class ButtonMappingService extends AccessibilityService {
             if (handled) return true;
         }
 
-        // 8. Intercept keys if TextTranslatorOverlay is active
-        if (com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing()) {
+        // 8. Intercept keys if TextTranslatorOverlay is active (or dismissing via BACK)
+        if (com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing() || isDismissingTextTranslatorKey) {
+            if (isDismissingTextTranslatorKey && keyCode == KeyEvent.KEYCODE_BACK) {
+                if (action == KeyEvent.ACTION_UP) {
+                    isDismissingTextTranslatorKey = false;
+                }
+                return true;
+            }
+            boolean wasShowing = com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing();
             boolean handled = com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).onKeyEvent(event);
+            if (wasShowing && !com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing() && keyCode == KeyEvent.KEYCODE_BACK) {
+                isDismissingTextTranslatorKey = true;
+            }
             if (handled) return true;
         }
 

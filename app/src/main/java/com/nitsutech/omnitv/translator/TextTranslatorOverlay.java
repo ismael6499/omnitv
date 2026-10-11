@@ -93,6 +93,20 @@ public class TextTranslatorOverlay {
     private int preserveScrollY = -1;
     private boolean suppressCenter = false;
 
+    private final Handler longClickHandler = new Handler(Looper.getMainLooper());
+    private boolean isLongClickTriggered = false;
+    private final Runnable longClickRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (overlayView == null) return;
+            View current = overlayView.findFocus();
+            if (current != null && current.isLongClickable()) {
+                isLongClickTriggered = true;
+                current.performLongClick();
+            }
+        }
+    };
+
     public TextTranslatorOverlay(Context context) {
         this.context = context;
     }
@@ -164,9 +178,9 @@ public class TextTranslatorOverlay {
                 drawerPanel.setOnClickListener(v -> {});
             }
 
-            // Resolve current YouTube/SmartTube video (if any) to pick the default origin
+            // Default origin is UI Text (native accessible, lightweight, no comments auto-loaded)
             resolveVideoIdFromMedia();
-            currentSource = isValidVideoId(activeVideoId) ? SRC_COMMENTS : SRC_UI;
+            currentSource = SRC_UI;
             updateSourceButtons();
             loadCurrentSource();
 
@@ -181,6 +195,8 @@ public class TextTranslatorOverlay {
 
     public void dismiss() {
         loadGeneration++;
+        longClickHandler.removeCallbacks(longClickRunnable);
+        isLongClickTriggered = false;
         if (!isShowing || overlayView == null) return;
         try {
             if (windowManager != null) {
@@ -721,7 +737,17 @@ public class TextTranslatorOverlay {
 
             card.addView(actionsRow);
 
-            card.setOnClickListener(v -> toggleItemTranslation(item));
+            card.setOnClickListener(v -> {
+                if (item.replyCount > 0 && item.replyContinuationToken != null) {
+                    openReplyThread(item);
+                } else {
+                    toggleItemTranslation(item);
+                }
+            });
+            card.setOnLongClickListener(v -> {
+                toggleItemTranslation(item);
+                return true;
+            });
             card.setOnFocusChangeListener((v, hasFocus) -> {
                 card.setBackground(hasFocus ? focusedBg : defaultBg);
                 if (hasFocus && !suppressCenter) centerViewInScrollView(card);
@@ -790,14 +816,17 @@ public class TextTranslatorOverlay {
         views[1].setText(item.isTranslated ? I18n.get(context, R.string.comments_btn_orig) : I18n.get(context, R.string.comments_btn_translate));
     }
 
-    private void centerViewInScrollView(View v) {
+    private void centerViewInScrollView(final View v) {
         if (scrollList == null || v == null) return;
-        int[] vLoc = new int[2];
-        int[] svLoc = new int[2];
-        v.getLocationOnScreen(vLoc);
-        scrollList.getLocationOnScreen(svLoc);
-        int targetY = vLoc[1] - svLoc[1] + scrollList.getScrollY() - (scrollList.getHeight() - v.getHeight()) / 2;
-        scrollList.smoothScrollTo(0, Math.max(0, targetY));
+        scrollList.post(() -> {
+            if (scrollList == null || v == null) return;
+            int[] vLoc = new int[2];
+            int[] svLoc = new int[2];
+            v.getLocationOnScreen(vLoc);
+            scrollList.getLocationOnScreen(svLoc);
+            int targetY = vLoc[1] - svLoc[1] + scrollList.getScrollY() - (scrollList.getHeight() - v.getHeight()) / 2;
+            scrollList.smoothScrollTo(0, Math.max(0, targetY));
+        });
     }
 
     // ------------------------------------------------------------------------------------------
@@ -984,11 +1013,21 @@ public class TextTranslatorOverlay {
 
         View current = overlayView.findFocus();
 
-        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
-            if (action == KeyEvent.ACTION_DOWN && current != null && current.isClickable()) {
-                current.performClick();
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                if (event.getRepeatCount() == 0) {
+                    isLongClickTriggered = false;
+                    longClickHandler.removeCallbacks(longClickRunnable);
+                    longClickHandler.postDelayed(longClickRunnable, 500);
+                }
+            } else if (action == KeyEvent.ACTION_UP) {
+                longClickHandler.removeCallbacks(longClickRunnable);
+                if (!isLongClickTriggered && current != null && current.isClickable()) {
+                    current.performClick();
+                }
+                isLongClickTriggered = false;
             }
-            return current != null && current.isClickable();
+            return true;
         }
 
         if (action != KeyEvent.ACTION_DOWN) {
@@ -1000,45 +1039,115 @@ public class TextTranslatorOverlay {
         boolean inList = current != null && isViewInside(current, containerItems);
 
         if (inList) {
-            View card = (current.getTag() instanceof View && current instanceof TextView) ? (View) current.getTag() : current;
+            View card = findDirectCardChild(current);
             switch (keyCode) {
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    // D-Pad Left: immediately return to top pills row
+                    if (srcButtons[currentSource] != null) {
+                        srcButtons[currentSource].requestFocus();
+                    } else if (btnEngine != null) {
+                        btnEngine.requestFocus();
+                    }
+                    if (scrollList != null) scrollList.smoothScrollTo(0, 0);
+                    return true;
+
                 case KeyEvent.KEYCODE_DPAD_RIGHT:
-                    // Card -> [ 💬 N Replies ▶ ]
-                    if (current == card && card.getTag() instanceof View) {
-                        ((View) card.getTag()).requestFocus();
+                    // D-Pad Right: jump to bottom section (btnLoadMore if available, or last card)
+                    if (btnLoadMore != null && btnLoadMore.getVisibility() == View.VISIBLE) {
+                        btnLoadMore.requestFocus();
+                        centerViewInScrollView(btnLoadMore);
+                    } else if (containerItems.getChildCount() > 0) {
+                        View last = containerItems.getChildAt(containerItems.getChildCount() - 1);
+                        if (last != null && last.isFocusable()) {
+                            last.requestFocus();
+                            centerViewInScrollView(last);
+                        }
                     }
                     return true;
-                case KeyEvent.KEYCODE_DPAD_LEFT:
-                    // Replies button -> back to the card
-                    if (current != card) card.requestFocus();
-                    return true;
-                case KeyEvent.KEYCODE_DPAD_DOWN:
-                case KeyEvent.KEYCODE_DPAD_UP: {
-                    int idx = containerItems.indexOfChild(card);
-                    int next = keyCode == KeyEvent.KEYCODE_DPAD_DOWN ? idx + 1 : idx - 1;
+
+                case KeyEvent.KEYCODE_DPAD_DOWN: {
+                    int idx = card != null ? containerItems.indexOfChild(card) : -1;
+                    int next = idx + 1;
                     while (next >= 0 && next < containerItems.getChildCount() && !containerItems.getChildAt(next).isFocusable()) {
-                        next += keyCode == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : -1;
+                        next++;
                     }
                     if (next >= 0 && next < containerItems.getChildCount()) {
-                        containerItems.getChildAt(next).requestFocus();
-                    } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                        (btnBackThreads.getVisibility() == View.VISIBLE ? btnBackThreads : btnEngine).requestFocus();
+                        View nextView = containerItems.getChildAt(next);
+                        nextView.requestFocus();
+                        centerViewInScrollView(nextView);
+                    }
+                    return true;
+                }
+
+                case KeyEvent.KEYCODE_DPAD_UP: {
+                    int idx = card != null ? containerItems.indexOfChild(card) : -1;
+                    int next = idx - 1;
+                    while (next >= 0 && next < containerItems.getChildCount() && !containerItems.getChildAt(next).isFocusable()) {
+                        next--;
+                    }
+                    if (next >= 0 && next < containerItems.getChildCount()) {
+                        View nextView = containerItems.getChildAt(next);
+                        nextView.requestFocus();
+                        centerViewInScrollView(nextView);
+                    } else {
+                        // Reached top of list: focus top action pills
+                        if (btnBackThreads != null && btnBackThreads.getVisibility() == View.VISIBLE) {
+                            btnBackThreads.requestFocus();
+                        } else if (btnEngine != null) {
+                            btnEngine.requestFocus();
+                        } else if (srcButtons[currentSource] != null) {
+                            srcButtons[currentSource].requestFocus();
+                        }
+                        if (scrollList != null) scrollList.smoothScrollTo(0, 0);
                     }
                     return true;
                 }
             }
         }
 
+        // Moving down from action pills row to comments list
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && current != null
                 && (current == btnEngine || current == btnLang || current == btnTranslateAll || current == btnBackThreads)) {
             View target = findFirstFocusable(containerItems);
             if (target != null) {
                 target.requestFocus();
+                centerViewInScrollView(target);
+                return true;
+            }
+        }
+
+        // Moving up from action pills row to source pills row
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP && current != null
+                && (current == btnEngine || current == btnLang || current == btnTranslateAll || current == btnBackThreads)) {
+            if (srcButtons[currentSource] != null) {
+                srcButtons[currentSource].requestFocus();
+                return true;
+            }
+        }
+
+        // Moving down from source pills row to action pills row
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && current != null
+                && (current == srcButtons[0] || current == srcButtons[1] || current == srcButtons[2] || current == srcButtons[3])) {
+            if (btnEngine != null && btnEngine.getVisibility() == View.VISIBLE) {
+                btnEngine.requestFocus();
                 return true;
             }
         }
 
         return overlayView.dispatchKeyEvent(event);
+    }
+
+    private View findDirectCardChild(View v) {
+        if (v == null || containerItems == null) return null;
+        View p = v;
+        while (p != null && p.getParent() != containerItems) {
+            if (p.getParent() instanceof View) {
+                p = (View) p.getParent();
+            } else {
+                return null;
+            }
+        }
+        return p;
     }
 
     private boolean isViewInside(View child, View parent) {

@@ -219,7 +219,9 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:fadeScrollbars="false"
-            android:scrollbars="vertical">
+            android:scrollbars="vertical"
+            android:focusable="false"
+            android:descendantFocusability="afterDescendants">
 
             <LinearLayout
                 android:id="@+id/tt_container_items"
