@@ -90,6 +90,8 @@ public class TextTranslatorOverlay {
     private String nextContinuationToken = null;
     private boolean isLoadingMore = false;
     private TextView btnLoadMore = null;
+    private int preserveScrollY = -1;
+    private boolean suppressCenter = false;
 
     public TextTranslatorOverlay(Context context) {
         this.context = context;
@@ -604,6 +606,7 @@ public class TextTranslatorOverlay {
                         int firstNew = mainItems.size();
                         mainItems.addAll(newComments);
                         textStatus.setText(String.format(I18n.get(context, R.string.tt_comments_count), mainItems.size()));
+                        preserveScrollY = scrollList.getScrollY();
                         renderList(mainItems, firstNew);
                     } else if (btnLoadMore != null) {
                         btnLoadMore.setVisibility(View.GONE);
@@ -721,7 +724,7 @@ public class TextTranslatorOverlay {
             card.setOnClickListener(v -> toggleItemTranslation(item));
             card.setOnFocusChangeListener((v, hasFocus) -> {
                 card.setBackground(hasFocus ? focusedBg : defaultBg);
-                if (hasFocus) centerViewInScrollView(card);
+                if (hasFocus && !suppressCenter) centerViewInScrollView(card);
             });
 
             containerItems.addView(card);
@@ -749,8 +752,7 @@ public class TextTranslatorOverlay {
             btnLoadMore.setOnClickListener(v -> loadMoreComments());
             btnLoadMore.setOnFocusChangeListener((v, hasFocus) -> {
                 if (hasFocus) {
-                    centerViewInScrollView(more);
-                    loadMoreComments(); // scroll-to-load
+                    centerViewInScrollView(more); // loading requires pressing OK (no auto-load, avoids runaway scroll)
                 }
             });
             containerItems.addView(btnLoadMore);
@@ -758,7 +760,19 @@ public class TextTranslatorOverlay {
 
         if (toFocus != null) {
             final View f = toFocus;
-            f.post(f::requestFocus);
+            final int keepY = preserveScrollY;
+            preserveScrollY = -1;
+            if (keepY >= 0) {
+                // Load-more: keep the current scroll position, no jump or fast scrolling
+                scrollList.post(() -> {
+                    scrollList.scrollTo(0, keepY);
+                    suppressCenter = true;
+                    f.requestFocus();
+                    suppressCenter = false;
+                });
+            } else {
+                f.post(f::requestFocus);
+            }
         }
     }
 
