@@ -998,6 +998,8 @@ public class TextTranslatorOverlay {
     // D-Pad navigation
     // ------------------------------------------------------------------------------------------
 
+    private final java.util.Set<Integer> consumedDownKeys = new java.util.HashSet<>();
+
     public boolean onKeyEvent(KeyEvent event) {
         if (!isShowing || overlayView == null) return false;
         int keyCode = event.getKeyCode();
@@ -1132,7 +1134,17 @@ public class TextTranslatorOverlay {
             }
         }
 
-        return overlayView.dispatchKeyEvent(event);
+        boolean dispatched = overlayView.dispatchKeyEvent(event);
+        if (dispatched) return true;
+
+        // Guarantee D-pad navigation never leaks through or leaves orphan key state
+        boolean isNavKey = keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+        if (isNavKey) {
+            return true;
+        }
+
+        return false;
     }
 
     private View findDirectCardChild(View v) {

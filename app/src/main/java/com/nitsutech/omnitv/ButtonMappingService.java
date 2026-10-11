@@ -354,12 +354,15 @@ public class ButtonMappingService extends AccessibilityService {
         boolean isInOverClickState = false;
         boolean isComboConsumed = false;
         int clickCount = 0;
+        long lastLongPressTime = 0;
+        long lastLongPressUpTime = 0;
 
         final Runnable longPressRunnable = new Runnable() {
             @Override
             public void run() {
                 if (isPressed && !isInOverClickState && !isComboConsumed) {
                     isLongPressTriggered = true;
+                    lastLongPressTime = SystemClock.uptimeMillis();
                     SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
                     int actionId = prefs.getInt("btn_" + name + "_long_action", defaultLong);
                     Log.d(TAG, name + " long press detected! Running action: " + actionId);
@@ -471,6 +474,9 @@ public class ButtonMappingService extends AccessibilityService {
                 isPressed = false;
                 isLongPressTriggered = false;
                 return;
+            }
+            if (isLongPressTriggered) {
+                lastLongPressUpTime = SystemClock.uptimeMillis();
             }
             if (!isLongPressTriggered && isPressed) {
                 clickCount++;
@@ -4450,8 +4456,13 @@ public class ButtonMappingService extends AccessibilityService {
                 }
             }
 
-            boolean muteActive = (muteState.isPressed && !muteState.isLongPressTriggered)
-                    || ((now - lastMuteDownTime < 500 || now - lastMuteUpTime < 400) && !muteState.isComboConsumed && !muteState.isLongPressTriggered);
+            boolean isAnyOverlayActive = QuickMenuOverlay.getInstance().isShowing()
+                    || com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing()
+                    || com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isShowing();
+            boolean isMuteLongPressedRecently = (now - muteState.lastLongPressTime < 1000) || (now - muteState.lastLongPressUpTime < 600);
+
+            boolean muteActive = !isMuteLongPressedRecently && ((muteState.isPressed && !muteState.isLongPressTriggered)
+                    || ((now - lastMuteDownTime < 500 || now - lastMuteUpTime < 400) && !muteState.isComboConsumed && !muteState.isLongPressTriggered));
             boolean ytActive = youtube190State.isPressed || youtube189State.isPressed || ((now - lastYouTubeDownTime < 500 || now - lastYouTubeUpTime < 400) && !youtube190State.isComboConsumed && !youtube189State.isComboConsumed);
 
             // Combo: MUTE + (OK / Right / Left / Up / Down)
@@ -4460,19 +4471,19 @@ public class ButtonMappingService extends AccessibilityService {
                     if (handleComboKeyEvent("combo_mute_ok", event, new Runnable() {
                         @Override public void run() { muteState.markComboConsumed(); }
                     })) return true;
-                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                } else if (!isAnyOverlayActive && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                     if (handleComboKeyEvent("combo_mute_right", event, new Runnable() {
                         @Override public void run() { muteState.markComboConsumed(); }
                     })) return true;
-                } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                } else if (!isAnyOverlayActive && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                     if (handleComboKeyEvent("combo_mute_left", event, new Runnable() {
                         @Override public void run() { muteState.markComboConsumed(); }
                     })) return true;
-                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                } else if (!isAnyOverlayActive && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                     if (handleComboKeyEvent("combo_mute_up", event, new Runnable() {
                         @Override public void run() { muteState.markComboConsumed(); }
                     })) return true;
-                } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                } else if (!isAnyOverlayActive && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                     if (handleComboKeyEvent("combo_mute_down", event, new Runnable() {
                         @Override public void run() { muteState.markComboConsumed(); }
                     })) return true;
@@ -4757,12 +4768,18 @@ public class ButtonMappingService extends AccessibilityService {
                 }
                 return true;
             }
-            boolean wasShowing = com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing();
-            boolean handled = com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).onKeyEvent(event);
-            if (wasShowing && !com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing() && keyCode == KeyEvent.KEYCODE_BACK) {
-                isDismissingTextTranslatorKey = true;
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    boolean wasShowing = com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing();
+                    com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).onKeyEvent(event);
+                    if (wasShowing && !com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing()) {
+                        isDismissingTextTranslatorKey = true;
+                    }
+                }
+                return true;
             }
-            if (handled) return true;
+            com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).onKeyEvent(event);
+            return true;
         }
 
         return super.onKeyEvent(event);
