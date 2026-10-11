@@ -2578,6 +2578,7 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void openQuickMenu() {
         try {
+            muteState.markComboConsumed();
             QuickMenuOverlay.getInstance().toggle(this);
             Log.d(TAG, "Toggled Quick Menu Overlay");
         } catch (Exception e) {
@@ -4429,7 +4430,11 @@ public class ButtonMappingService extends AccessibilityService {
         // 0. Zero-Delay Button Combos Detection (Single & Double Click Support)
         SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         boolean combosEnabled = prefs.getBoolean("btn_combos_enabled", true);
-        if (combosEnabled) {
+        boolean isAnyOmniUiShowing = QuickMenuOverlay.getInstance().isShowing()
+                || com.nitsutech.omnitv.translator.TextTranslatorOverlay.getInstance(this).isShowing()
+                || com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().isShowing();
+
+        if (combosEnabled && !isAnyOmniUiShowing) {
             // Check if there is a pending multi-click combo awaiting its 2nd click!
             if (pendingComboKey != null) {
                 if (isComboKeyMatch(pendingComboKey, keyCode)) {
@@ -4449,7 +4454,8 @@ public class ButtonMappingService extends AccessibilityService {
                 }
             }
 
-            boolean muteActive = muteState.isPressed || ((now - lastMuteDownTime < 500 || now - lastMuteUpTime < 400) && !muteState.isComboConsumed);
+            boolean muteActive = (muteState.isPressed && !muteState.isLongPressTriggered)
+                    || ((now - lastMuteDownTime < 500 || now - lastMuteUpTime < 400) && !muteState.isComboConsumed && !muteState.isLongPressTriggered);
             boolean ytActive = youtube190State.isPressed || youtube189State.isPressed || ((now - lastYouTubeDownTime < 500 || now - lastYouTubeUpTime < 400) && !youtube190State.isComboConsumed && !youtube189State.isComboConsumed);
 
             // Combo: MUTE + (OK / Right / Left / Up / Down)

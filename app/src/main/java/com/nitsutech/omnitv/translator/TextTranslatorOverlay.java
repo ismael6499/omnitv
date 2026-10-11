@@ -199,6 +199,9 @@ public class TextTranslatorOverlay {
         isLongClickTriggered = false;
         if (!isShowing || overlayView == null) return;
         try {
+            if (scrollList != null) {
+                scrollList.clearFocus();
+            }
             if (windowManager != null) {
                 windowManager.removeView(overlayView);
             }
@@ -206,6 +209,8 @@ public class TextTranslatorOverlay {
             Log.e(TAG, "Error dismissing TextTranslatorOverlay", e);
         } finally {
             overlayView = null;
+            scrollList = null;
+            containerItems = null;
             isShowing = false;
             isShowingReplies = false;
             nextContinuationToken = null;
@@ -1042,26 +1047,16 @@ public class TextTranslatorOverlay {
             View card = findDirectCardChild(current);
             switch (keyCode) {
                 case KeyEvent.KEYCODE_DPAD_LEFT:
-                    // D-Pad Left: immediately return to top pills row
-                    if (srcButtons[currentSource] != null) {
-                        srcButtons[currentSource].requestFocus();
-                    } else if (btnEngine != null) {
-                        btnEngine.requestFocus();
+                    // If focused on replies button or internal view, return to the parent card
+                    if (current != null && current != card) {
+                        if (card != null) card.requestFocus();
                     }
-                    if (scrollList != null) scrollList.smoothScrollTo(0, 0);
                     return true;
 
                 case KeyEvent.KEYCODE_DPAD_RIGHT:
-                    // D-Pad Right: jump to bottom section (btnLoadMore if available, or last card)
-                    if (btnLoadMore != null && btnLoadMore.getVisibility() == View.VISIBLE) {
-                        btnLoadMore.requestFocus();
-                        centerViewInScrollView(btnLoadMore);
-                    } else if (containerItems.getChildCount() > 0) {
-                        View last = containerItems.getChildAt(containerItems.getChildCount() - 1);
-                        if (last != null && last.isFocusable()) {
-                            last.requestFocus();
-                            centerViewInScrollView(last);
-                        }
+                    // If card has replies button, focus the replies button
+                    if (card != null && card.getTag() instanceof View) {
+                        ((View) card.getTag()).requestFocus();
                     }
                     return true;
 
