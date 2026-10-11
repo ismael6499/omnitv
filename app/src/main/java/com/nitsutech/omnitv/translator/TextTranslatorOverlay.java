@@ -745,8 +745,6 @@ public class TextTranslatorOverlay {
             card.setOnClickListener(v -> {
                 if (item.replyCount > 0 && item.replyContinuationToken != null) {
                     openReplyThread(item);
-                } else {
-                    toggleItemTranslation(item);
                 }
             });
             card.setOnLongClickListener(v -> {
@@ -1039,6 +1037,11 @@ public class TextTranslatorOverlay {
             boolean ours = keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
                     || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
             return ours;
+        }
+
+        if (event.getRepeatCount() > 0 && (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            return true;
         }
 
         boolean inList = current != null && isViewInside(current, containerItems);
