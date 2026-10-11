@@ -35,6 +35,11 @@ public class YouTubeCommentFetcher {
     }
 
     public static void fetchVideoCommentsAsync(final String videoId, final String continuationToken, final CommentsCallback callback) {
+        fetchCommentsAsync(videoId, continuationToken, false, callback);
+    }
+
+    private static void fetchCommentsAsync(final String videoId, final String continuationToken,
+                                           final boolean repliesOnly, final CommentsCallback callback) {
         new Thread(() -> {
             try {
                 JSONObject body = new JSONObject();
@@ -62,12 +67,12 @@ public class YouTubeCommentFetcher {
 
                 JSONObject root = new JSONObject(response);
                 List<YouTubeCommentItem> list = new ArrayList<>();
-                String nextToken = extractCommentsAndContinuation(root, list);
+                String nextToken = extractCommentsAndContinuation(root, list, repliesOnly);
 
                 // If initial video query didn't return comments directly, look for initial comment section continuation token
                 if (list.isEmpty() && nextToken != null && (continuationToken == null || continuationToken.isEmpty())) {
                     Log.d(TAG, "Resolving comment section continuation token: " + nextToken);
-                    fetchVideoCommentsAsync(null, nextToken, callback);
+                    fetchCommentsAsync(null, nextToken, false, callback);
                     return;
                 }
 
@@ -80,10 +85,10 @@ public class YouTubeCommentFetcher {
     }
 
     public static void fetchRepliesAsync(final String replyContinuationToken, final CommentsCallback callback) {
-        fetchVideoCommentsAsync(null, replyContinuationToken, callback);
+        fetchCommentsAsync(null, replyContinuationToken, true, callback);
     }
 
-    private static String extractCommentsAndContinuation(JSONObject root, List<YouTubeCommentItem> outList) {
+    private static String extractCommentsAndContinuation(JSONObject root, List<YouTubeCommentItem> outList, boolean repliesOnly) {
         String nextContinuation = null;
         try {
             // Build comment entities map from frameworkUpdates (Modern YouTube InnerTube web responses)
@@ -260,6 +265,15 @@ public class YouTubeCommentFetcher {
                                         if (replyContinuations != null && replyContinuations.length() > 0) {
                                             for (int r = 0; r < replyContinuations.length(); r++) {
                                                 JSONObject rObj = replyContinuations.optJSONObject(r);
+                                                if (rObj != null) {
+                                                    List<YouTubeCommentItem> parsedReplies = new ArrayList<>();
+                                                    collectReplyItems(rObj, entityMap, parsedReplies);
+                                                    if (repliesOnly) {
+                                                        outList.addAll(parsedReplies);
+                                                    } else {
+                                                        item.replies.addAll(parsedReplies);
+                                                    }
+                                                }
                                                 if (rObj != null && rObj.has("continuationItemRenderer")) {
                                                     JSONObject cir = rObj.optJSONObject("continuationItemRenderer");
                                                     JSONObject button = cir != null ? cir.optJSONObject("button") : null;
@@ -276,7 +290,7 @@ public class YouTubeCommentFetcher {
                                         }
                                     }
                                 }
-                                outList.add(item);
+                                if (!repliesOnly) outList.add(item);
                             }
                         }
                     }
@@ -287,16 +301,8 @@ public class YouTubeCommentFetcher {
                     }
                     // 3. Direct commentViewModel in replies list
                     else if (cItem.has("commentViewModel")) {
-                        JSONObject cvmContainer = cItem.optJSONObject("commentViewModel");
-                        JSONObject cvm = cvmContainer != null ? cvmContainer.optJSONObject("commentViewModel") : null;
-                        if (cvm != null) {
-                            String cid = cvm.optString("commentId", "");
-                            JSONObject cep = entityMap.get(cid);
-                            if (cep != null) {
-                                YouTubeCommentItem item = parseCommentEntityPayload(cep);
-                                if (item != null) outList.add(item);
-                            }
-                        }
+                        YouTubeCommentItem item = parseCommentViewModel(cItem.optJSONObject("commentViewModel"), entityMap);
+                        if (item != null) outList.add(item);
                     }
                     // 4. Next page continuation token
                     else if (cItem.has("continuationItemRenderer")) {
@@ -327,6 +333,81 @@ public class YouTubeCommentFetcher {
             Log.e(TAG, "Error extracting comments and continuation", e);
         }
         return nextContinuation;
+    }
+
+    /** Walks only the reply renderer subtree, so the thread's parent comment is never returned as a reply. */
+    private static void collectReplyItems(JSONObject node, java.util.Map<String, JSONObject> entityMap,
+                                          List<YouTubeCommentItem> out) {
+        if (node == null) return;
+
+        JSONObject classic = node.optJSONObject("commentRenderer");
+        if (classic != null) {
+            YouTubeCommentItem item = parseCommentRenderer(classic);
+            if (item != null) out.add(item);
+            return;
+        }
+
+        JSONObject viewModelContainer = node.optJSONObject("commentViewModel");
+        if (viewModelContainer != null) {
+            YouTubeCommentItem item = parseCommentViewModel(viewModelContainer, entityMap);
+            if (item != null) {
+                out.add(item);
+                return;
+            }
+        }
+
+        java.util.Iterator<String> keys = node.keys();
+        while (keys.hasNext()) {
+            Object child = node.opt(keys.next());
+            if (child instanceof JSONObject) {
+                collectReplyItems((JSONObject) child, entityMap, out);
+            } else if (child instanceof JSONArray) {
+                JSONArray array = (JSONArray) child;
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject item = array.optJSONObject(i);
+                    if (item != null) collectReplyItems(item, entityMap, out);
+                }
+            }
+        }
+    }
+
+    private static YouTubeCommentItem parseCommentViewModel(JSONObject container,
+                                                            java.util.Map<String, JSONObject> entityMap) {
+        if (container == null) return null;
+        JSONObject viewModel = container.optJSONObject("commentViewModel");
+        if (viewModel == null && container.has("commentId")) viewModel = container;
+        if (viewModel == null) return null;
+        JSONObject payload = entityMap.get(viewModel.optString("commentId", ""));
+        if (payload != null) return parseCommentEntityPayload(payload);
+
+        // Some continuation responses include the view model without a matching entity mutation.
+        YouTubeCommentItem item = new YouTubeCommentItem();
+        item.commentId = viewModel.optString("commentId", "");
+        JSONObject content = viewModel.optJSONObject("contentText");
+        if (content != null) {
+            JSONArray runs = content.optJSONArray("runs");
+            if (runs != null) {
+                StringBuilder text = new StringBuilder();
+                for (int i = 0; i < runs.length(); i++) {
+                    JSONObject run = runs.optJSONObject(i);
+                    if (run != null) text.append(run.optString("text", ""));
+                }
+                item.originalText = text.toString().trim();
+            } else {
+                item.originalText = content.optString("content", content.optString("simpleText", "")).trim();
+            }
+        }
+        JSONObject author = viewModel.optJSONObject("authorText");
+        if (author != null) item.authorName = author.optString("simpleText", "");
+        JSONObject published = viewModel.optJSONObject("publishedTimeText");
+        if (published != null) {
+            JSONArray runs = published.optJSONArray("runs");
+            if (runs != null && runs.length() > 0) {
+                JSONObject run = runs.optJSONObject(0);
+                if (run != null) item.publishedTimeText = run.optString("text", "");
+            }
+        }
+        return item.originalText != null && !item.originalText.isEmpty() ? item : null;
     }
 
     private static YouTubeCommentItem parseCommentEntityPayload(JSONObject cep) {

@@ -52,7 +52,7 @@ public class TextTranslatorOverlay {
     private static final String PREF_LANG = "tt_lang";
 
     public static final int SRC_UI = 0, SRC_OCR = 1, SRC_COMMENTS = 2, SRC_LENS = 3;
-    private static final String[] LANGS = {"es", "en", "ko", "ja", "orig"};
+    private static final String[] LANGS = {"es", "en", "ko", "ja", "pt-BR"};
 
     private static TextTranslatorOverlay instance;
 
@@ -68,7 +68,6 @@ public class TextTranslatorOverlay {
     private TextView btnEngine;
     private TextView btnLang;
     private TextView btnTranslateAll;
-    private TextView btnBackThreads;
     private View btnClose;
     private TextView textStatus;
     private ScrollView scrollList;
@@ -83,6 +82,8 @@ public class TextTranslatorOverlay {
     private final List<YouTubeCommentItem> mainItems = new ArrayList<>();
     private final List<YouTubeCommentItem> replyItems = new ArrayList<>();
     private boolean isShowingReplies = false;
+    private int mainReturnIndex = 0;
+    private int mainReturnScrollY = 0;
     private String activeVideoId = null;
     private int loadGeneration = 0;
     private final Map<YouTubeCommentItem, TextView[]> cardViews = new HashMap<>();
@@ -145,6 +146,11 @@ public class TextTranslatorOverlay {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         currentEngine = prefs.getInt(PREF_ENGINE, 0);
         currentTargetLang = prefs.getString(PREF_LANG, "es");
+        if (!isSupportedTargetLanguage(currentTargetLang)) {
+            // Migrate the former "original" destination to Spanish, its previous effective target.
+            currentTargetLang = "es";
+            prefs.edit().putString(PREF_LANG, currentTargetLang).apply();
+        }
 
         LayoutInflater inflater = LayoutInflater.from(I18n.getLocalizedContext(context));
         overlayView = inflater.inflate(R.layout.view_text_translator_overlay, null);
@@ -232,7 +238,6 @@ public class TextTranslatorOverlay {
         btnEngine = overlayView.findViewById(R.id.tt_btn_engine);
         btnLang = overlayView.findViewById(R.id.tt_btn_lang);
         btnTranslateAll = overlayView.findViewById(R.id.tt_btn_translate_all);
-        btnBackThreads = overlayView.findViewById(R.id.tt_btn_back_threads);
         textStatus = overlayView.findViewById(R.id.tt_text_status);
         scrollList = overlayView.findViewById(R.id.tt_scroll_list);
         containerItems = overlayView.findViewById(R.id.tt_container_items);
@@ -275,12 +280,14 @@ public class TextTranslatorOverlay {
 
         btnTranslateAll.setOnClickListener(v -> translateAllCurrentItems());
 
-        btnBackThreads.setOnClickListener(v -> showMainItems());
     }
 
     private void updateSourceButtons() {
         for (int i = 0; i < srcButtons.length; i++) {
             boolean selected = (i == currentSource);
+            if (i == SRC_LENS) {
+                srcButtons[i].setText(I18n.get(context, R.string.tt_src_lens) + " · " + getSelectedAiModelLabel());
+            }
             srcButtons[i].setTextColor(selected ? 0xFF8AB4F8 : 0xFFFFFFFF);
             srcButtons[i].setAlpha(selected ? 1f : 0.75f);
             if (selected) {
@@ -301,16 +308,36 @@ public class TextTranslatorOverlay {
         }
     }
 
+    private String getSelectedAiModelLabel() {
+        SharedPreferences prefs = context.getSharedPreferences(com.nitsutech.omnitv.ai.AiSummaryEngine.PREFS_NAME, Context.MODE_PRIVATE);
+        int provider = prefs.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
+        if (provider == 1) {
+            String model = prefs.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL,
+                    com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_OPENROUTER_MODEL).trim();
+            return model.isEmpty() ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_OPENROUTER_MODEL : model;
+        }
+        String model = prefs.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL,
+                com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL).trim();
+        return model.isEmpty() ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL : model;
+    }
+
     private void updateLangButtonLabel() {
         int res;
         switch (currentTargetLang) {
             case "en": res = R.string.comments_lang_en; break;
             case "ko": res = R.string.tt_lang_ko; break;
             case "ja": res = R.string.tt_lang_ja; break;
-            case "orig": res = R.string.comments_lang_orig; break;
+            case "pt-BR": res = R.string.tt_lang_pt_br; break;
             default: res = R.string.comments_lang_es; break;
         }
         btnLang.setText(I18n.get(context, res));
+    }
+
+    private boolean isSupportedTargetLanguage(String language) {
+        for (String supportedLanguage : LANGS) {
+            if (supportedLanguage.equals(language)) return true;
+        }
+        return false;
     }
 
     private boolean isValidVideoId(String id) {
@@ -326,7 +353,6 @@ public class TextTranslatorOverlay {
         isShowingReplies = false;
         nextContinuationToken = null;
         isLoadingMore = false;
-        btnBackThreads.setVisibility(View.GONE);
         mainItems.clear();
         replyItems.clear();
         containerItems.removeAllViews();
@@ -666,6 +692,7 @@ public class TextTranslatorOverlay {
 
         for (int i = 0; i < list.size(); i++) {
             final YouTubeCommentItem item = list.get(i);
+            final boolean isThreadParent = isShowingReplies && !replyItems.isEmpty() && item == replyItems.get(0);
 
             final LinearLayout card = new LinearLayout(context);
             card.setOrientation(LinearLayout.VERTICAL);
@@ -683,11 +710,31 @@ public class TextTranslatorOverlay {
             focusedBg.setCornerRadius(10 * density);
             focusedBg.setStroke(Math.round(2 * density), 0xFF8AB4F8);
 
-            card.setBackground(defaultBg);
+            final GradientDrawable parentBg = new GradientDrawable();
+            parentBg.setColor(0xFF202A38);
+            parentBg.setCornerRadius(10 * density);
+            parentBg.setStroke(Math.round(2 * density), 0xFF80CBC4);
+
+            final GradientDrawable parentFocusedBg = new GradientDrawable();
+            parentFocusedBg.setColor(0xFF293849);
+            parentFocusedBg.setCornerRadius(10 * density);
+            parentFocusedBg.setStroke(Math.round(3 * density), 0xFF80CBC4);
+
+            card.setBackground(isThreadParent ? parentBg : defaultBg);
 
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.bottomMargin = Math.round(10 * density);
             card.setLayoutParams(lp);
+
+            if (isThreadParent) {
+                TextView tvThreadParent = new TextView(context);
+                tvThreadParent.setText(I18n.get(context, R.string.tt_thread_parent));
+                tvThreadParent.setTextColor(0xFF80CBC4);
+                tvThreadParent.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+                tvThreadParent.setTypeface(Typeface.DEFAULT_BOLD);
+                tvThreadParent.setPadding(0, 0, 0, Math.round(5 * density));
+                card.addView(tvThreadParent);
+            }
 
             TextView tvAuthor = new TextView(context);
             String authorStr = (item.authorName != null && !item.authorName.isEmpty()) ? item.authorName : I18n.get(context, R.string.tt_viewer);
@@ -713,7 +760,7 @@ public class TextTranslatorOverlay {
 
             final TextView btnItemTranslate = new TextView(context);
             btnItemTranslate.setBackgroundResource(R.drawable.pill_youtube_tv);
-            btnItemTranslate.setText(item.isTranslated ? I18n.get(context, R.string.comments_btn_orig) : I18n.get(context, R.string.comments_btn_translate));
+            btnItemTranslate.setText(hasTranslationForCurrentLanguage(item) ? I18n.get(context, R.string.comments_btn_orig) : I18n.get(context, R.string.comments_btn_translate));
             btnItemTranslate.setTextColor(0xFF81D4FA);
             btnItemTranslate.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             btnItemTranslate.setPadding(Math.round(10 * density), Math.round(4 * density), Math.round(10 * density), Math.round(4 * density));
@@ -723,7 +770,7 @@ public class TextTranslatorOverlay {
 
             cardViews.put(item, new TextView[]{tvBody, btnItemTranslate});
 
-            if (item.replyCount > 0 && item.replyContinuationToken != null) {
+            if (!isThreadParent && item.replyCount > 0 && item.replyContinuationToken != null) {
                 final TextView btnReplies = new TextView(context);
                 btnReplies.setBackgroundResource(R.drawable.pill_youtube_tv);
                 btnReplies.setText(String.format(I18n.get(context, R.string.comments_show_replies), item.replyCount));
@@ -749,7 +796,7 @@ public class TextTranslatorOverlay {
             card.addView(actionsRow);
 
             card.setOnClickListener(v -> {
-                if (item.replyCount > 0 && item.replyContinuationToken != null) {
+                if (!isThreadParent && item.replyCount > 0 && item.replyContinuationToken != null) {
                     openReplyThread(item);
                 }
             });
@@ -758,7 +805,9 @@ public class TextTranslatorOverlay {
                 return true;
             });
             card.setOnFocusChangeListener((v, hasFocus) -> {
-                card.setBackground(hasFocus ? focusedBg : defaultBg);
+                card.setBackground(hasFocus
+                        ? (isThreadParent ? parentFocusedBg : focusedBg)
+                        : (isThreadParent ? parentBg : defaultBg));
                 if (hasFocus && !suppressCenter) centerViewInScrollView(card);
             });
 
@@ -812,17 +861,22 @@ public class TextTranslatorOverlay {
     }
 
     private String getTextForLanguage(YouTubeCommentItem item) {
-        if ("orig".equals(currentTargetLang) || !item.isTranslated) {
+        if (!hasTranslationForCurrentLanguage(item)) {
             return item.originalText;
         }
         return item.getDisplayText();
+    }
+
+    private boolean hasTranslationForCurrentLanguage(YouTubeCommentItem item) {
+        return item.isTranslated && item.translatedText != null && !item.translatedText.isEmpty()
+                && effectiveTarget().equalsIgnoreCase(item.targetLanguage != null ? item.targetLanguage : "");
     }
 
     private void updateCardViews(YouTubeCommentItem item) {
         TextView[] views = cardViews.get(item);
         if (views == null) return;
         views[0].setText(getTextForLanguage(item));
-        views[1].setText(item.isTranslated ? I18n.get(context, R.string.comments_btn_orig) : I18n.get(context, R.string.comments_btn_translate));
+        views[1].setText(hasTranslationForCurrentLanguage(item) ? I18n.get(context, R.string.comments_btn_orig) : I18n.get(context, R.string.comments_btn_translate));
     }
 
     private void centerViewInScrollView(final View v) {
@@ -843,23 +897,28 @@ public class TextTranslatorOverlay {
     // ------------------------------------------------------------------------------------------
 
     private void openReplyThread(final YouTubeCommentItem parentItem) {
-        if (parentItem.replyContinuationToken == null) return;
+        if (parentItem.replyContinuationToken == null && parentItem.replies.isEmpty()) return;
+        if (!isShowingReplies) {
+            mainReturnIndex = getFocusedMainItemIndex();
+            mainReturnScrollY = scrollList != null ? scrollList.getScrollY() : 0;
+        }
+        isShowingReplies = true;
+        if (!parentItem.replies.isEmpty()) {
+            showReplyItems(parentItem, parentItem.replies);
+            return;
+        }
         final int gen = loadGeneration;
         textStatus.setText(I18n.get(context, R.string.comments_loading));
         containerItems.removeAllViews();
-        isShowingReplies = true;
-        btnBackThreads.setVisibility(View.VISIBLE);
 
         YouTubeCommentFetcher.fetchRepliesAsync(parentItem.replyContinuationToken, new YouTubeCommentFetcher.CommentsCallback() {
             @Override
             public void onSuccess(List<YouTubeCommentItem> replies, String nextToken) {
                 handler.post(() -> {
                     if (gen != loadGeneration || !isShowing) return;
-                    replyItems.clear();
-                    replyItems.add(parentItem); // parent comment first
-                    replyItems.addAll(replies);
-                    textStatus.setText(String.format(I18n.get(context, R.string.tt_replies_count), replies.size()));
-                    renderList(replyItems, 0);
+                    parentItem.replies.clear();
+                    parentItem.replies.addAll(replies);
+                    showReplyItems(parentItem, parentItem.replies);
                 });
             }
 
@@ -872,11 +931,31 @@ public class TextTranslatorOverlay {
         });
     }
 
+    private void showReplyItems(YouTubeCommentItem parentItem, List<YouTubeCommentItem> replies) {
+        replyItems.clear();
+        replyItems.add(parentItem);
+        replyItems.addAll(replies);
+        textStatus.setText(String.format(I18n.get(context, R.string.tt_replies_count), replies.size()));
+        renderList(replyItems, 0);
+    }
+
+    private int getFocusedMainItemIndex() {
+        if (containerItems == null) return mainReturnIndex;
+        View focused = overlayView != null ? overlayView.findFocus() : null;
+        View child = focused;
+        while (child != null && child.getParent() != containerItems) {
+            if (!(child.getParent() instanceof View)) break;
+            child = (View) child.getParent();
+        }
+        int index = containerItems.indexOfChild(child);
+        return index >= 0 ? Math.min(index, Math.max(0, mainItems.size() - 1)) : mainReturnIndex;
+    }
+
     private void showMainItems() {
         isShowingReplies = false;
-        btnBackThreads.setVisibility(View.GONE);
         textStatus.setText(String.format(I18n.get(context, currentSource == SRC_COMMENTS ? R.string.tt_comments_count : R.string.tt_items_count), mainItems.size()));
-        renderList(mainItems, 0);
+        preserveScrollY = mainReturnScrollY;
+        renderList(mainItems, mainReturnIndex);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -884,11 +963,11 @@ public class TextTranslatorOverlay {
     // ------------------------------------------------------------------------------------------
 
     private String effectiveTarget() {
-        return "orig".equals(currentTargetLang) ? "es" : currentTargetLang;
+        return currentTargetLang;
     }
 
     private void toggleItemTranslation(final YouTubeCommentItem item) {
-        if (item.isTranslated) {
+        if (hasTranslationForCurrentLanguage(item)) {
             item.isTranslated = false;
             updateCardViews(item);
             return;
@@ -912,12 +991,7 @@ public class TextTranslatorOverlay {
 
     private void refreshDisplayedItems() {
         final List<YouTubeCommentItem> target = isShowingReplies ? replyItems : mainItems;
-        if ("orig".equals(currentTargetLang)) {
-            for (YouTubeCommentItem item : target) item.isTranslated = false;
-            for (YouTubeCommentItem it : target) updateCardViews(it);
-        } else {
-            translateAllCurrentItems();
-        }
+        for (YouTubeCommentItem item : target) updateCardViews(item);
     }
 
     /** Translates the given items with the selected engine and runs onDone on the main thread. */
@@ -1156,9 +1230,7 @@ public class TextTranslatorOverlay {
                         centerViewInScrollView(nextView);
                     } else {
                         // Reached top of list: focus top action pills
-                        if (btnBackThreads != null && btnBackThreads.getVisibility() == View.VISIBLE) {
-                            btnBackThreads.requestFocus();
-                        } else if (btnEngine != null) {
+                        if (btnEngine != null) {
                             btnEngine.requestFocus();
                         } else if (srcButtons[currentSource] != null) {
                             srcButtons[currentSource].requestFocus();
@@ -1196,9 +1268,7 @@ public class TextTranslatorOverlay {
                         btnClose.requestFocus();
                     }
                 } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    if (btnBackThreads != null && btnBackThreads.getVisibility() == View.VISIBLE) {
-                        btnBackThreads.requestFocus();
-                    } else if (btnEngine != null && btnEngine.getVisibility() == View.VISIBLE) {
+                    if (btnEngine != null && btnEngine.getVisibility() == View.VISIBLE) {
                         btnEngine.requestFocus();
                     } else if (btnLang != null && btnLang.getVisibility() == View.VISIBLE) {
                         btnLang.requestFocus();
@@ -1212,9 +1282,8 @@ public class TextTranslatorOverlay {
             }
         }
 
-        // 4. Current is in Action Pills row: [btnBackThreads, btnEngine, btnLang, btnTranslateAll]
+        // 4. Current is in Action Pills row: [btnEngine, btnLang, btnTranslateAll]
         java.util.List<View> actionPills = new java.util.ArrayList<>();
-        if (btnBackThreads != null && btnBackThreads.getVisibility() == View.VISIBLE) actionPills.add(btnBackThreads);
         if (btnEngine != null && btnEngine.getVisibility() == View.VISIBLE) actionPills.add(btnEngine);
         if (btnLang != null && btnLang.getVisibility() == View.VISIBLE) actionPills.add(btnLang);
         if (btnTranslateAll != null && btnTranslateAll.getVisibility() == View.VISIBLE) actionPills.add(btnTranslateAll);

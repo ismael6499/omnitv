@@ -8,11 +8,11 @@
 [![API](https://img.shields.io/badge/API-24%2B-orange?style=flat-square)](https://android.com)
 [![License](https://img.shields.io/badge/License-MIT-purple?style=flat-square)](LICENSE)
 
-> **Tags / Topics:** `smarttube` `youtube` `ai-assistant` `gemini` `voice-chat` `android-tv` `google-tv` `remote-remapper` `video-summary` `accessibility-service` `screen-dimmer` `blue-light-filter` `oled-saver` `sleep-timer` `subtitle-translation`
+> **Topics:** `android-tv` `google-tv` `chromecast` `smarttube` `youtube` `ai-assistant` `gemini` `openrouter` `video-summary` `text-translator` `comment-translator` `youtube-comments` `ocr` `lens-ai` `remote-remapper` `accessibility-service` `screen-dimmer` `oled-saver` `sleep-timer` `subtitle-translation`
 
 **OmniTV** is an all-in-one power-tool, AI copilot, and accessibility suite engineered specifically for **Android TV** and **Google TV** (Chromecast with Google TV, Google TV Streamer, Xiaomi Mi Box, Nvidia Shield, smart TVs, and more).
 
-Operating seamlessly as an Accessibility Service, OmniTV intercepts remote control buttons non-intrusively, bringing a premier **SmartTube & YouTube AI Video Assistant with TV Remote Voice Chat**, a blazing-fast Quick Menu overlay, customizable remote key remapping, eye-care screen filters, OLED burn-in protection, scheduled sleep timers, and on-device live subtitle translation.
+Operating as an Accessibility Service, OmniTV adds remote-friendly tools on top of Android TV apps: a **SmartTube & YouTube AI Video Assistant with TV Remote Voice Chat**, a **Text Translator for screen text and YouTube comment threads**, a Quick Menu, customizable remote key remapping, eye-care screen filters, OLED burn-in protection, scheduled sleep timers, and on-device live subtitle translation.
 
 ---
 
@@ -69,6 +69,14 @@ Operating seamlessly as an Accessibility Service, OmniTV intercepts remote contr
 ### 🌐 On-Device Subtitle & Screen Translator
 - Intercepts and translates on-screen foreign subtitles in real time.
 - Powered by Google ML Kit: runs **100% locally on your TV hardware** for zero latency and complete privacy (no cloud subscription or internet needed).
+
+### 🔤 AI Text Translator & YouTube Comment Threads
+- **Four text sources:** accessible UI text, on-screen OCR, YouTube/SmartTube comments, and **Lens AI** text extraction from a screen capture.
+- **Translate only when asked:** changing the destination language only changes what is displayed; use **Translate All** or a card's individual Translate action to run translations.
+- **Destination languages:** Spanish, English, Korean, Japanese, and Brazilian Portuguese.
+- **Comment replies as threads:** the parent comment appears above its replies. Returning with the remote's Back key restores the previous comment position and keeps loaded comments and completed translations.
+- **TV remote navigation:** D-pad navigation across the source and action controls and through comment cards, including repeat while holding a direction key.
+- **AI model visibility:** Lens AI shows the model configured in AI Assistant settings.
 
 ---
 

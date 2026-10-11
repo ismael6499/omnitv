@@ -183,22 +183,6 @@
                     android:focusable="true"
                     android:clickable="true"
                     android:layout_marginEnd="6dp" />
-                <TextView
-                    android:id="@+id/tt_btn_back_threads"
-                    android:layout_width="wrap_content"
-                    android:layout_height="34dp"
-                    android:background="@drawable/pill_youtube_tv"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:gravity="center"
-                    android:text="@string/comments_back_to_threads"
-                    android:textColor="#FFEB3B"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:focusable="true"
-                    android:clickable="true"
-                    android:layout_marginEnd="6dp"
-                    android:visibility="gone" />
             </LinearLayout>
         </HorizontalScrollView>
 

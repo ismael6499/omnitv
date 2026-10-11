@@ -574,6 +574,7 @@
     <string name="comments_empty">No se encontraron comentarios</string>
     <string name="comments_translating">⏳ Traduciendo...</string>
     <string name="comments_show_replies">💬 %d Respuestas ▶</string>
+    <string name="tt_thread_parent">🧵 Comentario principal del hilo</string>
     <string name="comments_btn_translate">🌐 Traducir</string>
     <string name="comments_btn_orig">Original</string>
     <string name="comments_action_pill">💬 Comentarios</string>
@@ -597,6 +598,7 @@
     <string name="tt_engine_ai">✨ Motor IA</string>
     <string name="tt_lang_ko">🇰🇷 한국어</string>
     <string name="tt_lang_ja">🇯🇵 日本語</string>
+    <string name="tt_lang_pt_br">🇧🇷 Portugués (Brasil)</string>
     <string name="tt_scanning">⏳ Escaneando pantalla...</string>
     <string name="tt_no_text">No se encontró texto</string>
     <string name="tt_items_count">%1$d elementos</string>

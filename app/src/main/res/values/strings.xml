@@ -574,6 +574,7 @@
     <string name="comments_empty">No comments found</string>
     <string name="comments_translating">⏳ Translating...</string>
     <string name="comments_show_replies">💬 %d Replies ▶</string>
+    <string name="tt_thread_parent">🧵 Thread parent</string>
     <string name="comments_btn_translate">🌐 Translate</string>
     <string name="comments_btn_orig">Original</string>
     <string name="comments_action_pill">💬 Comments</string>
@@ -597,6 +598,7 @@
     <string name="tt_engine_ai">✨ AI Engine</string>
     <string name="tt_lang_ko">🇰🇷 한국어</string>
     <string name="tt_lang_ja">🇯🇵 日本語</string>
+    <string name="tt_lang_pt_br">🇧🇷 Português (Brasil)</string>
     <string name="tt_scanning">⏳ Scanning screen...</string>
     <string name="tt_no_text">No text found</string>
     <string name="tt_items_count">%1$d items</string>

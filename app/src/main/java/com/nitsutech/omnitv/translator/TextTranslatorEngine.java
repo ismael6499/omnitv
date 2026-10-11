@@ -51,6 +51,7 @@ public class TextTranslatorEngine {
             case "en": return "English";
             case "ko": return "Korean";
             case "ja": return "Japanese";
+            case "pt-BR": return "Brazilian Portuguese";
             default: return "English";
         }
     }
