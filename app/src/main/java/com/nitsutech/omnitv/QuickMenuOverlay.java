@@ -40,7 +40,7 @@ public class QuickMenuOverlay {
         "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
         "pause_screen_off", "scheduled_sleep", "cycle_brightness", "mindful_delay", "still_watching",
-        "night_schedule", "oled_saver", "vot", "trigger_ai_summary", "ai_summary", "trigger_translate", "translate", "button_combos",
+        "night_schedule", "oled_saver", "vot", "trigger_ai_summary", "ai_summary", "trigger_comments", "trigger_translate", "translate", "button_combos",
         "config_mute", "config_youtube_190", "config_youtube_189",
         "developer_options", "language"
     };
@@ -3789,6 +3789,10 @@ public class QuickMenuOverlay {
                     if (btnMindfulDelayToggle != null) btnMindfulDelayToggle.requestFocus();
                 }
                 break;
+            case "trigger_comments":
+                dismiss();
+                com.nitsutech.omnitv.comments.YouTubeCommentOverlay.getInstance(context).show();
+                break;
             case "trigger_translate":
                 dismiss();
                 sendServiceAction("ACTION_TRANSLATE_SCREEN");
@@ -3926,6 +3930,7 @@ public class QuickMenuOverlay {
             }
             case "trigger_ai_summary": return I18n.get(context, R.string.menu_trigger_ai_summary);
             case "ai_summary": return I18n.get(context, R.string.menu_ai_summary_config);
+            case "trigger_comments": return I18n.get(context, R.string.menu_trigger_comments);
             case "trigger_translate": return I18n.get(context, R.string.menu_trigger_translate);
             case "translate": return I18n.get(context, R.string.menu_translate_config);
             case "button_combos": return I18n.get(context, R.string.menu_button_combos);
@@ -3949,7 +3954,7 @@ public class QuickMenuOverlay {
     private int getColorForId(String id) {
         if ("reboot".equals(id)) return 0xFFFF6B6B;
         if ("mindful_delay".equals(id) || "language".equals(id)) return 0xFF81D4FA;
-        if ("ai_summary".equals(id) || "trigger_ai_summary".equals(id)) return 0xFF8AB4F8;
+        if ("ai_summary".equals(id) || "trigger_ai_summary".equals(id) || "trigger_comments".equals(id)) return 0xFF8AB4F8;
         return Color.WHITE;
     }
 
@@ -3958,6 +3963,7 @@ public class QuickMenuOverlay {
             case "manage_apps": case "timer": case "blue_light":
             case "clock": case "dimmer": case "grayscale": case "cine_mode":
             case "cycle_brightness": case "auto_pause": case "mindful_delay": case "vot": case "trigger_ai_summary": case "ai_summary":
+            case "trigger_comments":
                 return 1;
             case "screen_off": case "pause_screen_off": case "scheduled_sleep":
                 return 2;

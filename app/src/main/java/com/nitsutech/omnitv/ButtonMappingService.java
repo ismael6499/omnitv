@@ -4382,10 +4382,29 @@ public class ButtonMappingService extends AccessibilityService {
                     handleRapidFrameStep(1);
                 }
                 return true;
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A
+                    || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY || keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    sendMediaPlayPause();
-                    updateFrameStepHudFeedback("⏯️ Play / Pausa");
+                    float targetSpeed = SLOW_MOTION_SPEEDS[currentSlowMotionIdx];
+                    if (targetSpeed < 1.0f) {
+                        isSlowMotionLoopActive = !isSlowMotionLoopActive;
+                        if (isSlowMotionLoopActive) {
+                            MediaNotificationListener.pauseAllActiveMedia(ButtonMappingService.this);
+                            handler.removeCallbacks(mSlowMotionLoopRunnable);
+                            handler.post(mSlowMotionLoopRunnable);
+                            updateFrameStepHudFeedback(String.format(Locale.US, "🐢 Slow-Mo: Playing (%.2fx)", targetSpeed));
+                        } else {
+                            handler.removeCallbacks(mSlowMotionLoopRunnable);
+                            updateFrameStepHudFeedback("⏸️ Slow-Mo: Paused");
+                        }
+                    } else {
+                        if (isSlowMotionLoopActive) {
+                            isSlowMotionLoopActive = false;
+                            handler.removeCallbacks(mSlowMotionLoopRunnable);
+                        }
+                        sendMediaPlayPause();
+                        updateFrameStepHudFeedback("⏯️ Play / Pause");
+                    }
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
@@ -4864,7 +4883,7 @@ public class ButtonMappingService extends AccessibilityService {
         op.edit().putInt("frame_step_mode", nextMode).apply();
         MediaNotificationListener.resetFrameStepState();
         String label = getFrameStepModeLabel(nextMode);
-        updateFrameStepHudFeedback("Paso: " + label);
+        updateFrameStepHudFeedback("Step: " + label);
         Log.d(TAG, "Frame step mode switched to: " + label);
     }
 
@@ -4891,16 +4910,46 @@ public class ButtonMappingService extends AccessibilityService {
         SharedPreferences op = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         int mode = op.getInt("frame_step_mode", 0);
         String label = getFrameStepModeLabel(mode);
-        return "🎞️ " + label + " (◄ / ► | ▲ Paso | ▼ Slow-Mo)";
+        return "🎞️ " + label;
     }
+
+    private boolean isSlowMotionLoopActive = false;
+    private final Runnable mSlowMotionLoopRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isFrameStepHudActive || !isSlowMotionLoopActive) return;
+            float targetSpeed = SLOW_MOTION_SPEEDS[currentSlowMotionIdx];
+            if (targetSpeed >= 1.0f) {
+                isSlowMotionLoopActive = false;
+                return;
+            }
+            long stepDelta = getCalculatedFrameStepMs();
+            if (stepDelta <= 0) stepDelta = 33;
+            MediaNotificationListener.seekActiveMediaBy(stepDelta);
+
+            double frameDur = getFrameDurationMs();
+            if (frameDur <= 0) frameDur = 33.3;
+            long intervalMs = Math.max(30, Math.round(frameDur / targetSpeed));
+            handler.postDelayed(this, intervalMs);
+        }
+    };
 
     private void cycleSlowMotionSpeed() {
         currentSlowMotionIdx = (currentSlowMotionIdx + 1) % SLOW_MOTION_SPEEDS.length;
         float targetSpeed = SLOW_MOTION_SPEEDS[currentSlowMotionIdx];
         MediaNotificationListener.setPlaybackSpeed(targetSpeed);
-        String speedLabel = (targetSpeed == 1.0f) ? "▶️ 1.0x (Normal)" : String.format(Locale.US, "🐢 %.2fx Slow-Mo", targetSpeed);
-        updateFrameStepHudFeedback(speedLabel);
+        String speedLabel = (targetSpeed == 1.0f) ? "1.0x (Normal)" : String.format(Locale.US, "%.2fx Slow-Mo", targetSpeed);
+        updateFrameStepHudFeedback("🐢 " + speedLabel);
         Log.d(TAG, "Slow motion speed switched to: " + targetSpeed + "x");
+        if (isSlowMotionLoopActive) {
+            handler.removeCallbacks(mSlowMotionLoopRunnable);
+            if (targetSpeed < 1.0f) {
+                handler.post(mSlowMotionLoopRunnable);
+            } else {
+                isSlowMotionLoopActive = false;
+                sendMediaPlayPause();
+            }
+        }
     }
 
     private int mRapidFrameStepAccumulator = 0;
@@ -5155,10 +5204,10 @@ public class ButtonMappingService extends AccessibilityService {
                     try {
                         TextView statusTv = frameStepHudView.findViewById(1001);
                         if (statusTv != null) {
-                            statusTv.setText("🎞️ " + msg);
+                            statusTv.setText(msg.startsWith("🎞️") || msg.startsWith("🐢") || msg.startsWith("⏸️") || msg.startsWith("▶️") || msg.startsWith("⏯️") ? msg : ("🎞️ " + msg));
                             statusTv.setTextColor(0xFFFFEB3B);
                             handler.removeCallbacks(resetFrameStepFeedbackRunnable);
-                            handler.postDelayed(resetFrameStepFeedbackRunnable, 900);
+                            handler.postDelayed(resetFrameStepFeedbackRunnable, 1400);
                         }
                     } catch (Exception ignored) {}
                 }
@@ -5177,6 +5226,8 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void dismissFrameStepHud() {
+        isSlowMotionLoopActive = false;
+        handler.removeCallbacks(mSlowMotionLoopRunnable);
         handler.removeCallbacks(resetFrameStepFeedbackRunnable);
         handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
         mRapidFrameStepAccumulator = 0;

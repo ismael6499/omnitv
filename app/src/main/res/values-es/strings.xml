@@ -72,6 +72,7 @@
     <string name="menu_vot">🎙️  Doblaje al Vuelo (VOT)</string>
     <string name="menu_trigger_ai_summary">🤖  Asistente IA (Video Actual)</string>
     <string name="menu_ai_summary_config">⚙️  Configurar Asistente IA</string>
+    <string name="menu_trigger_comments">💬  Traductor de Comentarios (SmartTube)</string>
     <string name="menu_trigger_translate">🌐  Traducir Pantalla Ahora</string>
     <string name="menu_translate_config">⚙️  Configurar Traductor (CTS)</string>
     <string name="menu_button_combos">⚡  Combinaciones de Teclas</string>

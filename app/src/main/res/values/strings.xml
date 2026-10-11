@@ -72,6 +72,7 @@
     <string name="menu_vot">🎙️  Real-Time Voiceover (VOT)</string>
     <string name="menu_trigger_ai_summary">🤖  AI Assistant (Current Video)</string>
     <string name="menu_ai_summary_config">⚙️  Configure AI Assistant</string>
+    <string name="menu_trigger_comments">💬  Translate Comments (SmartTube)</string>
     <string name="menu_trigger_translate">🌐  Translate Screen Now</string>
     <string name="menu_translate_config">⚙️  Configure Translator (CTS)</string>
     <string name="menu_button_combos">⚡  Button Combos</string>
