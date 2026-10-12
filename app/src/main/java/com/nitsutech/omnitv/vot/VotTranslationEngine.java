@@ -128,7 +128,8 @@ public class VotTranslationEngine {
         for (VotCue cue : cues) {
             try {
                 String text = cue.originalText;
-                String encoded = URLEncoder.encode(text, "UTF-8");
+                String encoded = URLEncoder.encode(
+                        com.nitsutech.omnitv.comments.YouTubeCommentTranslator.prepareForGoogleTranslate(text), "UTF-8");
                 String urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" 
                         + sourceLang + "&tl=" + targetLang + "&dt=t&q=" + encoded;
 
