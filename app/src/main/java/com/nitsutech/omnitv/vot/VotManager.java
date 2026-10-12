@@ -22,7 +22,8 @@ public class VotManager {
     public static final String KEY_VOT_TTS_VOLUME = "vot_tts_volume"; // 1.0f, 0.85f, 0.70f, 0.50f
     public static final String KEY_VOT_SHOW_SUBTITLES = "vot_show_subtitles";
     public static final String KEY_VOT_BILINGUAL = "vot_bilingual";
-    public static final String KEY_VOT_SPEECH_RATE = "vot_speech_rate"; // 1.0f, 1.15f, 1.3f
+    public static final String KEY_VOT_SPEECH_RATE = "vot_speech_rate"; // 1.0x–2.0x ceiling
+    public static final String KEY_VOT_LOCAL_VOICE_ONLY = "vot_local_voice_only";
 
     private static VotManager instance;
 
@@ -48,6 +49,15 @@ public class VotManager {
     private long lastReportedPositionTime = 0;
     private boolean isFetchingTrack = false;
     private boolean isPreTranslating = false;
+    private int trackRequestGeneration = 0;
+    private final Runnable playbackMonitorRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isEnabled) return;
+            com.nitsutech.omnitv.MediaNotificationListener.syncActiveMediaSessionToVot(VotManager.this);
+            mainHandler.postDelayed(this, 1000);
+        }
+    };
 
     private final Runnable tickerRunnable = new Runnable() {
         @Override
@@ -76,7 +86,9 @@ public class VotManager {
         loadPreferences();
     }
 
-    public void loadPreferences() {
+    public synchronized void loadPreferences() {
+        String oldSource = sourceLang;
+        String oldTarget = targetLang;
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         isEnabled = prefs.getBoolean(KEY_VOT_ENABLED, false);
         showSubtitles = prefs.getBoolean(KEY_VOT_SHOW_SUBTITLES, true);
@@ -85,12 +97,22 @@ public class VotManager {
         targetLang = prefs.getString(KEY_VOT_TARGET_LANG, "es");
         duckingMode = prefs.getInt(KEY_VOT_DUCKING_MODE, 0);
         ttsVolume = prefs.getFloat(KEY_VOT_TTS_VOLUME, 1.0f);
-        float rate = prefs.getFloat(KEY_VOT_SPEECH_RATE, 1.1f);
+        float rate = prefs.getFloat(KEY_VOT_SPEECH_RATE, 2.0f);
         ttsEngine.setSpeechRate(rate);
+        ttsEngine.setLocalVoiceOnly(prefs.getBoolean(KEY_VOT_LOCAL_VOICE_ONLY, false));
         ttsEngine.setLanguage(targetLang);
         ttsEngine.setDuckingMode(duckingMode);
         ttsEngine.setVolume(ttsVolume);
         Log.d(TAG, "Preferences loaded: enabled=" + isEnabled + ", src=" + sourceLang + ", tgt=" + targetLang + ", subs=" + showSubtitles + ", rate=" + rate + ", duck=" + duckingMode + ", vol=" + ttsVolume);
+        if (currentTrack != null && !oldTarget.equalsIgnoreCase(targetLang)) {
+            currentTrack.invalidateTranslations();
+        }
+        if (isEnabled && currentVideoTitle != null && !oldSource.equalsIgnoreCase(sourceLang)) {
+            requestTrackRefresh();
+        } else if (isEnabled && currentTrack != null && !oldTarget.equalsIgnoreCase(targetLang)
+                && currentPlaybackState == PlaybackState.STATE_PLAYING) {
+            triggerPreTranslation(getEstimatedPositionMs());
+        }
     }
 
     public synchronized void setEnabled(boolean enabled) {
@@ -100,16 +122,22 @@ public class VotManager {
 
         if (!enabled) {
             stop();
-        } else if (currentPlaybackState == PlaybackState.STATE_PLAYING) {
-            startTicker();
-            if (currentTrack == null && currentVideoTitle != null) {
-                triggerTrackFetch(currentVideoTitle, null);
-            }
+        } else {
+            com.nitsutech.omnitv.MediaNotificationListener.syncActiveMediaSessionToVot(this);
+            ensurePlaybackMonitor();
+            if (currentPlaybackState == PlaybackState.STATE_PLAYING) startTicker();
+            if (currentTrack == null && currentVideoTitle != null && !isFetchingTrack) requestTrackRefresh();
         }
     }
 
     public boolean isEnabled() {
         return isEnabled;
+    }
+
+    public synchronized void ensurePlaybackMonitor() {
+        if (!isEnabled) return;
+        mainHandler.removeCallbacks(playbackMonitorRunnable);
+        mainHandler.post(playbackMonitorRunnable);
     }
 
     public String getTargetLanguage() {
@@ -125,6 +153,28 @@ public class VotManager {
         if (currentTrack != null) {
             currentTrack.invalidateTranslations();
         }
+    }
+
+    public synchronized boolean isLocalVoiceOnly() {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_VOT_LOCAL_VOICE_ONLY, false);
+    }
+
+    public synchronized void setLocalVoiceOnly(boolean enabled) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putBoolean(KEY_VOT_LOCAL_VOICE_ONLY, enabled).apply();
+        ttsEngine.setLocalVoiceOnly(enabled);
+    }
+
+    public synchronized String getLocalVoiceStatus() {
+        if (!isLocalVoiceOnly()) return "System default";
+        if (!ttsEngine.isLocalVoiceAvailable()) return "No local voice installed";
+        String voice = ttsEngine.getSelectedVoiceLabel();
+        return voice == null || voice.isEmpty() ? "Local voice" : voice;
+    }
+
+    public synchronized boolean isLocalVoiceAvailable() {
+        return ttsEngine.isLocalVoiceAvailable();
     }
 
     public int getDuckingMode() {
@@ -149,6 +199,13 @@ public class VotManager {
         ttsEngine.setVolume(this.ttsVolume);
     }
 
+    public synchronized void setSpeechRate(float rate) {
+        float ceiling = Math.max(1.0f, Math.min(2.0f, rate));
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putFloat(KEY_VOT_SPEECH_RATE, ceiling).apply();
+        ttsEngine.setSpeechRate(ceiling);
+    }
+
     public synchronized String getCurrentVideoTitle() {
         return currentVideoTitle;
     }
@@ -168,15 +225,22 @@ public class VotManager {
     }
 
     public synchronized void onVideoChanged(String pkg, String title, String artist, long duration) {
+        onVideoChanged(pkg, title, artist, duration, null);
+    }
+
+    public synchronized void onVideoChanged(String pkg, String title, String artist, long duration, String mediaId) {
         if (title == null || title.isEmpty()) return;
-        if (currentVideoTitle != null && currentVideoTitle.equalsIgnoreCase(title)) {
+        String cleanId = com.nitsutech.omnitv.MediaNotificationListener.extractCleanVideoId(mediaId);
+        if (currentVideoTitle != null && currentVideoTitle.equalsIgnoreCase(title)
+                && (cleanId == null || cleanId.equals(currentVideoId))) {
             return;
         }
 
         Log.d(TAG, "Video changed in " + pkg + ": title='" + title + "', artist='" + artist + "'");
         currentVideoTitle = title;
-        currentVideoId = null;
+        currentVideoId = cleanId;
         currentTrack = null;
+        trackRequestGeneration++;
         stop();
 
         if (isEnabled) {
@@ -204,6 +268,7 @@ public class VotManager {
         if (state == PlaybackState.STATE_PLAYING) {
             if (isEnabled) {
                 startTicker();
+                if (currentTrack == null && currentVideoTitle != null && !isFetchingTrack) requestTrackRefresh();
             }
         } else {
             mainHandler.removeCallbacks(tickerRunnable);
@@ -219,6 +284,7 @@ public class VotManager {
 
     private void stop() {
         mainHandler.removeCallbacks(tickerRunnable);
+        mainHandler.removeCallbacks(playbackMonitorRunnable);
         ttsEngine.stop();
         subtitleOverlay.hide();
     }
@@ -252,6 +318,10 @@ public class VotManager {
     }
 
     private void triggerTrackFetch(final String title, final String artist) {
+        final int requestGeneration = trackRequestGeneration;
+        final String requestedVideoId = currentVideoId;
+        final String requestedSourceLang = sourceLang;
+        final String requestedTargetLang = targetLang;
         if (isFetchingTrack) return;
         isFetchingTrack = true;
 
@@ -260,25 +330,33 @@ public class VotManager {
             public void run() {
                 try {
                     String query = title;
-                    if (artist != null && !artist.trim().isEmpty() && !title.toLowerCase().contains(artist.toLowerCase())) {
-                        query = title + " " + artist;
+                    if (artist != null && !artist.trim().isEmpty() && !title.toLowerCase().contains(artist.toLowerCase())) query = title + " " + artist;
+                    Log.d(TAG, "Fetching captions for title='" + title + "', mediaId='" + requestedVideoId + "', source=" + requestedSourceLang);
+                    String videoId = requestedVideoId;
+                    if (videoId == null) {
+                        Log.d(TAG, "Resolving video ID for query: " + query);
+                        videoId = YouTubeCaptionFetcher.resolveVideoId(query);
                     }
-
-                    Log.d(TAG, "Resolving video ID for query: " + query);
-                    String videoId = YouTubeCaptionFetcher.resolveVideoId(query);
                     if (videoId != null) {
-                        currentVideoId = videoId;
-                        Log.d(TAG, "Resolved video ID: " + videoId + ", fetching caption track (preferred: " + sourceLang + ")...");
-                        VotTrack track = YouTubeCaptionFetcher.fetchTrack(videoId, sourceLang);
+                        Log.d(TAG, "Resolved video ID: " + videoId + ", fetching caption track (preferred: " + requestedSourceLang + ")...");
+                        VotTrack track = YouTubeCaptionFetcher.fetchTrack(videoId, requestedSourceLang);
                         if (track != null) {
                             Log.d(TAG, "Successfully loaded track with " + track.size() + " cues!");
                             // Pre-translate first 10 cues immediately
                             List<VotCue> initialCues = track.getUpcomingUntranslatedCues(getEstimatedPositionMs(), 10, 60000);
-                            VotTranslationEngine.translateCues(context, initialCues, sourceLang, targetLang);
+                            String captionLanguage = track.languageCode != null && !track.languageCode.trim().isEmpty()
+                                    ? track.languageCode : requestedSourceLang;
+                            Log.d(TAG, "Translating captions using detected track language: " + captionLanguage);
+                            VotTranslationEngine.translateCues(context, initialCues, captionLanguage, requestedTargetLang);
 
                             synchronized (VotManager.this) {
-                                currentTrack = track;
-                                currentTrack.syncPosition(getEstimatedPositionMs());
+                                if (requestGeneration == trackRequestGeneration && isEnabled) {
+                                    currentVideoId = videoId;
+                                    currentTrack = track;
+                                    currentTrack.syncPosition(getEstimatedPositionMs());
+                                } else {
+                                    Log.d(TAG, "Discarding stale caption track result");
+                                }
                             }
                         } else {
                             Log.w(TAG, "No subtitle track available for video: " + videoId);
@@ -289,10 +367,23 @@ public class VotManager {
                 } catch (Exception e) {
                     Log.e(TAG, "Error in triggerTrackFetch", e);
                 } finally {
-                    isFetchingTrack = false;
+                    synchronized (VotManager.this) {
+                        isFetchingTrack = false;
+                        if (isEnabled && currentVideoTitle != null && currentTrack == null
+                                && requestGeneration != trackRequestGeneration) {
+                            requestTrackRefresh();
+                        }
+                    }
                 }
             }
         });
+    }
+
+    private synchronized void requestTrackRefresh() {
+        if (!isEnabled || currentVideoTitle == null || currentVideoTitle.isEmpty()) return;
+        trackRequestGeneration++;
+        currentTrack = null;
+        triggerTrackFetch(currentVideoTitle, null);
     }
 
     private void triggerPreTranslation(final long curPos) {
@@ -300,13 +391,16 @@ public class VotManager {
 
         final List<VotCue> untranslated = currentTrack.getUpcomingUntranslatedCues(curPos, 8, 45000);
         if (untranslated.isEmpty()) return;
+        final String translationSourceLang = currentTrack.languageCode != null
+                ? currentTrack.languageCode : sourceLang;
+        final String translationTargetLang = targetLang;
 
         isPreTranslating = true;
         executor.execute(new Runnable() {
             @Override
             public void run() {
                 try {
-                    VotTranslationEngine.translateCues(context, untranslated, sourceLang, targetLang);
+                    VotTranslationEngine.translateCues(context, untranslated, translationSourceLang, translationTargetLang);
                 } catch (Exception e) {
                     Log.e(TAG, "Error in triggerPreTranslation", e);
                 } finally {

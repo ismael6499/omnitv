@@ -20,7 +20,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -33,10 +35,217 @@ public class AiSummaryEngine {
     public static final String KEY_GEMINI_MODEL = "ai_gemini_model";
     public static final String KEY_OPENROUTER_KEY = "vot_openrouter_key"; // Shared with VOT
     public static final String KEY_OPENROUTER_MODEL = "ai_openrouter_model";
+    public static final String KEY_GEMINI_VISION_MODEL = "ai_gemini_vision_model";
+    public static final String KEY_OPENROUTER_VISION_MODEL = "ai_openrouter_vision_model";
+    public static final String OPENROUTER_AUTO_FREE_BEST = "@auto:free-best";
 
     public static final String DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
+    public static final String DEFAULT_GEMINI_VISION_MODEL = "gemini-3.5-flash-lite";
     public static final String DEFAULT_OPENROUTER_MODEL = "google/gemini-2.0-flash-001";
+    public static final String DEFAULT_OPENROUTER_VISION_MODEL = "google/gemini-2.0-flash-001";
     public static final String KEY_CACHED_GEMINI_MODELS = "cached_gemini_models";
+    public static final String KEY_CACHED_OPENROUTER_MODELS = "cached_openrouter_models_v1";
+    public static final String KEY_REJECTED_OPENROUTER_MODELS = "rejected_openrouter_models_v1";
+
+    /** Records endpoints OpenRouter explicitly rejected so automatic selection can skip them. */
+    public static void rememberRejectedOpenRouterModel(SharedPreferences prefs, String modelId) {
+        if (prefs == null || modelId == null || modelId.trim().isEmpty()) return;
+        try {
+            JSONArray rejected = new JSONArray(prefs.getString(KEY_REJECTED_OPENROUTER_MODELS, "[]"));
+            for (int i = 0; i < rejected.length(); i++) if (modelId.equals(rejected.optString(i))) return;
+            rejected.put(modelId);
+            prefs.edit().putString(KEY_REJECTED_OPENROUTER_MODELS, rejected.toString()).apply();
+        } catch (Exception ignored) {
+            prefs.edit().putString(KEY_REJECTED_OPENROUTER_MODELS,
+                    new JSONArray().put(modelId).toString()).apply();
+        }
+    }
+
+    public static boolean isOpenRouterModelRejected(SharedPreferences prefs, String modelId) {
+        if (prefs == null || modelId == null) return false;
+        try {
+            JSONArray rejected = new JSONArray(prefs.getString(KEY_REJECTED_OPENROUTER_MODELS, "[]"));
+            for (int i = 0; i < rejected.length(); i++) if (modelId.equals(rejected.optString(i))) return true;
+        } catch (Exception ignored) { }
+        return false;
+    }
+
+    public static void clearRejectedOpenRouterModels(SharedPreferences prefs) {
+        if (prefs != null) prefs.edit().remove(KEY_REJECTED_OPENROUTER_MODELS).apply();
+    }
+
+    public static void rememberOpenRouterRejectionIfEndpoint(SharedPreferences prefs, int responseCode, String body, String modelId) {
+        if (isOpenRouterEndpointRejection(responseCode, body)) rememberRejectedOpenRouterModel(prefs, modelId);
+    }
+
+    public static boolean isOpenRouterEndpointRejection(int responseCode, String body) {
+        if (body == null) return false;
+        String message = body.toLowerCase(java.util.Locale.ROOT);
+        if (responseCode == 429 && (message.contains("rate-limit")
+                || message.contains("rate limit") || message.contains("temporarily unavailable"))) return true;
+        if (responseCode != 403) return false;
+        return message.contains("agentic harness")
+                || (message.contains("endpoint") && (message.contains("not available")
+                || message.contains("not allowed") || message.contains("not found")))
+                || message.contains("no endpoints found");
+    }
+
+    public static boolean shouldRetryOpenRouterWithNextFreeModel(int responseCode, String body) {
+        return isOpenRouterEndpointRejection(responseCode, body) || responseCode == 408
+                || responseCode == 500 || responseCode == 502 || responseCode == 503 || responseCode == 504;
+    }
+
+    public static class OpenRouterModel {
+        public final String id;
+        public final String name;
+        public final boolean free;
+        public final boolean vision;
+        public final double intelligenceIndex;
+        public OpenRouterModel(String id, String name, boolean free, boolean vision) {
+            this(id, name, free, vision, Double.NaN);
+        }
+        public OpenRouterModel(String id, String name, boolean free, boolean vision, double intelligenceIndex) {
+            this.id = id; this.name = name; this.free = free; this.vision = vision;
+            this.intelligenceIndex = intelligenceIndex;
+        }
+        public String label() {
+            String score = Double.isNaN(intelligenceIndex) ? "N/D" : String.format(java.util.Locale.US, "%.1f", intelligenceIndex);
+            return (free ? "🆓 " : "💳 ") + "AA " + score + " · " + name + (vision ? "  ·  👁" : "") + "\n" + id;
+        }
+    }
+
+    public static List<OpenRouterModel> getAvailableOpenRouterModels(Context context, boolean vision) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return getAvailableOpenRouterModels(prefs, vision);
+    }
+
+    public static List<OpenRouterModel> getAvailableOpenRouterModels(SharedPreferences prefs, boolean vision) {
+        String cached = prefs.getString(KEY_CACHED_OPENROUTER_MODELS, "");
+        List<OpenRouterModel> models = new ArrayList<>();
+        try {
+            JSONArray arr = new JSONArray(cached);
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.optJSONObject(i);
+                if (o == null || (vision && !o.optBoolean("vision"))) continue;
+                String id = o.optString("id");
+                if (isOpenRouterModelRejected(prefs, id)) continue;
+                models.add(new OpenRouterModel(id, o.optString("name"),
+                        o.optBoolean("free"), o.optBoolean("vision"), o.optDouble("intelligenceIndex", Double.NaN)));
+            }
+        } catch (Exception ignored) { }
+        return models;
+    }
+
+    public static OpenRouterModel getBestFreeOpenRouterModel(SharedPreferences prefs, boolean vision) {
+        OpenRouterModel best = getNextFreeOpenRouterModel(prefs, vision, new HashSet<>());
+        if (best != null) return best;
+        String fallback = vision ? "google/gemma-4-26b-a4b-it:free" : "inclusionai/ling-3.1-flash";
+        if (isOpenRouterModelRejected(prefs, fallback)) fallback = vision
+                ? "google/gemma-4-31b-it:free" : "google/gemma-4-26b-a4b-it:free";
+        return new OpenRouterModel(fallback, fallback, true, vision);
+    }
+
+    public static OpenRouterModel getNextFreeOpenRouterModel(SharedPreferences prefs, boolean vision,
+                                                              Set<String> excludedIds) {
+        List<OpenRouterModel> models = getAvailableOpenRouterModels(prefs, vision);
+        OpenRouterModel bestScored = null;
+        OpenRouterModel firstFree = null;
+        for (OpenRouterModel model : models) {
+            if (!model.free || (excludedIds != null && excludedIds.contains(model.id))) continue;
+            if (firstFree == null) firstFree = model;
+            if (!Double.isNaN(model.intelligenceIndex)
+                    && (bestScored == null || model.intelligenceIndex > bestScored.intelligenceIndex)) {
+                bestScored = model;
+            }
+        }
+        if (bestScored != null) return bestScored;
+        if (firstFree != null) return firstFree;
+        String[] fallbacks = vision
+                ? new String[]{"google/gemma-4-26b-a4b-it:free", "google/gemma-4-31b-it:free"}
+                : new String[]{"inclusionai/ling-3.1-flash", "google/gemma-4-26b-a4b-it:free"};
+        for (String fallback : fallbacks) {
+            if (!isOpenRouterModelRejected(prefs, fallback)
+                    && (excludedIds == null || !excludedIds.contains(fallback)))
+                return new OpenRouterModel(fallback, fallback, true, vision);
+        }
+        return null;
+    }
+
+    public static String resolveOpenRouterModel(SharedPreferences prefs, String configured, boolean vision) {
+        if (OPENROUTER_AUTO_FREE_BEST.equals(configured)) {
+            return getBestFreeOpenRouterModel(prefs, vision).id;
+        }
+        return configured;
+    }
+
+    public static void fetchAvailableOpenRouterModelsAsync(Context context, Runnable onComplete) {
+        Context app = context.getApplicationContext();
+        SharedPreferences prefs = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        Executors.newSingleThreadExecutor().execute(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL("https://openrouter.ai/api/v1/models?sort=intelligence-high-to-low");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET"); conn.setConnectTimeout(10000); conn.setReadTimeout(20000);
+                String key = prefs.getString(KEY_OPENROUTER_KEY, "").trim();
+                if (!key.isEmpty()) conn.setRequestProperty("Authorization", "Bearer " + key);
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder body = new StringBuilder(); String line;
+                    while ((line = reader.readLine()) != null) body.append(line);
+                    reader.close();
+                    JSONArray data = new JSONObject(body.toString()).optJSONArray("data");
+                    JSONArray valid = new JSONArray();
+                    List<OpenRouterModel> parsed = new ArrayList<>();
+                    if (data != null) for (int i = 0; i < data.length(); i++) {
+                        JSONObject m = data.optJSONObject(i);
+                        if (m == null) continue;
+                        String id = m.optString("id", "").trim();
+                        String name = m.optString("name", id).trim();
+                        JSONObject arch = m.optJSONObject("architecture");
+                        JSONArray inputs = arch != null ? arch.optJSONArray("input_modalities") : null;
+                        JSONArray outputs = arch != null ? arch.optJSONArray("output_modalities") : null;
+                        boolean textIn = hasValue(inputs, "text");
+                        boolean textOut = hasValue(outputs, "text");
+                        if (id.isEmpty() || !textIn || !textOut) continue;
+                        boolean image = hasValue(inputs, "image");
+                        JSONObject pricing = m.optJSONObject("pricing");
+                        boolean free = pricing != null && isZero(pricing.optString("prompt", ""))
+                                && isZero(pricing.optString("completion", ""))
+                                && isZero(pricing.optString("request", "0"))
+                                && (!image || isZero(pricing.optString("image", "0")));
+                        JSONObject benchmarks = m.optJSONObject("benchmarks");
+                        JSONObject artificialAnalysis = benchmarks != null ? benchmarks.optJSONObject("artificial_analysis") : null;
+                        double intelligence = artificialAnalysis != null
+                                ? artificialAnalysis.optDouble("intelligence_index", Double.NaN) : Double.NaN;
+                        OpenRouterModel model = new OpenRouterModel(id, name, free, image, intelligence);
+                        parsed.add(model);
+                    }
+                    // The API returns models by intelligence score; stable sorting groups free first
+                    // while preserving that score order within the free and paid groups.
+                    parsed.sort((a, b) -> a.free == b.free ? 0 : (a.free ? -1 : 1));
+                    for (OpenRouterModel m : parsed) valid.put(new JSONObject().put("id", m.id)
+                            .put("name", m.name).put("free", m.free).put("vision", m.vision)
+                            .put("intelligenceIndex", Double.isNaN(m.intelligenceIndex) ? JSONObject.NULL : m.intelligenceIndex));
+                    if (valid.length() > 0) prefs.edit().putString(KEY_CACHED_OPENROUTER_MODELS, valid.toString()).apply();
+                }
+            } catch (Exception e) { Log.w(TAG, "Could not refresh OpenRouter model catalog", e); }
+            finally {
+                if (conn != null) conn.disconnect();
+                if (onComplete != null) new Handler(Looper.getMainLooper()).post(onComplete);
+            }
+        });
+    }
+
+    private static boolean hasValue(JSONArray arr, String wanted) {
+        if (arr == null) return false;
+        for (int i = 0; i < arr.length(); i++) if (wanted.equalsIgnoreCase(arr.optString(i))) return true;
+        return false;
+    }
+
+    private static boolean isZero(String price) {
+        try { return Double.parseDouble(price) == 0d; } catch (Exception e) { return false; }
+    }
 
     public static List<String> getAvailableGeminiModels(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -177,6 +386,42 @@ public class AiSummaryEngine {
         } else {
             return SYSTEM_PROMPT;
         }
+    }
+
+    private static String getSystemPromptWithWebSearch(SharedPreferences prefs, String chatLang) {
+        String prompt = getSystemPrompt(chatLang);
+        if (!prefs.getBoolean("ai_web_search_enabled", true)) return prompt;
+        boolean isEnglish = "en".equalsIgnoreCase(chatLang);
+        return prompt + (isEnglish
+                ? "\n\nWEB SEARCH: A real-time web search tool is available. Search proactively whenever the supplied video title, transcript, or conversation does not contain enough information to answer, whenever you are uncertain, and whenever the question asks about external facts, names, groups, or current information—even if the user did not explicitly say 'search'. Never conclude that something does not exist just because it is absent from the transcript or your internal knowledge; search first. If the search returns no reliable evidence, say that no reliable results were found rather than claiming the subject does not exist. Never claim you cannot browse while this tool is available. Summarize what the search found and cite the source URLs returned by the tool."
+                : "\n\nBÚSQUEDA WEB: Tienes disponible una herramienta de búsqueda web en tiempo real. Busca proactivamente cuando el título, la transcripción o la conversación no contengan información suficiente para responder, cuando tengas dudas o cuando la consulta trate de datos externos, nombres, grupos o información actual, aunque el usuario no diga explícitamente «busca». No concluyas que algo no existe solo porque no aparece en la transcripción o en tu conocimiento interno: primero busca en la web. Si la búsqueda no encuentra evidencia confiable, di que no encontraste resultados confiables en vez de afirmar que el tema no existe. No digas que no puedes navegar mientras esta herramienta esté disponible. Resume los resultados y cita las URL de las fuentes devueltas por la herramienta.");
+    }
+
+    private static String appendOpenRouterCitations(String answer, JSONObject message, String chatLang) {
+        JSONArray annotations = message.optJSONArray("annotations");
+        if (annotations == null || annotations.length() == 0) return answer;
+        java.util.LinkedHashMap<String, String> sources = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < annotations.length(); i++) {
+            JSONObject annotation = annotations.optJSONObject(i);
+            if (annotation == null) continue;
+            JSONObject citation = annotation.optJSONObject("url_citation");
+            if (citation == null && "url_citation".equals(annotation.optString("type"))) citation = annotation;
+            if (citation == null) continue;
+            String url = citation.optString("url", "").trim();
+            if (!url.startsWith("http://") && !url.startsWith("https://")) continue;
+            String title = citation.optString("title", "").trim();
+            sources.put(url, title.isEmpty() ? url : title + " — " + url);
+        }
+        if (sources.isEmpty()) return answer;
+        boolean isEnglish = "en".equalsIgnoreCase(chatLang);
+        StringBuilder result = new StringBuilder(answer != null ? answer : "");
+        result.append("\n\n🔗 ").append(isEnglish ? "Web sources:" : "Fuentes web:").append('\n');
+        int count = 0;
+        for (String source : sources.values()) {
+            if (count++ >= 5) break;
+            result.append("• ").append(source).append('\n');
+        }
+        return result.toString();
     }
 
     public static class ChatMessage {
@@ -333,7 +578,7 @@ public class AiSummaryEngine {
             JSONObject systemInstruction = new JSONObject();
             JSONArray sysParts = new JSONArray();
             JSONObject sysPart = new JSONObject();
-            sysPart.put("text", getSystemPrompt(chatLang));
+            sysPart.put("text", getSystemPromptWithWebSearch(prefs, chatLang));
             sysParts.put(sysPart);
             systemInstruction.put("parts", sysParts);
             body.put("systemInstruction", systemInstruction);
@@ -489,9 +734,21 @@ public class AiSummaryEngine {
             return;
         }
 
-        String model = prefs.getString(KEY_OPENROUTER_MODEL, DEFAULT_OPENROUTER_MODEL).trim();
+        String model = resolveOpenRouterModel(prefs,
+                prefs.getString(KEY_OPENROUTER_MODEL, DEFAULT_OPENROUTER_MODEL).trim(), false);
         if (model.isEmpty()) model = DEFAULT_OPENROUTER_MODEL;
+        boolean automatic = OPENROUTER_AUTO_FREE_BEST.equals(
+                prefs.getString(KEY_OPENROUTER_MODEL, DEFAULT_OPENROUTER_MODEL).trim());
+        callOpenRouterAttempt(prefs, videoTitle, transcript, history, currentQuestion, chatLang,
+                callback, model, automatic, new HashSet<>());
+    }
 
+    private void callOpenRouterAttempt(SharedPreferences prefs, String videoTitle, String transcript,
+                                       List<ChatMessage> history, String currentQuestion,
+                                       String chatLang, AiCallback callback, String model, boolean automatic,
+                                       Set<String> attemptedModels) {
+        attemptedModels.add(model);
+        String apiKey = prefs.getString(KEY_OPENROUTER_KEY, "").trim();
         try {
             URL url = new URL("https://openrouter.ai/api/v1/chat/completions");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -512,7 +769,7 @@ public class AiSummaryEngine {
             // System prompt
             JSONObject sysMsg = new JSONObject();
             sysMsg.put("role", "system");
-            sysMsg.put("content", getSystemPrompt(chatLang));
+            sysMsg.put("content", getSystemPromptWithWebSearch(prefs, chatLang));
             messages.put(sysMsg);
 
             // First turn: inject video context
@@ -567,6 +824,24 @@ public class AiSummaryEngine {
 
             body.put("messages", messages);
 
+            // OpenRouter does not inherit Gemini's Google Search grounding configuration.
+            // Send its server-side search tool explicitly when the Web toggle is enabled.
+            if (prefs.getBoolean("ai_web_search_enabled", true)) {
+                JSONArray tools = new JSONArray();
+                JSONObject webSearchTool = new JSONObject();
+                webSearchTool.put("type", "openrouter:web_search");
+                JSONObject parameters = new JSONObject();
+                parameters.put("engine", "auto");
+                parameters.put("max_results", 5);
+                parameters.put("max_total_results", 10);
+                parameters.put("max_uses", 2);
+                parameters.put("search_context_size", "medium");
+                webSearchTool.put("parameters", parameters);
+                tools.put(webSearchTool);
+                body.put("tools", tools);
+                body.put("max_tool_calls", 4);
+            }
+
             byte[] jsonBytes = body.toString().getBytes(StandardCharsets.UTF_8);
             conn.setFixedLengthStreamingMode(jsonBytes.length);
             try (OutputStream os = conn.getOutputStream()) {
@@ -585,6 +860,20 @@ public class AiSummaryEngine {
             br.close();
 
             if (responseCode != 200) {
+                if (automatic && shouldRetryOpenRouterWithNextFreeModel(responseCode, sb.toString())) {
+                    if (isOpenRouterEndpointRejection(responseCode, sb.toString())) rememberRejectedOpenRouterModel(prefs, model);
+                    OpenRouterModel next = getNextFreeOpenRouterModel(prefs, false, attemptedModels);
+                    if (next != null) {
+                        String nextModel = next.id;
+                        Log.w(TAG, "OpenRouter text rejected " + model + "; retrying with " + nextModel);
+                        conn.disconnect();
+                        callOpenRouterAttempt(prefs, videoTitle, transcript, history, currentQuestion,
+                                chatLang, callback, nextModel, automatic, attemptedModels);
+                        return;
+                    }
+                    postError(callback, "OpenRouter no pudo usar los modelos de texto gratuitos disponibles. Elegí otro modelo o pulsa «Reintentar modelos rechazados» en la configuración.");
+                    return;
+                }
                 Log.e(TAG, "OpenRouter API error: " + responseCode + " - " + sb.toString());
                 postError(callback, "Error OpenRouter (" + responseCode + "): " + sb.toString());
                 return;
@@ -595,7 +884,7 @@ public class AiSummaryEngine {
             if (choices != null && choices.length() > 0) {
                 JSONObject msg = choices.getJSONObject(0).optJSONObject("message");
                 if (msg != null) {
-                    String fullText = msg.optString("content", "");
+                    String fullText = appendOpenRouterCitations(msg.optString("content", ""), msg, chatLang);
                     parseAndDeliver(fullText, callback);
                     return;
                 }
@@ -604,7 +893,14 @@ public class AiSummaryEngine {
             postError(callback, "OpenRouter no devolvió contenido.");
         } catch (Exception e) {
             Log.e(TAG, "Exception calling OpenRouter", e);
-            postError(callback, "Error de conexión con OpenRouter: " + e.getMessage());
+            OpenRouterModel next = automatic ? getNextFreeOpenRouterModel(prefs, false, attemptedModels) : null;
+            if (next != null) {
+                Log.w(TAG, "OpenRouter text request failed for " + model + "; retrying with " + next.id);
+                callOpenRouterAttempt(prefs, videoTitle, transcript, history, currentQuestion,
+                        chatLang, callback, next.id, automatic, attemptedModels);
+                return;
+            }
+            postError(callback, "No se pudo completar la consulta con los modelos gratuitos disponibles de OpenRouter.");
         }
     }
 
@@ -764,7 +1060,7 @@ public class AiSummaryEngine {
             return;
         }
 
-        String model = prefs.getString(KEY_GEMINI_MODEL, DEFAULT_GEMINI_MODEL).trim();
+        String model = prefs.getString(KEY_GEMINI_VISION_MODEL, DEFAULT_GEMINI_VISION_MODEL).trim();
         if (model.isEmpty()) model = DEFAULT_GEMINI_MODEL;
 
         try {
@@ -876,9 +1172,19 @@ public class AiSummaryEngine {
             return;
         }
 
-        String model = prefs.getString(KEY_OPENROUTER_MODEL, DEFAULT_OPENROUTER_MODEL).trim();
+        String model = resolveOpenRouterModel(prefs,
+                prefs.getString(KEY_OPENROUTER_VISION_MODEL, DEFAULT_OPENROUTER_VISION_MODEL).trim(), true);
         if (model.isEmpty()) model = DEFAULT_OPENROUTER_MODEL;
+        boolean automatic = OPENROUTER_AUTO_FREE_BEST.equals(
+                prefs.getString(KEY_OPENROUTER_VISION_MODEL, DEFAULT_OPENROUTER_VISION_MODEL).trim());
+        callOpenRouterVisionAttempt(prefs, screenshot, prompt, chatLang, callback, model, automatic, new HashSet<>());
+    }
 
+    private void callOpenRouterVisionAttempt(SharedPreferences prefs, Bitmap screenshot, String prompt,
+                                            String chatLang, VisionCallback callback, String model,
+                                            boolean automatic, Set<String> attemptedModels) {
+        attemptedModels.add(model);
+        String apiKey = prefs.getString(KEY_OPENROUTER_KEY, "").trim();
         try {
             String base64Data = bitmapToBase64Jpeg(screenshot);
             if (base64Data.isEmpty()) {
@@ -945,6 +1251,21 @@ public class AiSummaryEngine {
             br.close();
 
             if (responseCode != 200) {
+                if (automatic && shouldRetryOpenRouterWithNextFreeModel(responseCode, sb.toString())) {
+                    if (isOpenRouterEndpointRejection(responseCode, sb.toString())) rememberRejectedOpenRouterModel(prefs, model);
+                    OpenRouterModel next = getNextFreeOpenRouterModel(prefs, true, attemptedModels);
+                    if (next != null) {
+                        String nextModel = next.id;
+                        Log.w(TAG, "OpenRouter Vision rejected " + model + "; retrying with " + nextModel);
+                        conn.disconnect();
+                        callOpenRouterVisionAttempt(prefs, screenshot, prompt, chatLang, callback,
+                                nextModel, automatic, attemptedModels);
+                        return;
+                    }
+                    Log.w(TAG, "No untried compatible OpenRouter vision models remain after rejecting " + model);
+                    mainHandler.post(() -> callback.onError("OpenRouter no pudo usar los modelos de imagen gratuitos disponibles. Elegí otro modelo o pulsa «Reintentar modelos rechazados» en la configuración."));
+                    return;
+                }
                 Log.e(TAG, "OpenRouter Vision error: " + responseCode + " - " + sb.toString());
                 mainHandler.post(() -> callback.onError("Error OpenRouter Visión (" + responseCode + "): " + sb.toString()));
                 return;
@@ -964,7 +1285,13 @@ public class AiSummaryEngine {
             mainHandler.post(() -> callback.onError("OpenRouter no devolvió contenido para la imagen."));
         } catch (Exception e) {
             Log.e(TAG, "Exception in callOpenRouterVision", e);
-            mainHandler.post(() -> callback.onError("Error al conectar con OpenRouter Visión: " + e.getMessage()));
+            OpenRouterModel next = automatic ? getNextFreeOpenRouterModel(prefs, true, attemptedModels) : null;
+            if (next != null) {
+                Log.w(TAG, "OpenRouter Vision request failed for " + model + "; retrying with " + next.id);
+                callOpenRouterVisionAttempt(prefs, screenshot, prompt, chatLang, callback, next.id, automatic, attemptedModels);
+                return;
+            }
+            mainHandler.post(() -> callback.onError("No se pudo completar la consulta de imagen con los modelos gratuitos disponibles de OpenRouter."));
         }
     }
 

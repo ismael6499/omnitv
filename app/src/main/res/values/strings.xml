@@ -243,6 +243,9 @@
     <string name="vot_title">Real-Time Voiceover (VOT):</string>
     <string name="vot_source_lang">   Source Language:  %s</string>
     <string name="vot_target_lang">   Target Language:  %s</string>
+    <string name="vot_local_voice_off">   Chromecast voice: System default</string>
+    <string name="vot_local_voice_on">   Chromecast voice: Local offline (%s)</string>
+    <string name="vot_local_voice_unavailable">   Chromecast voice: No installed offline voice</string>
     <string name="vot_volume">   Voice Volume:  %s</string>
     <string name="vot_ducking">   Audio Ducking:  %s</string>
     <string name="vot_subtitles">   Subtitles:  %s</string>
@@ -257,6 +260,9 @@
     <string name="ai_launch_now">✨ Open AI Assistant Now</string>
     <string name="ai_provider">   AI Provider:  %s</string>
     <string name="ai_model">   AI Model:  %s</string>
+    <string name="ai_tt_pager_position">Text Translator: pager %1$s</string>
+    <string name="ai_tt_pager_top">above comments</string>
+    <string name="ai_tt_pager_bottom">below comments</string>
     <string name="ai_key_set">   API Key:  [ CONFIGURED ]</string>
     <string name="ai_key_unset">   API Key:  [ NOT SET ]</string>
     <string name="ai_instructions">   System Instructions:  %s</string>
@@ -442,19 +448,27 @@
         <item>Fast (1.15x)</item>
         <item>Very Fast (1.3x)</item>
         <item>Ultra (1.45x)</item>
+        <item>1.6x</item>
+        <item>1.75x</item>
+        <item>1.9x</item>
+        <item>Maximum (2.0x)</item>
     </string-array>
 
     <string-array name="vot_tts_volume_names">
         <item>100% (Maximum)</item>
+        <item>95%</item>
+        <item>90%</item>
         <item>85% (Balanced)</item>
+        <item>80%</item>
         <item>70% (Medium)</item>
+        <item>60%</item>
         <item>50% (Low)</item>
     </string-array>
 
     <string-array name="vot_ducking_mode_names">
-        <item>Duck Video (~25%)</item>
-        <item>Mute Video While Speaking</item>
-        <item>No Ducking (Normal)</item>
+        <item>Standard system ducking</item>
+        <item>Prioritize voice (may pause video)</item>
+        <item>No ducking</item>
     </string-array>
 
     <string-array name="vot_provider_names">
@@ -618,5 +632,23 @@
     <string name="tt_page_next">Next ▶</string>
     <string name="tt_page_label">Page %1$d</string>
     <string name="tt_translate_progress">Translated %1$d of %2$d</string>
+    <string name="tt_original_label">Original</string>
+    <string name="tt_translation_label">Translation</string>
     <string name="tt_viewer">Viewer</string>
+    <string name="ai_vision_model_default">Image model: gemini-3.5-flash-lite</string>
+    <string name="ai_vision_model">Image model: %1$s</string>
+    <string name="model_picker_gemini_text">Choose Gemini text model</string>
+    <string name="model_picker_gemini_vision">Choose Gemini image model</string>
+    <string name="model_picker_openrouter_text">OpenRouter text model</string>
+    <string name="model_picker_openrouter_vision">OpenRouter image model</string>
+    <string name="model_picker_openrouter_vot">OpenRouter translation model</string>
+    <string name="model_picker_openrouter_subtitle">Free first, then paid. AA is an index, not a percentage; higher is better. 👁 supports images. Auto picks the highest-scoring free model, or the first free model without a score.</string>
+    <string name="model_picker_gemini_subtitle">Choose the model used for this type of request.</string>
+    <string name="model_picker_free_heading">FREE MODELS</string>
+    <string name="model_picker_paid_heading">PAID MODELS</string>
+    <string name="model_quality_free">Free · AA %1$s</string>
+    <string name="model_quality_paid">Paid · AA %1$s</string>
+    <string name="model_auto_name">Automatic</string>
+    <string name="model_auto_free_best">🤖 Automatic: best-scoring free model for this task</string>
+    <string name="model_picker_retry_rejected">↻ Retry previously rejected models once</string>
 </resources>

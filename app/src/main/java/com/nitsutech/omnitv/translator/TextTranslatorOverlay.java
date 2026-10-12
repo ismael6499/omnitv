@@ -53,6 +53,7 @@ public class TextTranslatorOverlay {
     private static final String PREF_ENGINE = "tt_engine";
     private static final String PREF_LANG = "tt_lang";
     private static final String PREF_TRANSPARENCY = "tt_background_transparency";
+    public static final String PREF_COMMENTS_PAGINATOR_AT_TOP = "tt_pagination_at_top";
 
     // Keep source indices aligned with the pill order used by horizontal D-pad navigation.
     public static final int SRC_UI = 0, SRC_COMMENTS = 1, SRC_OCR = 2, SRC_LENS = 3;
@@ -271,6 +272,7 @@ public class TextTranslatorOverlay {
         textPageIndicator = overlayView.findViewById(R.id.tt_page_indicator);
         dimmerFilter = overlayView.findViewById(R.id.tt_menu_dimmer_filter);
         blueLightFilter = overlayView.findViewById(R.id.tt_menu_blue_light_filter);
+        applyPaginationPlacement();
 
         btnClose = overlayView.findViewById(R.id.tt_btn_close);
         if (btnClose != null) {
@@ -328,7 +330,7 @@ public class TextTranslatorOverlay {
         for (int i = 0; i < srcButtons.length; i++) {
             boolean selected = (i == currentSource);
             if (i == SRC_LENS) {
-                srcButtons[i].setText(I18n.get(context, R.string.tt_src_lens) + " · " + getSelectedAiModelLabel());
+                srcButtons[i].setText(I18n.get(context, R.string.tt_src_lens) + " · " + getSelectedAiModelLabel(true));
             }
             srcButtons[i].setTextColor(selected ? 0xFF8AB4F8 : 0xFFFFFFFF);
             srcButtons[i].setAlpha(selected ? 1f : 0.75f);
@@ -350,17 +352,24 @@ public class TextTranslatorOverlay {
         }
     }
 
-    private String getSelectedAiModelLabel() {
+    private String getSelectedAiModelLabel(boolean vision) {
         SharedPreferences prefs = context.getSharedPreferences(com.nitsutech.omnitv.ai.AiSummaryEngine.PREFS_NAME, Context.MODE_PRIVATE);
         int provider = prefs.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
         if (provider == 1) {
-            String model = prefs.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL,
-                    com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_OPENROUTER_MODEL).trim();
-            return model.isEmpty() ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_OPENROUTER_MODEL : model;
+            String fallback = vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_OPENROUTER_VISION_MODEL
+                    : com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_OPENROUTER_MODEL;
+            String key = vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_VISION_MODEL
+                    : com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL;
+            String model = com.nitsutech.omnitv.ai.AiSummaryEngine.resolveOpenRouterModel(
+                    prefs, prefs.getString(key, fallback).trim(), vision);
+            return model.isEmpty() ? fallback : model;
         }
-        String model = prefs.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL,
-                com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL).trim();
-        return model.isEmpty() ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL : model;
+        String fallback = vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_VISION_MODEL
+                : com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL;
+        String key = vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_VISION_MODEL
+                : com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL;
+        String model = prefs.getString(key, fallback).trim();
+        return model.isEmpty() ? fallback : model;
     }
 
     private void updateLangButtonLabel() {
@@ -742,6 +751,23 @@ public class TextTranslatorOverlay {
         setBackgroundAlpha(btnNextPage, getPillAlpha());
     }
 
+    private void applyPaginationPlacement() {
+        if (paginationControls == null || scrollList == null || drawerPanel == null) return;
+        ViewGroup parent = (ViewGroup) paginationControls.getParent();
+        if (parent == null || parent != drawerPanel) return;
+        boolean atTop = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(PREF_COMMENTS_PAGINATOR_AT_TOP, false);
+        parent.removeView(paginationControls);
+        int listIndex = parent.indexOfChild(scrollList);
+        parent.addView(paginationControls, atTop ? listIndex : listIndex + 1);
+        paginationControls.setVisibility(View.GONE);
+    }
+
+    private boolean isPaginationAtTop() {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(PREF_COMMENTS_PAGINATOR_AT_TOP, false);
+    }
+
     private void showCommentsPage(int page, View restoreFocus) {
         if (page < 0 || page * COMMENTS_PAGE_SIZE >= mainItems.size()) return;
         currentCommentsPage = page;
@@ -883,12 +909,36 @@ public class TextTranslatorOverlay {
             tvAuthor.setTypeface(Typeface.DEFAULT_BOLD);
             card.addView(tvAuthor);
 
+            final TextView tvOriginalLabel = new TextView(context);
+            tvOriginalLabel.setText(I18n.get(context, R.string.tt_original_label));
+            tvOriginalLabel.setTextColor(0xFF9AA0A6);
+            tvOriginalLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+            tvOriginalLabel.setTypeface(Typeface.DEFAULT_BOLD);
+            tvOriginalLabel.setVisibility(hasTranslationForCurrentLanguage(item) ? View.VISIBLE : View.GONE);
+            card.addView(tvOriginalLabel);
+
             final TextView tvBody = new TextView(context);
-            tvBody.setText(getTextForLanguage(item));
+            tvBody.setText(item.originalText);
             tvBody.setTextColor(0xFFEEEEEE);
             tvBody.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
             tvBody.setPadding(0, Math.round(4 * density), 0, Math.round(8 * density));
             card.addView(tvBody);
+
+            final TextView tvTranslationLabel = new TextView(context);
+            tvTranslationLabel.setText(I18n.get(context, R.string.tt_translation_label));
+            tvTranslationLabel.setTextColor(0xFF80CBC4);
+            tvTranslationLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+            tvTranslationLabel.setTypeface(Typeface.DEFAULT_BOLD);
+            tvTranslationLabel.setVisibility(hasTranslationForCurrentLanguage(item) ? View.VISIBLE : View.GONE);
+            card.addView(tvTranslationLabel);
+
+            final TextView tvTranslated = new TextView(context);
+            tvTranslated.setText(item.translatedText != null ? item.translatedText : "");
+            tvTranslated.setTextColor(0xFFEEEEEE);
+            tvTranslated.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            tvTranslated.setPadding(0, Math.round(4 * density), 0, Math.round(8 * density));
+            tvTranslated.setVisibility(hasTranslationForCurrentLanguage(item) ? View.VISIBLE : View.GONE);
+            card.addView(tvTranslated);
 
             LinearLayout actionsRow = new LinearLayout(context);
             actionsRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -904,7 +954,7 @@ public class TextTranslatorOverlay {
             btnItemTranslate.setClickable(false);
             actionsRow.addView(btnItemTranslate);
 
-            cardViews.put(item, new TextView[]{tvBody, btnItemTranslate});
+            cardViews.put(item, new TextView[]{tvOriginalLabel, tvBody, tvTranslationLabel, tvTranslated, btnItemTranslate});
 
             if (!isThreadParent && item.replyCount > 0 && item.replyContinuationToken != null) {
                 final TextView btnReplies = new TextView(context);
@@ -969,13 +1019,6 @@ public class TextTranslatorOverlay {
         }
     }
 
-    private String getTextForLanguage(YouTubeCommentItem item) {
-        if (!hasTranslationForCurrentLanguage(item)) {
-            return item.originalText;
-        }
-        return item.getDisplayText();
-    }
-
     private boolean hasTranslationForCurrentLanguage(YouTubeCommentItem item) {
         return item.isTranslated && item.translatedText != null && !item.translatedText.isEmpty()
                 && effectiveTarget().equalsIgnoreCase(item.targetLanguage != null ? item.targetLanguage : "");
@@ -984,14 +1027,26 @@ public class TextTranslatorOverlay {
     private void updateCardViews(YouTubeCommentItem item) {
         TextView[] views = cardViews.get(item);
         if (views == null) return;
-        views[0].setText(getTextForLanguage(item));
-        views[1].setText(hasTranslationForCurrentLanguage(item) ? I18n.get(context, R.string.comments_btn_orig) : I18n.get(context, R.string.comments_btn_translate));
+        boolean hasTranslation = hasTranslationForCurrentLanguage(item);
+        views[0].setVisibility(hasTranslation ? View.VISIBLE : View.GONE);
+        views[1].setText(item.originalText != null ? item.originalText : "");
+        views[2].setVisibility(hasTranslation ? View.VISIBLE : View.GONE);
+        views[3].setText(hasTranslation ? item.translatedText : "");
+        views[3].setVisibility(hasTranslation ? View.VISIBLE : View.GONE);
+        views[4].setText(hasTranslation ? I18n.get(context, R.string.comments_btn_orig) : I18n.get(context, R.string.comments_btn_translate));
     }
 
     private void centerViewInScrollView(final View v) {
         if (scrollList == null || v == null) return;
         scrollList.post(() -> {
             if (scrollList == null || v == null) return;
+            int viewportHeight = scrollList.getHeight();
+            if (viewportHeight > 0 && v.getHeight() > viewportHeight) {
+                // A tall card cannot be centered inside the viewport. Start at
+                // its top so D-pad scrolling can reveal the rest of its text.
+                scrollList.smoothScrollTo(0, Math.max(0, v.getTop()));
+                return;
+            }
             int[] vLoc = new int[2];
             int[] svLoc = new int[2];
             v.getLocationOnScreen(vLoc);
@@ -999,6 +1054,33 @@ public class TextTranslatorOverlay {
             int targetY = vLoc[1] - svLoc[1] + scrollList.getScrollY() - (scrollList.getHeight() - v.getHeight()) / 2;
             scrollList.smoothScrollTo(0, Math.max(0, targetY));
         });
+    }
+
+    /** Scrolls a partially visible focused card before moving focus to a neighbor. */
+    private boolean scrollFocusedCard(int keyCode, View card) {
+        if (scrollList == null || card == null || scrollList.getHeight() <= 0) return false;
+        int scrollY = scrollList.getScrollY();
+        int viewportHeight = scrollList.getHeight();
+        int step = Math.max(1, Math.round(48 * context.getResources().getDisplayMetrics().density));
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP && card.getTop() < scrollY) {
+            int targetY = Math.max(card.getTop(), scrollY - step);
+            if (targetY < scrollY) {
+                scrollList.scrollTo(0, targetY);
+                return true;
+            }
+        } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                && card.getBottom() > scrollY + viewportHeight) {
+            int contentHeight = scrollList.getChildAt(0) != null
+                    ? scrollList.getChildAt(0).getHeight() : card.getBottom();
+            int maxScrollY = Math.max(0, contentHeight - viewportHeight);
+            int targetY = Math.min(maxScrollY, scrollY + step);
+            if (targetY > scrollY) {
+                scrollList.scrollTo(0, targetY);
+                return true;
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -1404,13 +1486,24 @@ public class TextTranslatorOverlay {
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 View other = current == btnPreviousPage ? btnNextPage : btnPreviousPage;
                 if (other != null && other.isEnabled()) other.requestFocus();
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP && containerItems != null) {
-                for (int i = containerItems.getChildCount() - 1; i >= 0; i--) {
-                    View last = containerItems.getChildAt(i);
-                    if (last.isFocusable()) {
-                        last.requestFocus();
-                        centerViewInScrollView(last);
-                        break;
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && isPaginationAtTop()) {
+                View first = findFirstFocusable(containerItems);
+                if (first != null) {
+                    first.requestFocus();
+                    centerViewInScrollView(first);
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (isPaginationAtTop()) {
+                    View target = findClosestByCenterX(getActionPills(), current);
+                    if (target != null) target.requestFocus();
+                } else if (containerItems != null) {
+                    for (int i = containerItems.getChildCount() - 1; i >= 0; i--) {
+                        View last = containerItems.getChildAt(i);
+                        if (last.isFocusable()) {
+                            last.requestFocus();
+                            centerViewInScrollView(last);
+                            break;
+                        }
                     }
                 }
             }
@@ -1435,6 +1528,7 @@ public class TextTranslatorOverlay {
                     return;
                 }
                 case KeyEvent.KEYCODE_DPAD_DOWN: {
+                    if (scrollFocusedCard(keyCode, card)) return;
                     int idx = card != null ? containerItems.indexOfChild(card) : -1;
                     int next = idx + 1;
                     while (next >= 0 && next < containerItems.getChildCount() && !containerItems.getChildAt(next).isFocusable()) {
@@ -1444,7 +1538,7 @@ public class TextTranslatorOverlay {
                         View nextView = containerItems.getChildAt(next);
                         nextView.requestFocus();
                         centerViewInScrollView(nextView);
-                    } else if (currentSource == SRC_COMMENTS && !isShowingReplies) {
+                    } else if (currentSource == SRC_COMMENTS && !isShowingReplies && !isPaginationAtTop()) {
                         View pageControl = btnNextPage != null && btnNextPage.isEnabled()
                                 ? btnNextPage : btnPreviousPage != null && btnPreviousPage.isEnabled()
                                 ? btnPreviousPage : null;
@@ -1453,6 +1547,7 @@ public class TextTranslatorOverlay {
                     return;
                 }
                 case KeyEvent.KEYCODE_DPAD_UP: {
+                    if (scrollFocusedCard(keyCode, card)) return;
                     int idx = card != null ? containerItems.indexOfChild(card) : -1;
                     int next = idx - 1;
                     while (next >= 0 && next < containerItems.getChildCount() && !containerItems.getChildAt(next).isFocusable()) {
@@ -1463,11 +1558,15 @@ public class TextTranslatorOverlay {
                         nextView.requestFocus();
                         centerViewInScrollView(nextView);
                     } else {
-                        // Reached top of list: focus top action pills
-                        if (btnEngine != null) {
-                            btnEngine.requestFocus();
+                        if (currentSource == SRC_COMMENTS && !isShowingReplies && isPaginationAtTop()
+                                && paginationControls.getVisibility() == View.VISIBLE) {
+                            View pageControl = btnPreviousPage.isEnabled() ? btnPreviousPage
+                                    : btnNextPage.isEnabled() ? btnNextPage : null;
+                            if (pageControl != null) pageControl.requestFocus();
                         } else if (srcButtons[currentSource] != null) {
                             srcButtons[currentSource].requestFocus();
+                        } else if (btnEngine != null) {
+                            btnEngine.requestFocus();
                         }
                         if (scrollList != null) scrollList.smoothScrollTo(0, 0);
                     }
@@ -1502,11 +1601,8 @@ public class TextTranslatorOverlay {
                         btnClose.requestFocus();
                     }
                 } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    if (btnEngine != null && btnEngine.getVisibility() == View.VISIBLE) {
-                        btnEngine.requestFocus();
-                    } else if (btnLang != null && btnLang.getVisibility() == View.VISIBLE) {
-                        btnLang.requestFocus();
-                    }
+                    View target = findClosestByCenterX(getActionPills(), current);
+                    if (target != null) target.requestFocus();
                 } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                     if (btnClose != null) {
                         btnClose.requestFocus();
@@ -1518,11 +1614,7 @@ public class TextTranslatorOverlay {
 
         // 4. Current is in Action Pills row, including permanent and temporary background toggles.
         java.util.List<View> actionPills = new java.util.ArrayList<>();
-        if (btnEngine != null && btnEngine.getVisibility() == View.VISIBLE) actionPills.add(btnEngine);
-        if (btnLang != null && btnLang.getVisibility() == View.VISIBLE) actionPills.add(btnLang);
-        if (btnTranslateAll != null && btnTranslateAll.getVisibility() == View.VISIBLE) actionPills.add(btnTranslateAll);
-        if (btnTransparency != null && btnTransparency.getVisibility() == View.VISIBLE) actionPills.add(btnTransparency);
-        if (btnTemporaryTransparency != null && btnTemporaryTransparency.getVisibility() == View.VISIBLE) actionPills.add(btnTemporaryTransparency);
+        actionPills.addAll(getActionPills());
 
         int actionIdx = actionPills.indexOf(current);
         if (actionIdx >= 0) {
@@ -1535,16 +1627,16 @@ public class TextTranslatorOverlay {
                     actionPills.get(actionIdx + 1).requestFocus();
                 }
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                if (srcButtons[currentSource] != null) {
-                    srcButtons[currentSource].requestFocus();
-                } else if (srcButtons[0] != null) {
-                    srcButtons[0].requestFocus();
-                }
+                View target = findClosestByCenterX(getSourcePills(), current);
+                if (target != null) target.requestFocus();
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                View target = findFirstFocusable(containerItems);
+                View target = isPaginationAtTop() && paginationControls != null
+                        && paginationControls.getVisibility() == View.VISIBLE
+                        ? findClosestByCenterX(getEnabledPageControls(), current)
+                        : findFirstFocusable(containerItems);
                 if (target != null) {
                     target.requestFocus();
-                    centerViewInScrollView(target);
+                    if (isViewInside(target, containerItems)) centerViewInScrollView(target);
                 }
             }
             return;
@@ -1563,6 +1655,51 @@ public class TextTranslatorOverlay {
                 centerViewInScrollView(next);
             }
         }
+    }
+
+    private java.util.List<View> getActionPills() {
+        java.util.List<View> pills = new java.util.ArrayList<>();
+        if (btnEngine != null && btnEngine.getVisibility() == View.VISIBLE) pills.add(btnEngine);
+        if (btnLang != null && btnLang.getVisibility() == View.VISIBLE) pills.add(btnLang);
+        if (btnTranslateAll != null && btnTranslateAll.getVisibility() == View.VISIBLE) pills.add(btnTranslateAll);
+        if (btnTransparency != null && btnTransparency.getVisibility() == View.VISIBLE) pills.add(btnTransparency);
+        if (btnTemporaryTransparency != null && btnTemporaryTransparency.getVisibility() == View.VISIBLE) pills.add(btnTemporaryTransparency);
+        return pills;
+    }
+
+    private java.util.List<View> getSourcePills() {
+        java.util.List<View> pills = new java.util.ArrayList<>();
+        for (View sourceButton : srcButtons) {
+            if (sourceButton != null && sourceButton.getVisibility() == View.VISIBLE) pills.add(sourceButton);
+        }
+        return pills;
+    }
+
+    private java.util.List<View> getEnabledPageControls() {
+        java.util.List<View> controls = new java.util.ArrayList<>();
+        if (btnPreviousPage != null && btnPreviousPage.isEnabled()) controls.add(btnPreviousPage);
+        if (btnNextPage != null && btnNextPage.isEnabled()) controls.add(btnNextPage);
+        return controls;
+    }
+
+    private View findClosestByCenterX(java.util.List<View> candidates, View from) {
+        if (candidates == null || candidates.isEmpty() || from == null) return null;
+        int[] fromLocation = new int[2];
+        from.getLocationOnScreen(fromLocation);
+        int fromCenter = fromLocation[0] + from.getWidth() / 2;
+        View nearest = null;
+        int smallestDistance = Integer.MAX_VALUE;
+        for (View candidate : candidates) {
+            if (candidate == null || candidate.getVisibility() != View.VISIBLE || !candidate.isFocusable()) continue;
+            int[] location = new int[2];
+            candidate.getLocationOnScreen(location);
+            int distance = Math.abs(location[0] + candidate.getWidth() / 2 - fromCenter);
+            if (distance < smallestDistance) {
+                smallestDistance = distance;
+                nearest = candidate;
+            }
+        }
+        return nearest;
     }
 
     private View findDirectCardChild(View v) {

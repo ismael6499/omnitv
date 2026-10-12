@@ -26,6 +26,10 @@ public class VotConfigReceiver extends BroadcastReceiver {
                 Toast.makeText(context, "🔑 OpenRouter Key guardada (" + masked + ")", Toast.LENGTH_LONG).show();
                 Log.d(TAG, "OpenRouter API Key updated successfully via broadcast");
             }
+        } else if ("com.nitsutech.omnitv.SET_VOT_SPEECH_RATE".equals(action)) {
+            float rate = intent.getFloatExtra("rate", 2.0f);
+            com.nitsutech.omnitv.vot.VotManager.getInstance(context).setSpeechRate(rate);
+            Toast.makeText(context, "VOT speech rate set to " + rate + "x", Toast.LENGTH_SHORT).show();
         } else if ("com.nitsutech.omnitv.SET_OPENROUTER_MODEL".equals(action) || "com.example.togglegrayscale.SET_OPENROUTER_MODEL".equals(action)) {
             String model = intent.getStringExtra("model");
             if (model != null) {

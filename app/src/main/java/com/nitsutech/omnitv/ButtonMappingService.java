@@ -781,7 +781,7 @@ public class ButtonMappingService extends AccessibilityService {
         }
         
         try {
-            com.nitsutech.omnitv.vot.VotManager.getInstance(this).onVideoChanged(pkg, title, artist, duration);
+            com.nitsutech.omnitv.vot.VotManager.getInstance(this).onVideoChanged(pkg, title, artist, duration, mediaId);
         } catch (Exception e) {
             Log.e(TAG, "Error notifying VotManager of video change", e);
         }
@@ -1135,6 +1135,23 @@ public class ButtonMappingService extends AccessibilityService {
         } catch (Exception e) {
             Log.e(TAG, "Failed to requestRebind for MediaNotificationListener", e);
         }
+
+        // Reattach VOT to the currently playing session after app/service restart or APK update.
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    com.nitsutech.omnitv.vot.VotManager vot =
+                            com.nitsutech.omnitv.vot.VotManager.getInstance(ButtonMappingService.this);
+                    if (vot.isEnabled()) {
+                        vot.ensurePlaybackMonitor();
+                        com.nitsutech.omnitv.MediaNotificationListener.syncActiveMediaSessionToVot(vot);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Unable to restore VOT media session after service connection", e);
+                }
+            }
+        }, 1500);
 
         final SharedPreferences prefs = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
         if (!prefs.getBoolean("migrated_yt_triple_music_v1", false)) {

@@ -34,6 +34,16 @@ public class MediaNotificationListener extends NotificationListenerService {
         instance = this;
         Log.d(TAG, "MediaNotificationListener connected successfully!");
         setupMediaSessionListener();
+        try {
+            com.nitsutech.omnitv.vot.VotManager vot =
+                    com.nitsutech.omnitv.vot.VotManager.getInstance(this);
+            if (vot.isEnabled()) {
+                vot.ensurePlaybackMonitor();
+                syncActiveMediaSessionToVot(vot);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Unable to restore VOT after media listener reconnect", e);
+        }
     }
 
     @Override
@@ -88,6 +98,15 @@ public class MediaNotificationListener extends NotificationListenerService {
                 try {
                     com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().onVideoChanged(activeTitle, activeMediaId);
                 } catch (Exception ignored) {}
+            }
+
+            // Existing sessions do not necessarily emit a playback callback
+            // after listener reconnection, so deliver their current state now.
+            PlaybackState currentState = controller.getPlaybackState();
+            ButtonMappingService currentService = ButtonMappingService.instance;
+            if (currentState != null && currentService != null) {
+                currentService.onStreamingPlaybackStateChanged(
+                        pkg, currentState.getState(), currentState.getPosition());
             }
             
             controller.registerCallback(new MediaController.Callback() {
@@ -668,5 +687,48 @@ public class MediaNotificationListener extends NotificationListenerService {
             Log.e(TAG, "Error fetching live video info", e);
         }
         return info;
+    }
+
+    /** Resyncs VOT with the active YouTube/SmartTube session when VOT is enabled after playback began. */
+    public static void syncActiveMediaSessionToVot(com.nitsutech.omnitv.vot.VotManager manager) {
+        if (manager == null || instance == null || instance.mediaSessionManager == null) return;
+        try {
+            ComponentName cn = new ComponentName(instance, MediaNotificationListener.class);
+            List<MediaController> controllers = instance.mediaSessionManager.getActiveSessions(cn);
+            if (controllers == null) return;
+            MediaController selected = null;
+            for (MediaController controller : controllers) {
+                if (controller == null) continue;
+                String pkg = controller.getPackageName();
+                if (pkg == null || (!pkg.contains("smarttube") && !pkg.contains("youtube"))) continue;
+                if (selected == null) selected = controller;
+                PlaybackState state = controller.getPlaybackState();
+                if (state != null && state.getState() == PlaybackState.STATE_PLAYING) {
+                    selected = controller;
+                    break;
+                }
+            }
+            if (selected == null) return;
+            String pkg = selected.getPackageName();
+            MediaMetadata metadata = selected.getMetadata();
+            PlaybackState state = selected.getPlaybackState();
+            if (metadata != null) {
+                String title = extractTitleFromMetadata(metadata);
+                if (title != null && !title.trim().isEmpty()) {
+                    String artist = extractArtistFromMetadata(metadata);
+                    String mediaId = extractMediaIdFromMetadata(metadata);
+                    long duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION);
+                    activeTitle = title.trim();
+                    if (mediaId != null) activeMediaId = mediaId;
+                    Log.d(TAG, "Resyncing VOT with active session: pkg=" + pkg + ", title='" + title + "', mediaId=" + mediaId);
+                    manager.onVideoChanged(pkg, title, artist, duration, mediaId);
+                }
+            }
+            if (state != null) {
+                manager.onPlaybackStateChanged(pkg, state.getState(), state.getPosition());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Unable to sync active media session to VOT", e);
+        }
     }
 }

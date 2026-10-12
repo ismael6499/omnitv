@@ -243,6 +243,9 @@
     <string name="vot_title">Doblaje al Vuelo (VOT):</string>
     <string name="vot_source_lang">   Idioma Origen:  %s</string>
     <string name="vot_target_lang">   Idioma Destino:  %s</string>
+    <string name="vot_local_voice_off">   Voz Chromecast: Predeterminada del sistema</string>
+    <string name="vot_local_voice_on">   Voz Chromecast: Local sin conexión (%s)</string>
+    <string name="vot_local_voice_unavailable">   Voz Chromecast: No hay voz sin conexión instalada</string>
     <string name="vot_volume">   Volumen Voz:  %s</string>
     <string name="vot_ducking">   Atenuación Audio:  %s</string>
     <string name="vot_subtitles">   Subtítulos:  %s</string>
@@ -257,6 +260,9 @@
     <string name="ai_launch_now">✨ Abrir Asistente IA Ahora</string>
     <string name="ai_provider">   Proveedor IA:  %s</string>
     <string name="ai_model">   Modelo IA:  %s</string>
+    <string name="ai_tt_pager_position">Text Translator: paginador %1$s</string>
+    <string name="ai_tt_pager_top">arriba de los comentarios</string>
+    <string name="ai_tt_pager_bottom">abajo de los comentarios</string>
     <string name="ai_key_set">   API Key:  [ CONFIGURADA ]</string>
     <string name="ai_key_unset">   API Key:  [ NO CONFIGURADA ]</string>
     <string name="ai_instructions">   Instrucciones del Sistema:  %s</string>
@@ -442,19 +448,27 @@
         <item>Rápido (1.15x)</item>
         <item>Muy Rápido (1.3x)</item>
         <item>Ultra (1.45x)</item>
+        <item>1.6x</item>
+        <item>1.75x</item>
+        <item>1.9x</item>
+        <item>Máxima (2.0x)</item>
     </string-array>
 
     <string-array name="vot_tts_volume_names">
         <item>100% (Máximo)</item>
+        <item>95%</item>
+        <item>90%</item>
         <item>85% (Equilibrado)</item>
+        <item>80%</item>
         <item>70% (Medio)</item>
+        <item>60%</item>
         <item>50% (Bajo)</item>
     </string-array>
 
     <string-array name="vot_ducking_mode_names">
-        <item>Atenuar Video (~25%)</item>
-        <item>Silenciar Video al Hablar</item>
-        <item>Sin Atenuación (Normal)</item>
+        <item>Atenuación estándar del sistema</item>
+        <item>Priorizar voz (puede pausar el video)</item>
+        <item>Sin atenuación</item>
     </string-array>
 
     <string-array name="vot_provider_names">
@@ -618,5 +632,23 @@
     <string name="tt_page_next">Siguiente ▶</string>
     <string name="tt_page_label">Página %1$d</string>
     <string name="tt_translate_progress">Traducidos %1$d de %2$d</string>
+    <string name="tt_original_label">Original</string>
+    <string name="tt_translation_label">Traducción</string>
     <string name="tt_viewer">Espectador</string>
+    <string name="ai_vision_model_default">Modelo de imagen: gemini-3.5-flash-lite</string>
+    <string name="ai_vision_model">Modelo de imagen: %1$s</string>
+    <string name="model_picker_gemini_text">Elegir modelo de texto Gemini</string>
+    <string name="model_picker_gemini_vision">Elegir modelo de imagen Gemini</string>
+    <string name="model_picker_openrouter_text">Modelo OpenRouter para texto</string>
+    <string name="model_picker_openrouter_vision">Modelo OpenRouter para imágenes</string>
+    <string name="model_picker_openrouter_vot">Modelo OpenRouter para traducción</string>
+    <string name="model_picker_openrouter_subtitle">Gratis primero y luego pagos. IA es un índice, no porcentaje; más alto es mejor. 👁 acepta imágenes. Automático elige el gratis con mayor puntaje, o el primero si no tiene puntaje.</string>
+    <string name="model_picker_gemini_subtitle">Elegí el modelo para este tipo de consulta.</string>
+    <string name="model_picker_free_heading">GRATUITOS</string>
+    <string name="model_picker_paid_heading">PAGOS</string>
+    <string name="model_quality_free">Gratis · IA %1$s</string>
+    <string name="model_quality_paid">Pago · IA %1$s</string>
+    <string name="model_auto_name">Automático</string>
+    <string name="model_auto_free_best">🤖 Automático: modelo gratis con mayor índice para esta tarea</string>
+    <string name="model_picker_retry_rejected">↻ Reintentar modelos rechazados</string>
 </resources>

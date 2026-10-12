@@ -49,28 +49,28 @@ public class QuickMenuOverlay {
     private static final String[] AI_PROVIDER_NAMES = {"Google Gemini Direct", "OpenRouter (Multi-model)"};
     private static final String[] AI_GEMINI_MODELS = {"gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.5-flash"};
     private static final String[] AI_OPENROUTER_MODELS = {
+        "meta-llama/llama-3.3-70b-instruct:free",
         "google/gemini-2.0-flash-001",
         "deepseek/deepseek-chat",
-        "openai/gpt-4o-mini",
-        "meta-llama/llama-3.3-70b-instruct:free"
+        "openai/gpt-4o-mini"
     };
 
     private static final String[] VOT_SOURCE_LANGS = {"auto", "en", "ko", "ja"};
     private static final String[] VOT_SOURCE_LANG_NAMES = {"Auto (Detectar)", "Inglés (English)", "Coreano (한국어)", "Japonés (日本語)"};
     private static final String[] VOT_TARGET_LANGS = {"es", "en", "ko", "ja"};
     private static final String[] VOT_TARGET_LANG_NAMES = {"Español (Latam)", "Inglés (English)", "Coreano (한국어)", "Japonés (日本語)"};
-    private static final float[] VOT_SPEECH_RATES = {1.0f, 1.15f, 1.3f, 1.45f};
-    private static final String[] VOT_SPEECH_RATE_NAMES = {"Normal (1.0x)", "Rápido (1.15x)", "Muy Rápido (1.3x)", "Ultra (1.45x)"};
-    private static final float[] VOT_TTS_VOLUMES = {1.0f, 0.85f, 0.70f, 0.50f};
+    private static final float[] VOT_SPEECH_RATES = {1.0f, 1.15f, 1.3f, 1.45f, 1.6f, 1.75f, 1.9f, 2.0f};
+    private static final String[] VOT_SPEECH_RATE_NAMES = {"Normal (1.0x)", "Rápido (1.15x)", "Muy Rápido (1.3x)", "Ultra (1.45x)", "1.6x", "1.75x", "1.9x", "Máxima (2.0x)"};
+    private static final float[] VOT_TTS_VOLUMES = {1.0f, 0.95f, 0.90f, 0.85f, 0.80f, 0.70f, 0.60f, 0.50f};
     private static final String[] VOT_TTS_VOLUME_NAMES = {"100% (Máximo)", "85% (Equilibrado)", "70% (Medio)", "50% (Bajo)"};
     private static final int[] VOT_DUCKING_MODES = {0, 1, 2};
-    private static final String[] VOT_DUCKING_MODE_NAMES = {"Atenuar Video (~25%)", "Silenciar Video al Hablar", "Sin Atenuación (Normal)"};
+    private static final String[] VOT_DUCKING_MODE_NAMES = {"Duck estándar del sistema", "Priorizar voz (puede pausar video)", "Sin atenuación"};
     private static final String[] VOT_PROVIDER_NAMES = {"Google (Gratuito)", "MyMemory (50k/día)", "OpenRouter IA"};
     private static final String[] VOT_OPENROUTER_MODELS = {
+        "meta-llama/llama-3.3-70b-instruct:free",
         "deepseek/deepseek-chat",
         "google/gemini-2.0-flash-001",
         "openai/gpt-4o-mini",
-        "meta-llama/llama-3.3-70b-instruct:free",
         "mistralai/mistral-small-24b-instruct-2501"
     };
 
@@ -256,6 +256,7 @@ public class QuickMenuOverlay {
     private TextView btnVotMasterToggle;
     private TextView btnVotSourceLang;
     private TextView btnVotTargetLang;
+    private TextView btnVotLocalVoice;
     private TextView btnVotTtsVolume;
     private TextView btnVotDuckingMode;
     private TextView btnVotSubtitlesMode;
@@ -271,7 +272,11 @@ public class QuickMenuOverlay {
     private TextView btnAiLaunchNow;
     private TextView btnAiProviderToggle;
     private TextView btnAiModelToggle;
+    private TextView btnAiVisionModelToggle;
+    private boolean openRouterPickerForVision;
+    private boolean openRouterPickerForVot;
     private TextView btnAiUiLangToggle;
+    private TextView btnAiTranslatorPagerPosition;
     private TextView btnAiApiKeyConfig;
     private TextView btnAiApiHelp;
     private TextView btnAiApply;
@@ -742,6 +747,7 @@ public class QuickMenuOverlay {
         btnVotMasterToggle           = rootView.findViewById(R.id.btn_vot_master_toggle);
         btnVotSourceLang             = rootView.findViewById(R.id.btn_vot_source_lang);
         btnVotTargetLang             = rootView.findViewById(R.id.btn_vot_target_lang);
+        btnVotLocalVoice             = rootView.findViewById(R.id.btn_vot_local_voice);
         btnVotTtsVolume              = rootView.findViewById(R.id.btn_vot_tts_volume);
         btnVotDuckingMode            = rootView.findViewById(R.id.btn_vot_ducking_mode);
         btnVotSubtitlesMode          = rootView.findViewById(R.id.btn_vot_subtitles_mode);
@@ -757,7 +763,9 @@ public class QuickMenuOverlay {
         btnAiLaunchNow               = rootView.findViewById(R.id.btn_ai_launch_now);
         btnAiProviderToggle          = rootView.findViewById(R.id.btn_ai_provider_toggle);
         btnAiModelToggle             = rootView.findViewById(R.id.btn_ai_model_toggle);
+        btnAiVisionModelToggle       = rootView.findViewById(R.id.btn_ai_vision_model_toggle);
         btnAiUiLangToggle            = rootView.findViewById(R.id.btn_ai_ui_lang_toggle);
+        btnAiTranslatorPagerPosition = rootView.findViewById(R.id.btn_ai_translator_pager_position);
         btnAiApiKeyConfig            = rootView.findViewById(R.id.btn_ai_api_key_config);
         btnAiApiHelp                 = rootView.findViewById(R.id.btn_ai_api_help);
         btnAiApply                   = rootView.findViewById(R.id.btn_ai_apply);
@@ -1458,6 +1466,10 @@ public class QuickMenuOverlay {
             cycleVotTargetLang(delta);
             return true;
         }
+        if (current == btnVotLocalVoice) {
+            toggleVotLocalVoice();
+            return true;
+        }
         if (current == btnVotTtsVolume) {
             cycleVotTtsVolume(delta);
             return true;
@@ -1491,11 +1503,21 @@ public class QuickMenuOverlay {
             return true;
         }
         if (current == btnAiModelToggle) {
+            openRouterPickerForVision = false;
+            cycleAiModel(delta);
+            return true;
+        }
+        if (current == btnAiVisionModelToggle) {
+            openRouterPickerForVision = true;
             cycleAiModel(delta);
             return true;
         }
         if (current == btnAiUiLangToggle) {
             cycleAiUiLang(delta);
+            return true;
+        }
+        if (current == btnAiTranslatorPagerPosition) {
+            cycleAiTranslatorPagerPosition(delta);
             return true;
         }
         if (current == btnAiApiKeyConfig) {
@@ -1630,6 +1652,10 @@ public class QuickMenuOverlay {
         if (btnMInc != null) btnMInc.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { if (customMins <= 58) { customMins++; updateCustomTimerUI(); } }
         });
+        setupAutoRepeatStepButton(btnHDec, -1, step -> { customHours = Math.max(0, customHours - step); updateCustomTimerUI(); });
+        setupAutoRepeatStepButton(btnHInc, 1, step -> { customHours = Math.min(24, customHours + step); updateCustomTimerUI(); });
+        setupAutoRepeatStepButton(btnMDec, -1, step -> { customMins = Math.max(0, customMins - step); updateCustomTimerUI(); });
+        setupAutoRepeatStepButton(btnMInc, 1, step -> { customMins = Math.min(59, customMins + step); updateCustomTimerUI(); });
         if (btnStartCustom != null) btnStartCustom.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 int totalMins = (customHours * 60) + customMins;
@@ -2859,6 +2885,11 @@ public class QuickMenuOverlay {
                 }
             });
         }
+        if (btnVotLocalVoice != null) {
+            btnVotLocalVoice.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { toggleVotLocalVoice(); }
+            });
+        }
         if (btnVotTtsVolume != null) {
             btnVotTtsVolume.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -2897,7 +2928,7 @@ public class QuickMenuOverlay {
         if (btnVotOpenrouterModel != null) {
             btnVotOpenrouterModel.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    cycleVotOpenrouterModel(1);
+                    showOpenRouterModelPicker(v, false, true);
                 }
             });
         }
@@ -2943,14 +2974,30 @@ public class QuickMenuOverlay {
         if (btnAiModelToggle != null) {
             btnAiModelToggle.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    cycleAiModel(1);
+                    int provider = getOverlayPrefs().getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
+                    if (provider == 0) showGeminiModelPicker(v, false);
+                    else showOpenRouterModelPicker(v, false, false);
                 }
+            });
+        }
+        if (btnAiVisionModelToggle != null) {
+            btnAiVisionModelToggle.setOnClickListener(v -> {
+                int provider = getOverlayPrefs().getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
+                if (provider == 0) showGeminiModelPicker(v, true);
+                else showOpenRouterModelPicker(v, true, false);
             });
         }
         if (btnAiUiLangToggle != null) {
             btnAiUiLangToggle.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     cycleAiUiLang(1);
+                }
+            });
+        }
+        if (btnAiTranslatorPagerPosition != null) {
+            btnAiTranslatorPagerPosition.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cycleAiTranslatorPagerPosition(1);
                 }
             });
         }
@@ -3042,6 +3089,13 @@ public class QuickMenuOverlay {
         updateVotConfigPanel();
     }
 
+    private void toggleVotLocalVoice() {
+        com.nitsutech.omnitv.vot.VotManager manager =
+                com.nitsutech.omnitv.vot.VotManager.getInstance(context);
+        manager.setLocalVoiceOnly(!manager.isLocalVoiceOnly());
+        updateVotConfigPanel();
+    }
+
     private void cycleVotTtsVolume(int delta) {
         SharedPreferences op = getOverlayPrefs();
         float cur = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_TTS_VOLUME, 1.0f);
@@ -3067,8 +3121,8 @@ public class QuickMenuOverlay {
 
     private void cycleVotSpeechRate(int delta) {
         SharedPreferences op = getOverlayPrefs();
-        float cur = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
-        int idx = 1;
+        float cur = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SPEECH_RATE, 2.0f);
+        int idx = VOT_SPEECH_RATES.length - 1;
         for (int i = 0; i < VOT_SPEECH_RATES.length; i++) {
             if (Math.abs(VOT_SPEECH_RATES[i] - cur) < 0.05f) {
                 idx = i;
@@ -3076,8 +3130,7 @@ public class QuickMenuOverlay {
             }
         }
         int next = (idx + delta + VOT_SPEECH_RATES.length) % VOT_SPEECH_RATES.length;
-        op.edit().putFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SPEECH_RATE, VOT_SPEECH_RATES[next]).apply();
-        com.nitsutech.omnitv.vot.VotManager.getInstance(context).loadPreferences();
+        com.nitsutech.omnitv.vot.VotManager.getInstance(context).setSpeechRate(VOT_SPEECH_RATES[next]);
         updateVotConfigPanel();
     }
 
@@ -3092,15 +3145,14 @@ public class QuickMenuOverlay {
     private void cycleVotOpenrouterModel(int delta) {
         SharedPreferences op = getOverlayPrefs();
         String cur = op.getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[0]);
-        int idx = 0;
-        for (int i = 0; i < VOT_OPENROUTER_MODELS.length; i++) {
-            if (VOT_OPENROUTER_MODELS[i].equalsIgnoreCase(cur)) {
-                idx = i;
-                break;
-            }
-        }
-        int next = (idx + delta + VOT_OPENROUTER_MODELS.length) % VOT_OPENROUTER_MODELS.length;
-        op.edit().putString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[next]).apply();
+        List<com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel> models =
+                com.nitsutech.omnitv.ai.AiSummaryEngine.getAvailableOpenRouterModels(context, false);
+        List<String> ids = new ArrayList<>(); for (com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel m : models) ids.add(m.id);
+        if (ids.isEmpty()) ids.addAll(java.util.Arrays.asList(VOT_OPENROUTER_MODELS));
+        ids.add(0, com.nitsutech.omnitv.ai.AiSummaryEngine.OPENROUTER_AUTO_FREE_BEST);
+        int idx = ids.indexOf(cur); if (idx < 0) idx = 0;
+        int next = (idx + delta + ids.size()) % ids.size();
+        op.edit().putString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, ids.get(next)).apply();
         updateVotConfigPanel();
     }
 
@@ -3168,6 +3220,19 @@ public class QuickMenuOverlay {
             btnVotTargetLang.setText(I18n.get(context, R.string.vot_target_lang, targetLangName) + "  (◄ / ►)");
         }
 
+        if (btnVotLocalVoice != null) {
+            com.nitsutech.omnitv.vot.VotManager votManager =
+                    com.nitsutech.omnitv.vot.VotManager.getInstance(context);
+            if (!votManager.isLocalVoiceOnly()) {
+                btnVotLocalVoice.setText(context.getString(R.string.vot_local_voice_off) + "  (OK)");
+            } else if (!votManager.isLocalVoiceAvailable()) {
+                btnVotLocalVoice.setText(context.getString(R.string.vot_local_voice_unavailable) + "  (OK)");
+            } else {
+                btnVotLocalVoice.setText(I18n.get(context, R.string.vot_local_voice_on,
+                        votManager.getLocalVoiceStatus()) + "  (OK)");
+            }
+        }
+
         float curVol = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_TTS_VOLUME, 1.0f);
         String[] volNames = I18n.getStringArray(context, R.array.vot_tts_volume_names);
         String volName = volNames.length > 0 ? volNames[0] : "100%";
@@ -3197,7 +3262,7 @@ public class QuickMenuOverlay {
             btnVotSubtitlesMode.setText(I18n.get(context, R.string.vot_subtitles, subLabel) + "  (◄ / ►)");
         }
 
-        float curRate = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SPEECH_RATE, 1.15f);
+        float curRate = op.getFloat(com.nitsutech.omnitv.vot.VotManager.KEY_VOT_SPEECH_RATE, 2.0f);
         String[] rateNames = I18n.getStringArray(context, R.array.vot_speech_rate_names);
         String rateLabel = rateNames.length > 1 ? rateNames[1] : "1.15x";
         for (int i = 0; i < VOT_SPEECH_RATES.length; i++) {
@@ -3219,7 +3284,7 @@ public class QuickMenuOverlay {
 
         String curModel = op.getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL, VOT_OPENROUTER_MODELS[0]);
         if (btnVotOpenrouterModel != null) {
-            btnVotOpenrouterModel.setText(I18n.get(context, R.string.vot_model, curModel) + "  (◄ / ►)");
+            btnVotOpenrouterModel.setText(I18n.get(context, R.string.vot_model, getOpenRouterModelDisplayName(curModel)) + "  " + getOpenRouterModelQualityLabel(curModel, false));
             btnVotOpenrouterModel.setVisibility(provider == 2 ? View.VISIBLE : View.GONE);
         }
 
@@ -3249,25 +3314,27 @@ public class QuickMenuOverlay {
         SharedPreferences op = getOverlayPrefs();
         int provider = op.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
         if (provider == 0) {
-            java.util.List<String> models = com.nitsutech.omnitv.ai.AiSummaryEngine.getAvailableGeminiModels(context);
-            String cur = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL, com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL);
+            boolean vision = openRouterPickerForVision;
+            java.util.List<String> models = getGeminiModelOptions(vision);
+            String prefKey = vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_VISION_MODEL : com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL;
+            String cur = op.getString(prefKey, vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_VISION_MODEL : com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL);
             int idx = models.indexOf(cur);
             if (idx < 0) idx = 0;
             int next = (idx + delta + models.size()) % models.size();
             String selected = models.get(next);
-            op.edit().putString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL, selected).apply();
+            op.edit().putString(prefKey, selected).apply();
             ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "🤖 Modelo Gemini: " : "🤖 Gemini Model: ") + selected);
         } else {
-            String cur = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL, AI_OPENROUTER_MODELS[0]);
-            int idx = 0;
-            for (int i = 0; i < AI_OPENROUTER_MODELS.length; i++) {
-                if (AI_OPENROUTER_MODELS[i].equalsIgnoreCase(cur)) {
-                    idx = i;
-                    break;
-                }
-            }
-            int next = (idx + delta + AI_OPENROUTER_MODELS.length) % AI_OPENROUTER_MODELS.length;
-            op.edit().putString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL, AI_OPENROUTER_MODELS[next]).apply();
+            boolean vision = openRouterPickerForVision;
+            String prefKey = vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_VISION_MODEL : com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL;
+            String cur = op.getString(prefKey, vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_OPENROUTER_VISION_MODEL : AI_OPENROUTER_MODELS[0]);
+            List<com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel> models = com.nitsutech.omnitv.ai.AiSummaryEngine.getAvailableOpenRouterModels(context, vision);
+            List<String> ids = new ArrayList<>(); for (com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel m : models) ids.add(m.id);
+            if (ids.isEmpty()) ids.addAll(java.util.Arrays.asList(vision ? new String[]{"google/gemini-2.0-flash-001", "openai/gpt-4o-mini"} : AI_OPENROUTER_MODELS));
+            ids.add(0, com.nitsutech.omnitv.ai.AiSummaryEngine.OPENROUTER_AUTO_FREE_BEST);
+            int idx = ids.indexOf(cur); if (idx < 0) idx = 0;
+            int next = (idx + delta + ids.size()) % ids.size();
+            op.edit().putString(prefKey, ids.get(next)).apply();
         }
         updateAiSummaryConfigPanel();
     }
@@ -3315,6 +3382,17 @@ public class QuickMenuOverlay {
         updateAiSummaryConfigPanel();
     }
 
+    private void cycleAiTranslatorPagerPosition(int delta) {
+        SharedPreferences op = getOverlayPrefs();
+        boolean currentlyAtTop = op.getBoolean(
+                com.nitsutech.omnitv.translator.TextTranslatorOverlay.PREF_COMMENTS_PAGINATOR_AT_TOP, false);
+        boolean nextAtTop = !currentlyAtTop;
+        op.edit().putBoolean(
+                com.nitsutech.omnitv.translator.TextTranslatorOverlay.PREF_COMMENTS_PAGINATOR_AT_TOP,
+                nextAtTop).apply();
+        updateAiSummaryConfigPanel();
+    }
+
     private void updateAiSummaryConfigPanel() {
         SharedPreferences op = getOverlayPrefs();
         int provider = op.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
@@ -3330,10 +3408,22 @@ public class QuickMenuOverlay {
                 String curModel = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL, com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL);
                 int idx = models.indexOf(curModel);
                 String pos = (idx >= 0) ? (" [" + (idx + 1) + "/" + models.size() + "]") : "";
-                btnAiModelToggle.setText(I18n.get(context, R.string.ai_model, curModel + pos) + "  (◄ / ►)");
+                btnAiModelToggle.setText(I18n.get(context, R.string.ai_model, curModel + pos));
             } else {
                 String curModel = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL, AI_OPENROUTER_MODELS[0]);
-                btnAiModelToggle.setText(I18n.get(context, R.string.ai_model, curModel) + "  (◄ / ►)");
+                btnAiModelToggle.setText(I18n.get(context, R.string.ai_model, getOpenRouterModelDisplayName(curModel)) + "  " + getOpenRouterModelQualityLabel(curModel, false));
+            }
+        }
+
+        if (btnAiVisionModelToggle != null) {
+            if (provider == 0) {
+                String cur = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_VISION_MODEL,
+                        com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_VISION_MODEL);
+                btnAiVisionModelToggle.setText("   " + I18n.get(context, R.string.ai_vision_model, cur));
+            } else {
+                String cur = op.getString(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_VISION_MODEL,
+                        com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_OPENROUTER_VISION_MODEL);
+                btnAiVisionModelToggle.setText("   " + I18n.get(context, R.string.ai_vision_model, getOpenRouterModelDisplayName(cur)) + "  " + getOpenRouterModelQualityLabel(cur, true));
             }
         }
 
@@ -3341,6 +3431,14 @@ public class QuickMenuOverlay {
             String lang = op.getString("ai_ui_language", I18n.getLanguage(context));
             String langLabel = "es".equalsIgnoreCase(lang) ? "Español" : "English";
             btnAiUiLangToggle.setText("   UI Language:  " + langLabel + "  (◄ / ►)");
+        }
+
+        if (btnAiTranslatorPagerPosition != null) {
+            boolean atTop = op.getBoolean(
+                    com.nitsutech.omnitv.translator.TextTranslatorOverlay.PREF_COMMENTS_PAGINATOR_AT_TOP, false);
+            int positionRes = atTop ? R.string.ai_tt_pager_top : R.string.ai_tt_pager_bottom;
+            btnAiTranslatorPagerPosition.setText(I18n.get(context, R.string.ai_tt_pager_position,
+                    I18n.get(context, positionRes)) + "  (◄ / ►)");
         }
 
         if (btnAiApiKeyConfig != null) {
@@ -3836,8 +3934,14 @@ public class QuickMenuOverlay {
                     openSubPanel = "vot_config";
                     menuContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
                     updateVotConfigPanel();
+                    com.nitsutech.omnitv.ai.AiSummaryEngine.fetchAvailableOpenRouterModelsAsync(context, new Runnable() {
+                        @Override public void run() {
+                            if ("vot_config".equals(openSubPanel)) updateVotConfigPanel();
+                        }
+                    });
                     if (btnVotMasterToggle != null) btnVotMasterToggle.requestFocus();
                 }
+                break;
             case "trigger_ai_summary":
                 dismiss();
                 com.nitsutech.omnitv.ai.AiSummaryOverlay.getInstance().show(context);
@@ -3858,6 +3962,11 @@ public class QuickMenuOverlay {
                             if ("ai_summary_config".equals(openSubPanel)) {
                                 updateAiSummaryConfigPanel();
                             }
+                        }
+                    });
+                    com.nitsutech.omnitv.ai.AiSummaryEngine.fetchAvailableOpenRouterModelsAsync(context, new Runnable() {
+                        @Override public void run() {
+                            if ("ai_summary_config".equals(openSubPanel)) updateAiSummaryConfigPanel();
                         }
                     });
                     if (btnAiLaunchNow != null) btnAiLaunchNow.requestFocus();
@@ -4261,6 +4370,181 @@ public class QuickMenuOverlay {
                 }
             });
         }
+    }
+
+    private String getOpenRouterModelDisplayName(String currentId) {
+        return com.nitsutech.omnitv.ai.AiSummaryEngine.OPENROUTER_AUTO_FREE_BEST.equals(currentId)
+                ? I18n.get(context, R.string.model_auto_name) : currentId;
+    }
+
+    private String getOpenRouterModelQualityLabel(String currentId, boolean vision) {
+        List<com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel> models =
+                com.nitsutech.omnitv.ai.AiSummaryEngine.getAvailableOpenRouterModels(context, vision);
+        if (com.nitsutech.omnitv.ai.AiSummaryEngine.OPENROUTER_AUTO_FREE_BEST.equals(currentId)) {
+            com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel best =
+                    com.nitsutech.omnitv.ai.AiSummaryEngine.getBestFreeOpenRouterModel(getOverlayPrefs(), vision);
+            String score = Double.isNaN(best.intelligenceIndex) ? "N/D"
+                    : String.format(java.util.Locale.US, "%.1f", best.intelligenceIndex);
+            return I18n.get(context, R.string.model_quality_free, score);
+        }
+        if (models.isEmpty()) {
+            String[] seed = vision ? new String[]{"google/gemini-2.0-flash-001", "openai/gpt-4o-mini"} : AI_OPENROUTER_MODELS;
+            for (String id : seed) models.add(new com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel(id, id, id.endsWith(":free"), vision));
+        }
+        boolean found = false;
+        for (com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel model : models) if (model.id.equals(currentId)) found = true;
+        if (!found && currentId != null && !currentId.isEmpty()) {
+            boolean isFree = currentId.endsWith(":free");
+            int insertion = 0;
+            if (!isFree) while (insertion < models.size() && models.get(insertion).free) insertion++;
+            models.add(insertion, new com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel(currentId, currentId, isFree, vision));
+        }
+        for (com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel model : models) {
+            if (model.id.equals(currentId)) {
+                String score = Double.isNaN(model.intelligenceIndex) ? "N/D"
+                        : String.format(java.util.Locale.US, "%.1f", model.intelligenceIndex);
+                return I18n.get(context, model.free ? R.string.model_quality_free : R.string.model_quality_paid, score);
+            }
+        }
+        return "";
+    }
+
+    private List<String> getGeminiModelOptions(boolean vision) {
+        List<String> models = com.nitsutech.omnitv.ai.AiSummaryEngine.getAvailableGeminiModels(context);
+        if (vision) {
+            for (int i = models.size() - 1; i >= 0; i--) {
+                String id = models.get(i).toLowerCase(java.util.Locale.ROOT);
+                if (!id.startsWith("gemini-") && !id.startsWith("gemma-3")) models.remove(i);
+            }
+        }
+        return models;
+    }
+
+    private void showGeminiModelPicker(View triggerView, boolean vision) {
+        if (triggerView == null || dialogActionPickerOverlay == null || containerActionPickerItems == null) return;
+        lastActionPickerTriggerView = triggerView;
+        openRouterPickerForVision = vision;
+        openRouterPickerForVot = false;
+        if (txtActionPickerTitle != null) txtActionPickerTitle.setText(I18n.get(context, vision ? R.string.model_picker_gemini_vision : R.string.model_picker_gemini_text));
+        if (txtActionPickerSubtitle != null) txtActionPickerSubtitle.setText(I18n.get(context, R.string.model_picker_gemini_subtitle));
+        containerActionPickerItems.removeAllViews();
+        SharedPreferences prefs = getOverlayPrefs();
+        String key = vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_VISION_MODEL : com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_MODEL;
+        String cur = prefs.getString(key, vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_VISION_MODEL : com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_GEMINI_MODEL);
+        List<String> models = getGeminiModelOptions(vision);
+        boolean currentCanSeeImages = cur.toLowerCase(java.util.Locale.ROOT).startsWith("gemini-")
+                || cur.toLowerCase(java.util.Locale.ROOT).startsWith("gemma-3");
+        if (!models.contains(cur) && (!vision || currentCanSeeImages)) models.add(0, cur);
+        View selected = null;
+        for (String model : models) {
+            final String id = model;
+            boolean current = id.equals(cur);
+            TextView row = createModelPickerRow(id + (current ? "  ✓" : ""), current);
+            if (current) selected = row;
+            row.setOnClickListener(v -> {
+                getOverlayPrefs().edit().putString(key, id).apply();
+                closeActionPickerDialog(); updateAiSummaryConfigPanel(); requestViewFocus(triggerView);
+            });
+            containerActionPickerItems.addView(row);
+        }
+        showModelPicker(selected);
+    }
+
+    private void showOpenRouterModelPicker(View triggerView, boolean vision, boolean vot) {
+        if (triggerView == null || dialogActionPickerOverlay == null || containerActionPickerItems == null) return;
+        lastActionPickerTriggerView = triggerView;
+        openRouterPickerForVision = vision;
+        openRouterPickerForVot = vot;
+        int titleRes = vot ? R.string.model_picker_openrouter_vot : (vision ? R.string.model_picker_openrouter_vision : R.string.model_picker_openrouter_text);
+        if (txtActionPickerTitle != null) txtActionPickerTitle.setText(I18n.get(context, titleRes));
+        if (txtActionPickerSubtitle != null) txtActionPickerSubtitle.setText(I18n.get(context, R.string.model_picker_openrouter_subtitle));
+        containerActionPickerItems.removeAllViews();
+        SharedPreferences prefs = getOverlayPrefs();
+        String key = vot ? com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_MODEL
+                : (vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_VISION_MODEL : com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_MODEL);
+        String fallback = vot ? VOT_OPENROUTER_MODELS[0] : (vision ? com.nitsutech.omnitv.ai.AiSummaryEngine.DEFAULT_OPENROUTER_VISION_MODEL : AI_OPENROUTER_MODELS[0]);
+        String cur = prefs.getString(key, fallback);
+        boolean autoSelected = com.nitsutech.omnitv.ai.AiSummaryEngine.OPENROUTER_AUTO_FREE_BEST.equals(cur);
+        List<com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel> models = com.nitsutech.omnitv.ai.AiSummaryEngine.getAvailableOpenRouterModels(context, vision);
+        if (models.isEmpty()) {
+            String[] seed = vision ? new String[]{"google/gemini-2.0-flash-001", "openai/gpt-4o-mini"} : (vot ? VOT_OPENROUTER_MODELS : AI_OPENROUTER_MODELS);
+            for (String id : seed) if (!com.nitsutech.omnitv.ai.AiSummaryEngine.isOpenRouterModelRejected(prefs, id))
+                models.add(new com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel(id, id, id.endsWith(":free"), vision));
+        }
+        boolean found = false;
+        for (com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel m : models) if (m.id.equals(cur)) found = true;
+        if (!found && !autoSelected && !com.nitsutech.omnitv.ai.AiSummaryEngine.isOpenRouterModelRejected(prefs, cur)) {
+            int insertion = 0;
+            if (!cur.endsWith(":free")) while (insertion < models.size() && models.get(insertion).free) insertion++;
+            models.add(insertion, new com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel(cur, cur, cur.endsWith(":free"), vision));
+        }
+        View selected = null;
+        TextView autoRow = createModelPickerRow(I18n.get(context, R.string.model_auto_free_best)
+                + (autoSelected ? "  ✓" : ""), autoSelected);
+        autoRow.setOnClickListener(v -> {
+            getOverlayPrefs().edit().putString(key, com.nitsutech.omnitv.ai.AiSummaryEngine.OPENROUTER_AUTO_FREE_BEST).apply();
+            closeActionPickerDialog();
+            if (vot) updateVotConfigPanel(); else updateAiSummaryConfigPanel();
+            requestViewFocus(triggerView);
+        });
+        containerActionPickerItems.addView(autoRow);
+        if (autoSelected) selected = autoRow;
+        TextView retryRejectedRow = createModelPickerRow(I18n.get(context, R.string.model_picker_retry_rejected), false);
+        retryRejectedRow.setOnClickListener(v -> {
+            com.nitsutech.omnitv.ai.AiSummaryEngine.clearRejectedOpenRouterModels(getOverlayPrefs());
+            showOpenRouterModelPicker(triggerView, vision, vot);
+        });
+        containerActionPickerItems.addView(retryRejectedRow);
+        boolean headingFree = false;
+        boolean headingPaid = false;
+        for (com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel model : models) {
+            if (!headingFree) { addModelPickerHeading(I18n.get(context, R.string.model_picker_free_heading)); headingFree = true; }
+            if (!model.free && !headingPaid) { addModelPickerHeading(I18n.get(context, R.string.model_picker_paid_heading)); headingPaid = true; }
+            final String id = model.id;
+            boolean current = id.equals(cur);
+            String label = model.label() + (current ? "  ✓" : "");
+            TextView row = createModelPickerRow(label, current);
+            row.setMinHeight(Math.round(56 * context.getResources().getDisplayMetrics().density));
+            row.setMaxLines(2);
+            row.setEllipsize(TextUtils.TruncateAt.END);
+            if (current) selected = row;
+            row.setOnClickListener(v -> {
+                getOverlayPrefs().edit().putString(key, id).apply();
+                closeActionPickerDialog();
+                if (vot) updateVotConfigPanel(); else updateAiSummaryConfigPanel();
+                requestViewFocus(triggerView);
+            });
+            containerActionPickerItems.addView(row);
+        }
+        showModelPicker(selected);
+    }
+
+    private TextView createModelPickerRow(String label, boolean selected) {
+        float d = context.getResources().getDisplayMetrics().density;
+        TextView row = new TextView(context);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, Math.round(48 * d));
+        lp.bottomMargin = Math.round(4 * d);
+        row.setLayoutParams(lp); row.setFocusable(true); row.setClickable(true);
+        row.setBackgroundResource(R.drawable.card_background); row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Math.round(14 * d), 0, Math.round(14 * d), 0);
+        row.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13); row.setText(label);
+        row.setTextColor(selected ? Color.parseColor("#8AB4F8") : Color.parseColor("#CCCCCC"));
+        return row;
+    }
+
+    private void addModelPickerHeading(String text) {
+        TextView heading = new TextView(context);
+        heading.setText(text); heading.setTextColor(Color.parseColor("#8AB4F8"));
+        heading.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12); heading.setPadding(8, 12, 8, 6);
+        heading.setFocusable(false); heading.setClickable(false);
+        containerActionPickerItems.addView(heading, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private void showModelPicker(View selected) {
+        if (txtActionPickerTitle != null) txtActionPickerTitle.setVisibility(View.VISIBLE);
+        dialogActionPickerOverlay.setVisibility(View.VISIBLE);
+        View focus = selected != null ? selected : (containerActionPickerItems.getChildCount() > 0 ? containerActionPickerItems.getChildAt(0) : null);
+        if (focus != null) focus.post(() -> requestViewFocus(focus));
     }
 
     private void closeActionPickerDialog() {
@@ -5360,6 +5644,24 @@ public class QuickMenuOverlay {
     private void setupAutoRepeatStepButton(final View view, final int dir, final StepAdjuster adjuster) {
         if (view == null) return;
 
+        final android.os.Handler repeatHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        final boolean[] isHeld = {false};
+        final int[] repeatTicks = {0};
+        final Runnable[] repeatRunnable = new Runnable[1];
+        repeatRunnable[0] = new Runnable() {
+            @Override public void run() {
+                if (!isHeld[0] || !isShowing() || rootView == null || rootView.findFocus() != view) {
+                    isHeld[0] = false;
+                    repeatTicks[0] = 0;
+                    return;
+                }
+                repeatTicks[0]++;
+                int step = repeatTicks[0] > 20 ? 10 : repeatTicks[0] > 8 ? 5 : repeatTicks[0] > 3 ? 2 : 1;
+                adjuster.adjust(dir * step);
+                repeatHandler.postDelayed(this, repeatTicks[0] > 12 ? 45 : repeatTicks[0] > 5 ? 70 : 110);
+            }
+        };
+
         view.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -5373,18 +5675,29 @@ public class QuickMenuOverlay {
             public boolean onKey(View v, int keyCode, KeyEvent event) {
                 if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
                     if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                        int repeat = event.getRepeatCount();
-                        if (repeat > 0) {
-                            int step = 1;
-                            if (repeat > 20) step = 10;
-                            else if (repeat > 8) step = 5;
-                            adjuster.adjust(dir * step);
-                            view.requestFocus();
-                            return true;
+                        if (!isHeld[0]) {
+                            isHeld[0] = true;
+                            repeatTicks[0] = 0;
+                            adjuster.adjust(dir);
+                            repeatHandler.removeCallbacks(repeatRunnable[0]);
+                            repeatHandler.postDelayed(repeatRunnable[0], 300);
                         }
+                        return true;
+                    } else if (event.getAction() == KeyEvent.ACTION_UP && isHeld[0]) {
+                        isHeld[0] = false;
+                        repeatTicks[0] = 0;
+                        repeatHandler.removeCallbacks(repeatRunnable[0]);
+                        return true;
                     }
                 }
                 return false;
+            }
+        });
+        view.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                isHeld[0] = false;
+                repeatTicks[0] = 0;
+                repeatHandler.removeCallbacks(repeatRunnable[0]);
             }
         });
     }

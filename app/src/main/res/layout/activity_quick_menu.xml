@@ -1219,6 +1219,20 @@
                         android:clickable="true"
                         android:layout_marginBottom="4dp" />
 
+                    <TextView
+                        android:id="@+id/btn_vot_local_voice"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="@string/vot_local_voice_off"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
                     <!-- Volumen de Voz -->
                     <TextView
                         android:id="@+id/btn_vot_tts_volume"
@@ -1437,6 +1451,20 @@
                         android:clickable="true"
                         android:layout_marginBottom="4dp" />
 
+                    <TextView
+                        android:id="@+id/btn_ai_vision_model_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="@string/ai_vision_model_default"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
                     <!-- Idioma de Interfaz del Asistente -->
                     <TextView
                         android:id="@+id/btn_ai_ui_lang_toggle"
@@ -1444,6 +1472,21 @@
                         android:layout_height="44dp"
                         android:background="@drawable/card_background"
                         android:text="   Idioma Interfaz:  Español  (◄ / ►)"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp" />
+
+                    <!-- Text Translator pagination placement -->
+                    <TextView
+                        android:id="@+id/btn_ai_translator_pager_position"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="Text Translator: pager below comments"
                         android:textColor="#CCCCCC"
                         android:textSize="14sp"
                         android:gravity="center_vertical"

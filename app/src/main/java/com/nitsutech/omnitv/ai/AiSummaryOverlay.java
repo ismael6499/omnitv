@@ -103,6 +103,7 @@ public class AiSummaryOverlay {
     private TextView textListeningStatus;
     private SpeechRecognizer speechRecognizer;
     private boolean isListening = false;
+    private boolean nextPromptWasVoice = false;
     private final Set<String> askedQuestionsSet = new HashSet<>();
 
     // Persistent conversation state per video
@@ -112,13 +113,19 @@ public class AiSummaryOverlay {
         final List<AiSummaryEngine.AiPointItem> items;
         final List<String> suggestedQuestions;
         final List<AiSummaryEngine.LensBoxItem> lensBoxes;
+        final boolean hasVoiceReplay;
 
         ChatTurn(boolean isUser, String text, List<AiSummaryEngine.AiPointItem> items, List<String> suggestedQuestions, List<AiSummaryEngine.LensBoxItem> lensBoxes) {
+            this(isUser, text, items, suggestedQuestions, lensBoxes, false);
+        }
+
+        ChatTurn(boolean isUser, String text, List<AiSummaryEngine.AiPointItem> items, List<String> suggestedQuestions, List<AiSummaryEngine.LensBoxItem> lensBoxes, boolean hasVoiceReplay) {
             this.isUser = isUser;
             this.text = text;
             this.items = items;
             this.suggestedQuestions = suggestedQuestions;
             this.lensBoxes = lensBoxes != null ? lensBoxes : Collections.emptyList();
+            this.hasVoiceReplay = hasVoiceReplay;
         }
 
         ChatTurn(boolean isUser, String text, List<AiSummaryEngine.AiPointItem> items, List<String> suggestedQuestions) {
@@ -1388,7 +1395,7 @@ public class AiSummaryOverlay {
                 if (btnAiReset != null) btnAiReset.setVisibility(View.VISIBLE);
                 saveConversationToPrefs(context);
 
-                appendChips(context, null, result.rawAnswer, true, result.lensBoxes);
+                appendChips(context, null, result.rawAnswer, true, result.lensBoxes, result.suggestedQuestions);
 
                 if (result.lensBoxes != null && !result.lensBoxes.isEmpty()) {
                     showLensOverlay(result.lensBoxes, context);
@@ -1851,6 +1858,7 @@ public class AiSummaryOverlay {
         conversationHistory.clear();
         recordedTurns.clear();
         lastSuggestedQuestions.clear();
+        nextPromptWasVoice = false;
         askedQuestionsSet.clear();
         if (containerAiChips != null) containerAiChips.removeAllViews();
         if (textAiWelcome != null) textAiWelcome.setVisibility(View.VISIBLE);
@@ -1872,6 +1880,7 @@ public class AiSummaryOverlay {
                 JSONObject obj = new JSONObject();
                 obj.put("isUser", turn.isUser);
                 obj.put("text", turn.text);
+                obj.put("hasVoiceReplay", turn.hasVoiceReplay);
                 if (turn.items != null && !turn.items.isEmpty()) {
                     JSONArray itemsArr = new JSONArray();
                     for (AiSummaryEngine.AiPointItem item : turn.items) {
@@ -1990,7 +1999,7 @@ public class AiSummaryOverlay {
                     }
                 }
 
-                recordedTurns.add(new ChatTurn(isUser, text, items, suggested, lensBoxes));
+                recordedTurns.add(new ChatTurn(isUser, text, items, suggested, lensBoxes, obj.optBoolean("hasVoiceReplay", false)));
                 conversationHistory.add(new AiSummaryEngine.ChatMessage(isUser ? "user" : "assistant", text));
             }
 
@@ -2155,7 +2164,7 @@ public class AiSummaryOverlay {
             if (turn.isUser) {
                 addUserQuestionCard(context, turn.text);
             } else {
-                appendChips(context, turn.items, turn.text, false, turn.lensBoxes, turn.suggestedQuestions);
+                appendChips(context, turn.items, turn.text, false, turn.lensBoxes, turn.suggestedQuestions, turn.hasVoiceReplay);
             }
         }
 
@@ -2210,6 +2219,8 @@ public class AiSummaryOverlay {
     }
 
     private void executePrompt(Context context, String question, boolean isNewConversation) {
+        final boolean promptWasVoice = nextPromptWasVoice;
+        nextPromptWasVoice = false;
         if (isNewConversation) {
             conversationHistory.clear();
             recordedTurns.clear();
@@ -2290,13 +2301,13 @@ public class AiSummaryOverlay {
                         // Save turns to history and persistent memory
                         conversationHistory.add(new AiSummaryEngine.ChatMessage("user", cleanQuestion));
                         conversationHistory.add(new AiSummaryEngine.ChatMessage("assistant", rawAnswer));
-                        recordedTurns.add(new ChatTurn(false, rawAnswer, items, suggestedQuestions));
+                        recordedTurns.add(new ChatTurn(false, rawAnswer, items, suggestedQuestions, null, promptWasVoice));
                         lastSuggestedQuestions = new ArrayList<>(suggestedQuestions != null ? suggestedQuestions : Collections.emptyList());
 
                         if (btnAiReset != null) btnAiReset.setVisibility(View.VISIBLE);
                         saveConversationToPrefs(context);
 
-                        appendChips(context, items, rawAnswer, true, null, suggestedQuestions);
+                        appendChips(context, items, rawAnswer, true, null, suggestedQuestions, promptWasVoice);
                         renderSuggestedQuestions(context, suggestedQuestions);
                     }
 
@@ -2335,6 +2346,10 @@ public class AiSummaryOverlay {
     }
 
     private void appendChips(Context context, List<AiSummaryEngine.AiPointItem> items, String fallbackRawAnswer, boolean autoFocusFirst, List<AiSummaryEngine.LensBoxItem> lensBoxes, List<String> suggestedQuestionsForTurn) {
+        appendChips(context, items, fallbackRawAnswer, autoFocusFirst, lensBoxes, suggestedQuestionsForTurn, false);
+    }
+
+    private void appendChips(Context context, List<AiSummaryEngine.AiPointItem> items, String fallbackRawAnswer, boolean autoFocusFirst, List<AiSummaryEngine.LensBoxItem> lensBoxes, List<String> suggestedQuestionsForTurn, boolean hasVoiceReplay) {
         if (containerAiChips == null) return;
         if (textAiWelcome != null) textAiWelcome.setVisibility(View.GONE);
 
@@ -2464,10 +2479,7 @@ public class AiSummaryOverlay {
             }
         }
 
-        // Attach persistent interactive suggested pills & voice re-trigger directly into the conversation turn!
-        if (suggestedQuestionsForTurn != null && !suggestedQuestionsForTurn.isEmpty()) {
-            appendEmbeddedTurnQuestions(context, suggestedQuestionsForTurn);
-        }
+        appendEmbeddedTurnQuestions(context, suggestedQuestionsForTurn, hasVoiceReplay);
 
         if (autoFocusFirst && firstNewCard != null) {
             final View target = firstNewCard;
@@ -2478,8 +2490,8 @@ public class AiSummaryOverlay {
         }
     }
 
-    private void appendEmbeddedTurnQuestions(Context context, List<String> turnQuestions) {
-        if (containerAiChips == null || turnQuestions == null || turnQuestions.isEmpty()) return;
+    private void appendEmbeddedTurnQuestions(Context context, List<String> turnQuestions, boolean includeVoiceReplay) {
+        if (containerAiChips == null || ((!includeVoiceReplay) && (turnQuestions == null || turnQuestions.isEmpty()))) return;
         float density = context.getResources().getDisplayMetrics().density;
         int mb8 = (int) (8 * density);
         int p10 = (int) (10 * density);
@@ -2496,7 +2508,29 @@ public class AiSummaryOverlay {
         rowParams.bottomMargin = mb8;
         row.setLayoutParams(rowParams);
 
-        for (String q : turnQuestions) {
+        if (includeVoiceReplay) {
+            // Keep voice input as the first action, followed by this response's three questions.
+            TextView btnVoiceReplay = new TextView(context);
+            btnVoiceReplay.setBackgroundResource(R.drawable.pill_youtube_tv);
+            btnVoiceReplay.setText(isEn ? "🎙️ Talk again" : "🎙️ Hablar de nuevo");
+            btnVoiceReplay.setTextColor(0xFF8AB4F8);
+            btnVoiceReplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+            btnVoiceReplay.setTypeface(btnVoiceReplay.getTypeface(), Typeface.BOLD);
+            btnVoiceReplay.setPadding(p14, p10, p14, p10);
+            btnVoiceReplay.setFocusable(true);
+            btnVoiceReplay.setClickable(true);
+            LinearLayout.LayoutParams voiceLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            voiceLp.bottomMargin = (int) (6 * density);
+            btnVoiceReplay.setLayoutParams(voiceLp);
+            btnVoiceReplay.setOnClickListener(v -> toggleVoiceInput(context));
+            btnVoiceReplay.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) centerViewInScrollView(v);
+            });
+            row.addView(btnVoiceReplay);
+        }
+
+        if (turnQuestions != null) for (String q : turnQuestions) {
             if (q == null || q.trim().isEmpty()) continue;
             final String cleanQ = q.replaceAll("^[0-9]+[.)-]\\s*", "").trim();
             TextView btnQ = new TextView(context);
@@ -2522,69 +2556,15 @@ public class AiSummaryOverlay {
             row.addView(btnQ);
         }
 
-        // Quick voice pill inside turn: [ 🎙️ Hablar de nuevo / 🎙️ Talk again ]
-        TextView btnVoiceReplay = new TextView(context);
-        btnVoiceReplay.setBackgroundResource(R.drawable.pill_youtube_tv);
-        btnVoiceReplay.setText(isEn ? "🎙️ Talk again" : "🎙️ Hablar de nuevo");
-        btnVoiceReplay.setTextColor(0xFF8AB4F8);
-        btnVoiceReplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-        btnVoiceReplay.setTypeface(btnVoiceReplay.getTypeface(), Typeface.BOLD);
-        btnVoiceReplay.setPadding(p14, p10, p14, p10);
-        btnVoiceReplay.setFocusable(true);
-        btnVoiceReplay.setClickable(true);
-        btnVoiceReplay.setOnClickListener(v -> toggleVoiceInput(context));
-        btnVoiceReplay.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) centerViewInScrollView(v);
-        });
-        row.addView(btnVoiceReplay);
-
         containerAiChips.addView(row);
     }
 
     private void renderSuggestedQuestions(Context context, List<String> rawSuggestedQuestions) {
         if (layoutSuggestedSection == null) return;
-
         layoutSuggestedSection.setVisibility(View.GONE);
         btnSuggested1.setVisibility(View.GONE);
         btnSuggested2.setVisibility(View.GONE);
         btnSuggested3.setVisibility(View.GONE);
-        btnSuggested1.setAlpha(0f);
-        btnSuggested2.setAlpha(0f);
-        btnSuggested3.setAlpha(0f);
-
-        List<String> suggestedQuestions = filterDeduplicatedQuestions(rawSuggestedQuestions);
-
-        if (suggestedQuestions == null || suggestedQuestions.isEmpty()) return;
-
-        layoutSuggestedSection.setVisibility(View.VISIBLE);
-
-        final int count = suggestedQuestions.size();
-        if (count >= 1) btnSuggested1.setText("1. " + suggestedQuestions.get(0));
-        if (count >= 2) btnSuggested2.setText("2. " + suggestedQuestions.get(1));
-        if (count >= 3) btnSuggested3.setText("3. " + suggestedQuestions.get(2));
-
-        // Staggered progressive appearance: questions appear one by one
-        mainHandler.postDelayed(() -> {
-            if (!isShowing) return;
-            btnSuggested1.setVisibility(View.VISIBLE);
-            btnSuggested1.animate().alpha(1f).setDuration(250).start();
-        }, 350);
-
-        if (count >= 2) {
-            mainHandler.postDelayed(() -> {
-                if (!isShowing) return;
-                btnSuggested2.setVisibility(View.VISIBLE);
-                btnSuggested2.animate().alpha(1f).setDuration(250).start();
-            }, 700);
-        }
-
-        if (count >= 3) {
-            mainHandler.postDelayed(() -> {
-                if (!isShowing) return;
-                btnSuggested3.setVisibility(View.VISIBLE);
-                btnSuggested3.animate().alpha(1f).setDuration(250).start();
-            }, 1050);
-        }
     }
 
     private List<String> filterDeduplicatedQuestions(List<String> rawList) {
@@ -2730,6 +2710,7 @@ public class AiSummaryOverlay {
                         String recognized = matches.get(0).trim();
                         if (!recognized.isEmpty()) {
                             Log.d(TAG, "Speech recognition result: " + recognized);
+                            nextPromptWasVoice = true;
                             executePrompt(context, recognized, false);
                         }
                     } else {

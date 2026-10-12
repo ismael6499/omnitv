@@ -6,6 +6,7 @@ import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -14,8 +15,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class VotTranslationEngine {
     private static final String TAG = "VotTranslationEngine";
@@ -36,9 +39,10 @@ public class VotTranslationEngine {
         List<VotCue> needed = new ArrayList<>();
         for (VotCue cue : cues) {
             if (cue.isTranslated) continue;
+            String cacheKey = getCacheKey(cue.originalText, sourceLang, targetLang);
             synchronized (translationCache) {
-                if (translationCache.containsKey(cue.originalText)) {
-                    cue.translatedText = translationCache.get(cue.originalText);
+                if (translationCache.containsKey(cacheKey)) {
+                    cue.translatedText = translationCache.get(cacheKey);
                     cue.isTranslated = true;
                     continue;
                 }
@@ -55,6 +59,13 @@ public class VotTranslationEngine {
         if (provider == 2 && !openRouterKey.isEmpty()) {
             boolean success = translateWithOpenRouter(context, needed, sourceLang, targetLang, openRouterKey);
             if (success) return;
+            boolean automatic = com.nitsutech.omnitv.ai.AiSummaryEngine.OPENROUTER_AUTO_FREE_BEST.equals(
+                    prefs.getString(KEY_OPENROUTER_MODEL, "deepseek/deepseek-chat"));
+            if (!automatic) {
+                com.nitsutech.omnitv.ButtonMappingService.showOsdToast(context,
+                        "OpenRouter no pudo traducir con el modelo seleccionado. Revisá el modelo o la clave.");
+                return;
+            }
             Log.w(TAG, "OpenRouter translation failed, falling back to Google Translate");
         } else if (provider == 1) {
             translateWithMyMemory(needed, sourceLang, targetLang);
@@ -94,7 +105,7 @@ public class VotTranslationEngine {
                             cue.translatedText = translated;
                             cue.isTranslated = true;
                             synchronized (translationCache) {
-                                translationCache.put(text, translated);
+                                translationCache.put(getCacheKey(text, sourceLang, targetLang), translated);
                             }
                             continue;
                         }
@@ -139,7 +150,7 @@ public class VotTranslationEngine {
                             cue.translatedText = translated;
                             cue.isTranslated = true;
                             synchronized (translationCache) {
-                                translationCache.put(text, translated);
+                                translationCache.put(getCacheKey(text, sourceLang, targetLang), translated);
                             }
                             continue;
                         }
@@ -156,11 +167,21 @@ public class VotTranslationEngine {
     }
 
     private static boolean translateWithOpenRouter(Context context, List<VotCue> cues, String sourceLang, String targetLang, String apiKey) {
-        try {
-            SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-            String model = prefs.getString(KEY_OPENROUTER_MODEL, "deepseek/deepseek-chat");
-            if (model.isEmpty()) model = "deepseek/deepseek-chat";
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String model = com.nitsutech.omnitv.ai.AiSummaryEngine.resolveOpenRouterModel(
+                prefs, prefs.getString(KEY_OPENROUTER_MODEL, "deepseek/deepseek-chat"), false);
+        if (model.isEmpty()) model = "deepseek/deepseek-chat";
+        boolean automatic = com.nitsutech.omnitv.ai.AiSummaryEngine.OPENROUTER_AUTO_FREE_BEST.equals(
+                prefs.getString(KEY_OPENROUTER_MODEL, "deepseek/deepseek-chat"));
+        return translateWithOpenRouterAttempt(context, prefs, cues, sourceLang, targetLang,
+                apiKey, model, automatic, new HashSet<>());
+    }
 
+    private static boolean translateWithOpenRouterAttempt(Context context, SharedPreferences prefs,
+            List<VotCue> cues, String sourceLang, String targetLang, String apiKey,
+            String model, boolean automatic, Set<String> attemptedModels) {
+        attemptedModels.add(model);
+        try {
             String targetLangName = "natural Latin American Spanish";
             if ("en".equalsIgnoreCase(targetLang)) targetLangName = "natural conversational English";
             else if ("ko".equalsIgnoreCase(targetLang)) targetLangName = "natural conversational Korean";
@@ -221,11 +242,33 @@ public class VotTranslationEngine {
                         JSONArray choices = respObj.optJSONArray("choices");
                         if (choices != null && choices.length() > 0) {
                             String reply = choices.getJSONObject(0).getJSONObject("message").getString("content");
-                            parseOpenRouterLines(cues, reply);
+                            parseOpenRouterLines(cues, reply, sourceLang, targetLang);
                             return true;
                         }
                     }
                 } else {
+                    InputStream errorStream = conn.getErrorStream();
+                    StringBuilder errorBody = new StringBuilder();
+                    if (errorStream != null) {
+                        try (BufferedReader br = new BufferedReader(new InputStreamReader(errorStream, StandardCharsets.UTF_8))) {
+                            String line;
+                            while ((line = br.readLine()) != null) errorBody.append(line);
+                        }
+                    }
+                    if (automatic && com.nitsutech.omnitv.ai.AiSummaryEngine
+                            .shouldRetryOpenRouterWithNextFreeModel(code, errorBody.toString())) {
+                        if (isOpenRouterEndpointRejection(code, errorBody.toString()))
+                            com.nitsutech.omnitv.ai.AiSummaryEngine.rememberRejectedOpenRouterModel(prefs, model);
+                        com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel next =
+                                com.nitsutech.omnitv.ai.AiSummaryEngine.getNextFreeOpenRouterModel(prefs, false, attemptedModels);
+                        if (next != null) {
+                            String nextModel = next.id;
+                            Log.w(TAG, "OpenRouter VOT rejected " + model + "; retrying with " + nextModel);
+                            conn.disconnect();
+                            return translateWithOpenRouterAttempt(context, prefs, cues, sourceLang,
+                                    targetLang, apiKey, nextModel, automatic, attemptedModels);
+                        }
+                    }
                     Log.w(TAG, "OpenRouter returned HTTP " + code);
                 }
             } finally {
@@ -233,11 +276,24 @@ public class VotTranslationEngine {
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in translateWithOpenRouter", e);
+            if (automatic) {
+                com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel next =
+                        com.nitsutech.omnitv.ai.AiSummaryEngine.getNextFreeOpenRouterModel(prefs, false, attemptedModels);
+                if (next != null) {
+                    Log.w(TAG, "OpenRouter VOT request failed for " + model + "; retrying with " + next.id);
+                    return translateWithOpenRouterAttempt(context, prefs, cues, sourceLang,
+                            targetLang, apiKey, next.id, automatic, attemptedModels);
+                }
+            }
         }
         return false;
     }
 
-    private static void parseOpenRouterLines(List<VotCue> cues, String reply) {
+    private static boolean isOpenRouterEndpointRejection(int code, String body) {
+        return com.nitsutech.omnitv.ai.AiSummaryEngine.isOpenRouterEndpointRejection(code, body);
+    }
+
+    private static void parseOpenRouterLines(List<VotCue> cues, String reply, String sourceLang, String targetLang) {
         String[] lines = reply.split("\n");
         Map<Integer, String> lineMap = new HashMap<>();
         for (String l : lines) {
@@ -261,10 +317,15 @@ public class VotTranslationEngine {
                 cue.translatedText = trans;
                 cue.isTranslated = true;
                 synchronized (translationCache) {
-                    translationCache.put(cue.originalText, trans);
+                    translationCache.put(getCacheKey(cue.originalText, sourceLang, targetLang), trans);
                 }
             }
         }
+    }
+
+    private static String getCacheKey(String text, String sourceLang, String targetLang) {
+        return (sourceLang != null ? sourceLang.toLowerCase() : "auto") + "|"
+                + (targetLang != null ? targetLang.toLowerCase() : "es") + "|" + text;
     }
 
     private static String getHttp(String urlStr) {

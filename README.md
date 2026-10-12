@@ -28,9 +28,11 @@ Operating as an Accessibility Service, OmniTV adds remote-friendly tools on top 
   - `⏱️ Momentos Clave`: Chronological breakdown and topic index with exact timestamps.
 - **⏱️ Interactive Clickable Timestamps**: AI-generated timestamps (e.g. `[ ⏱️ 04:15 ]`) render as high-contrast D-pad interactive badges. Pressing **OK / D-Pad Center** immediately jumps video playback in SmartTube / YouTube to the exact second.
 - **💬 Conversational Memory & Video Persistence**: Remembers full multi-turn conversation and context for the currently playing video across service reloads and screen standby. Reset cleanly at any time with **[ 🔄 Nuevo chat ]**.
+- **💬 Persistent Follow-Up Questions**: Each answer keeps its three follow-up question buttons in the conversation history, so you can return and choose them later. Replies captured by voice put **Talk again** first, followed by the three questions.
+- **🌐 Optional Automatic Web Search**: When Web is enabled, the assistant searches the web if the transcript or conversation does not contain enough information, or when external/current facts are needed. It can search proactively even when you do not explicitly ask, and includes returned source links. Gemini uses Google Search grounding; OpenRouter uses its web-search tool.
 - **🚫 Question Deduplication**: AI dynamically generates relevant follow-up questions while actively ensuring questions already asked are never repeated.
 - **🔄 Live Video Auto-Detection**: Actively tracks background video transitions in SmartTube and YouTube; automatically refreshes the active video ID and title when you switch videos.
-- **🧠 Dynamic Multi-Model AI Engine**: Native support for Google Gemini (`gemini-3.5-flash-lite`, `gemini-2.5-flash`, `gemini-3.5-flash`) or OpenRouter (`deepseek-chat`, `gpt-4o-mini`, `llama-3.3-70b-instruct`) with dynamic live model retrieval.
+- **🧠 Dynamic Multi-Model AI Engine**: Use Google Gemini or browse OpenRouter's live text and vision model catalogs. Models show free/paid status and an intelligence score when available. Automatic OpenRouter mode retries other free models without falling back to paid models.
 
 ### 🎮 Remote Button Remapper & Multi-Action Engine
 - Intercept and remap remote buttons (Mute, YouTube, TV Input, Color keys, etc.).
