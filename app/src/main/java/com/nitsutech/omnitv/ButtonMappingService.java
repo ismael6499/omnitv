@@ -4741,6 +4741,12 @@ public class ButtonMappingService extends AccessibilityService {
                 return true;
             }
             boolean wasShowing = QuickMenuOverlay.getInstance().isShowing();
+            // While typing an API key, let keys reach the text field / soft
+            // keyboard. BACK still closes the key dialog (hiding the keyboard).
+            if (keyCode != KeyEvent.KEYCODE_BACK
+                    && QuickMenuOverlay.getInstance().shouldPassThroughKeys()) {
+                return false;
+            }
             QuickMenuOverlay.getInstance().onKeyEvent(event);
             if (wasShowing && !QuickMenuOverlay.getInstance().isShowing() && keyCode == KeyEvent.KEYCODE_BACK) {
                 isDismissingQuickMenuKey = true;

@@ -227,6 +227,8 @@ public class QuickMenuOverlay {
     private TextView txtActionPickerSubtitle;
     private LinearLayout containerActionPickerItems;
     private View lastActionPickerTriggerView = null;
+    private boolean apiKeyInputMode = false;
+    private android.widget.EditText apiKeyInput = null;
 
     // Translate Config Fields
     private LinearLayout panelTranslateConfig;
@@ -395,6 +397,37 @@ public class QuickMenuOverlay {
 
     public boolean isShowing() {
         return rootView != null && rootView.isAttachedToWindow();
+    }
+
+    /**
+     * True while the API-key dialog is open and the text field (or its soft
+     * keyboard) owns input. The accessibility service must NOT steal keys in
+     * that case, otherwise the keyboard never receives input, BACK can't
+     * dismiss it, and overlay navigation yanks focus back to the text field.
+     */
+    public boolean shouldPassThroughKeys() {
+        if (!apiKeyInputMode) return false;
+        if (dialogActionPickerOverlay == null
+                || dialogActionPickerOverlay.getVisibility() != View.VISIBLE) return false;
+        if (apiKeyInput == null) return false;
+        if (apiKeyInput.hasFocus()) return true;
+        try {
+            android.view.inputmethod.InputMethodManager imm =
+                    (android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null && imm.isAcceptingText()) return true;
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    private void hideApiKeyKeyboard() {
+        try {
+            if (apiKeyInput == null || context == null) return;
+            android.view.inputmethod.InputMethodManager imm =
+                    (android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(apiKeyInput.getWindowToken(), 0);
+        } catch (Exception e) {
+            Log.e(TAG, "Error hiding keyboard", e);
+        }
     }
 
     public void toggle(Context context) {
@@ -897,6 +930,9 @@ public class QuickMenuOverlay {
                 return true;
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                // Let text fields handle cursor movement; otherwise D-Pad would be stolen from the keyboard input.
+                View focused = rootView != null ? rootView.findFocus() : null;
+                if (focused instanceof android.widget.EditText) return false;
                 return true;
             }
         }
@@ -1495,7 +1531,7 @@ public class QuickMenuOverlay {
             return true;
         }
         if (current == btnVotOpenrouterKey) {
-            handleVotOpenrouterKeyAction();
+            handleVotOpenrouterKeyAction(current);
             return true;
         }
         if (current == btnAiProviderToggle) {
@@ -1521,7 +1557,7 @@ public class QuickMenuOverlay {
             return true;
         }
         if (current == btnAiApiKeyConfig) {
-            handleAiApiKeyAction();
+            handleAiApiKeyAction(current);
             return true;
         }
 
@@ -2935,7 +2971,7 @@ public class QuickMenuOverlay {
         if (btnVotOpenrouterKey != null) {
             btnVotOpenrouterKey.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    handleVotOpenrouterKeyAction();
+                    handleVotOpenrouterKeyAction(v);
                 }
             });
         }
@@ -3004,7 +3040,7 @@ public class QuickMenuOverlay {
         if (btnAiApiKeyConfig != null) {
             btnAiApiKeyConfig.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    handleAiApiKeyAction();
+                    handleAiApiKeyAction(v);
                 }
             });
         }
@@ -3156,33 +3192,23 @@ public class QuickMenuOverlay {
         updateVotConfigPanel();
     }
 
-    private void handleVotOpenrouterKeyAction() {
-        try {
-            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-            if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
-                CharSequence clipText = clipboard.getPrimaryClip().getItemAt(0).getText();
-                if (clipText != null && clipText.length() > 5) {
-                    String key = clipText.toString().trim();
-                    getOverlayPrefs().edit().putString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, key).apply();
-                    String masked = key.length() > 8 ? (key.substring(0, 4) + "..." + key.substring(key.length() - 4)) : "***";
-                    ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "🔑 Key pegada del portapapeles (" : "🔑 Key pasted from clipboard (") + masked + ")");
-                    updateVotConfigPanel();
-                    return;
-                }
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error reading clipboard", e);
-        }
+    private void handleVotOpenrouterKeyAction(View triggerView) {
         String curKey = getOverlayPrefs().getString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, "");
-        if (!curKey.isEmpty()) {
-            ButtonMappingService.showOsdToast(context, I18n.isSpanish(context)
-                    ? "🔑 Key activa. Para cambiarla copia la nueva en el móvil y presiona OK, o usa ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'tu-key'"
-                    : "🔑 Active key. To change, copy new one on phone and press OK, or via ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'your-key'");
-        } else {
-            ButtonMappingService.showOsdToast(context, I18n.isSpanish(context)
-                    ? "💡 Copia la API Key en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'tu-api-key'"
-                    : "💡 Copy API Key on phone (Google TV Remote) and press OK to paste, or via ADB: adb shell am broadcast -a com.nitsutech.omnitv.SET_OPENROUTER_KEY --es key 'your-api-key'");
-        }
+        showApiKeyInputDialog(triggerView != null ? triggerView : btnVotOpenrouterKey,
+                "🔑 OpenRouter API Key",
+                I18n.isSpanish(context)
+                        ? "Escribí la key abajo (se abre el teclado) o pegala del portapapeles:"
+                        : "Type the key below (keyboard opens) or paste from clipboard:",
+                "sk-or-v1-...",
+                curKey,
+                new ApiKeySaveListener() {
+                    @Override public void onSave(String key) {
+                        getOverlayPrefs().edit().putString(com.nitsutech.omnitv.vot.VotTranslationEngine.KEY_OPENROUTER_KEY, key).apply();
+                        String masked = key.length() > 8 ? (key.substring(0, 4) + "..." + key.substring(key.length() - 4)) : "***";
+                        ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "🔑 Key guardada (" : "🔑 Key saved (") + masked + ")");
+                        updateVotConfigPanel();
+                    }
+                });
     }
 
     private void updateVotConfigPanel() {
@@ -3339,37 +3365,143 @@ public class QuickMenuOverlay {
         updateAiSummaryConfigPanel();
     }
 
-    private void handleAiApiKeyAction() {
-        SharedPreferences op = getOverlayPrefs();
+    private void handleAiApiKeyAction(View triggerView) {
+        final SharedPreferences op = getOverlayPrefs();
         int provider = op.getInt(com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_AI_PROVIDER, 0);
         final String prefKey = provider == 0 ? com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_GEMINI_KEY
                                              : com.nitsutech.omnitv.ai.AiSummaryEngine.KEY_OPENROUTER_KEY;
         final String name = provider == 0 ? "Gemini" : "OpenRouter";
-        final String action = provider == 0 ? "com.nitsutech.omnitv.SET_GEMINI_KEY" : "com.nitsutech.omnitv.SET_OPENROUTER_KEY";
 
-        try {
-            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-            if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
-                CharSequence text = clipboard.getPrimaryClip().getItemAt(0).getText();
-                if (text != null && text.length() > 5) {
-                    String cleanKey = text.toString().trim();
-                    op.edit().putString(prefKey, cleanKey).apply();
-                    String masked = cleanKey.length() > 8 ? (cleanKey.substring(0, 4) + "..." + cleanKey.substring(cleanKey.length() - 4)) : "***";
-                    ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "🔑 Clave de " : "🔑 Key for ") + name + (I18n.isSpanish(context) ? " pegada (" : " pasted (") + masked + ")");
-                    updateAiSummaryConfigPanel();
+        String curKey = op.getString(prefKey, "");
+
+        showApiKeyInputDialog(triggerView != null ? triggerView : btnAiApiKeyConfig,
+                "🔑 API Key — " + name,
+                I18n.isSpanish(context)
+                        ? "Escribí la key abajo (se abre el teclado) o pegala del portapapeles:"
+                        : "Type the key below (keyboard opens) or paste from clipboard:",
+                provider == 0 ? "AIza..." : "sk-or-v1-...",
+                curKey,
+                new ApiKeySaveListener() {
+                    @Override public void onSave(String key) {
+                        op.edit().putString(prefKey, key).apply();
+                        String masked = key.length() > 8 ? (key.substring(0, 4) + "..." + key.substring(key.length() - 4)) : "***";
+                        ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "🔑 Clave de " : "🔑 Key for ") + name + (I18n.isSpanish(context) ? " guardada (" : " saved (") + masked + ")");
+                        updateAiSummaryConfigPanel();
+                    }
+                });
+    }
+
+    private interface ApiKeySaveListener {
+        void onSave(String key);
+    }
+
+    private void showApiKeyInputDialog(View triggerView, String title, String subtitle,
+                                       String hint, String currentKey, final ApiKeySaveListener listener) {
+        if (dialogActionPickerOverlay == null || containerActionPickerItems == null) return;
+        lastActionPickerTriggerView = triggerView;
+        apiKeyInputMode = true;
+
+        if (txtActionPickerTitle != null) txtActionPickerTitle.setText(title);
+        if (txtActionPickerSubtitle != null) txtActionPickerSubtitle.setText(subtitle);
+
+        containerActionPickerItems.removeAllViews();
+        float density = context.getResources().getDisplayMetrics().density;
+
+        final android.widget.EditText input = new android.widget.EditText(context);
+        input.setText(currentKey != null ? currentKey : "");
+        input.setHint(hint);
+        input.setSingleLine(true);
+        input.setFocusable(true);
+        input.setFocusableInTouchMode(true);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+        input.setTextColor(Color.parseColor("#FFFFFF"));
+        input.setHintTextColor(Color.parseColor("#888888"));
+        input.setPadding(Math.round(14 * density), Math.round(12 * density),
+                Math.round(14 * density), Math.round(12 * density));
+        LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        inputLp.bottomMargin = Math.round(8 * density);
+        input.setLayoutParams(inputLp);
+
+        containerActionPickerItems.addView(input);
+        apiKeyInput = input;
+        addApiKeyDialogButton(I18n.isSpanish(context) ? "💾 Guardar" : "💾 Save", new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                String key = input.getText().toString().trim();
+                if (key.isEmpty()) {
+                    ButtonMappingService.showOsdToast(context, I18n.isSpanish(context)
+                            ? "⚠️ La key está vacía" : "⚠️ Key is empty");
                     return;
                 }
+                if (listener != null) listener.onSave(key);
+                closeActionPickerDialog();
+                if (lastActionPickerTriggerView != null) requestViewFocus(lastActionPickerTriggerView);
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Error pasting clipboard key: " + e.getMessage());
-        }
+        });
+        addApiKeyDialogButton(I18n.isSpanish(context) ? "📋 Pegar del portapapeles" : "📋 Paste from clipboard", new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                try {
+                    android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClip().getItemCount() > 0) {
+                        CharSequence clipText = clipboard.getPrimaryClip().getItemAt(0).getText();
+                        if (clipText != null && clipText.length() > 5) {
+                            input.setText(clipText.toString().trim());
+                            input.setSelection(input.getText().length());
+                            requestViewFocus(input);
+                        } else {
+                            ButtonMappingService.showOsdToast(context, I18n.isSpanish(context)
+                                    ? "📋 Portapapeles vacío" : "📋 Clipboard empty");
+                        }
+                    } else {
+                        ButtonMappingService.showOsdToast(context, I18n.isSpanish(context)
+                                ? "📋 Portapapeles vacío" : "📋 Clipboard empty");
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error reading clipboard", e);
+                }
+            }
+        });
+        addApiKeyDialogButton(I18n.isSpanish(context) ? "✖ Cancelar" : "✖ Cancel", new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                closeActionPickerDialog();
+                if (lastActionPickerTriggerView != null) requestViewFocus(lastActionPickerTriggerView);
+            }
+        });
 
-        String existing = op.getString(prefKey, "").trim();
-        if (!existing.isEmpty()) {
-            ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "ℹ️ Clave configurada: " : "ℹ️ Configured key: ") + (existing.length() > 8 ? existing.substring(0, 4) + "..." + existing.substring(existing.length() - 4) : "***") + (I18n.isSpanish(context) ? "\nPara cambiarla, copia la nueva y presiona OK." : "\nTo change, copy new one and press OK."));
-        } else {
-            ButtonMappingService.showOsdToast(context, (I18n.isSpanish(context) ? "💡 Copia la clave en el móvil (Google TV Remote) y presiona OK para pegar, o vía ADB: adb shell am broadcast -a " : "💡 Copy key on phone (Google TV Remote) and press OK to paste, or via ADB: adb shell am broadcast -a ") + action + " --es key 'tu-api-key'");
-        }
+        dialogActionPickerOverlay.setVisibility(View.VISIBLE);
+        input.post(new Runnable() {
+            @Override public void run() {
+                requestViewFocus(input);
+                try { input.setSelection(input.getText().length()); } catch (Exception ignored) {}
+                try {
+                    android.view.inputmethod.InputMethodManager imm =
+                            (android.view.inputmethod.InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error showing keyboard", e);
+                }
+            }
+        });
+    }
+
+    private void addApiKeyDialogButton(String label, View.OnClickListener listener) {
+        float density = context.getResources().getDisplayMetrics().density;
+        TextView tv = new TextView(context);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, Math.round(42 * density));
+        lp.bottomMargin = Math.round(4 * density);
+        tv.setLayoutParams(lp);
+        tv.setFocusable(true);
+        tv.setClickable(true);
+        tv.setBackgroundResource(R.drawable.card_background);
+        tv.setGravity(Gravity.CENTER);
+        tv.setPadding(Math.round(14 * density), 0, Math.round(14 * density), 0);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        tv.setText(label);
+        tv.setTextColor(Color.parseColor("#CCCCCC"));
+        tv.setOnClickListener(listener);
+        containerActionPickerItems.addView(tv);
     }
 
     private void cycleAiUiLang(int delta) {
@@ -4284,6 +4416,8 @@ public class QuickMenuOverlay {
 
     private void showActionPickerDialog(View triggerView) {
         if (triggerView == null || dialogActionPickerOverlay == null || containerActionPickerItems == null) return;
+        apiKeyInputMode = false;
+        apiKeyInput = null;
         final String key = getActionKeyForView(triggerView);
         if (key == null) return;
 
@@ -4422,6 +4556,8 @@ public class QuickMenuOverlay {
 
     private void showGeminiModelPicker(View triggerView, boolean vision) {
         if (triggerView == null || dialogActionPickerOverlay == null || containerActionPickerItems == null) return;
+        apiKeyInputMode = false;
+        apiKeyInput = null;
         lastActionPickerTriggerView = triggerView;
         openRouterPickerForVision = vision;
         openRouterPickerForVot = false;
@@ -4452,6 +4588,8 @@ public class QuickMenuOverlay {
 
     private void showOpenRouterModelPicker(View triggerView, boolean vision, boolean vot) {
         if (triggerView == null || dialogActionPickerOverlay == null || containerActionPickerItems == null) return;
+        apiKeyInputMode = false;
+        apiKeyInput = null;
         lastActionPickerTriggerView = triggerView;
         openRouterPickerForVision = vision;
         openRouterPickerForVot = vot;
@@ -4548,6 +4686,9 @@ public class QuickMenuOverlay {
     }
 
     private void closeActionPickerDialog() {
+        hideApiKeyKeyboard();
+        apiKeyInputMode = false;
+        apiKeyInput = null;
         if (dialogActionPickerOverlay != null) {
             dialogActionPickerOverlay.setVisibility(View.GONE);
         }
