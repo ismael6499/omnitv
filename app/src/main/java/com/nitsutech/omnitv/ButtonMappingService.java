@@ -2209,18 +2209,7 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void toggleSubtitles() {
-        Log.d(TAG, "Executing toggleSubtitles action");
-        boolean uiClicked = tryFindAndClickSubtitleNode();
-
-        if (!uiClicked) {
-            try {
-                MediaNotificationListener.toggleSubtitles(this);
-            } catch (Exception e) {
-                Log.e(TAG, "Error in MediaNotificationListener.toggleSubtitles", e);
-                sendSubtitleKeyEvent();
-            }
-        }
-
+        Log.d(TAG, "Executing clean background toggleSubtitles action");
         int nextState = 1;
         try {
             ContentResolver resolver = getContentResolver();
@@ -2232,35 +2221,14 @@ public class ButtonMappingService extends AccessibilityService {
             Log.e(TAG, "Failed to toggle accessibility_captioning_enabled", e);
         }
 
-        showOsdMessage(I18n.get(this, R.string.toast_subtitles));
-    }
-
-    private boolean tryFindAndClickSubtitleNode() {
-        boolean clicked = false;
         try {
-            AccessibilityNodeInfo root = getRootInActiveWindow();
-            if (root != null) {
-                clicked = findAndClickSubtitleNode(root);
-                root.recycle();
-            }
-            if (!clicked) {
-                List<AccessibilityWindowInfo> windows = getWindows();
-                if (windows != null) {
-                    for (AccessibilityWindowInfo window : windows) {
-                        if (window == null) continue;
-                        AccessibilityNodeInfo wRoot = window.getRoot();
-                        if (wRoot != null) {
-                            clicked = findAndClickSubtitleNode(wRoot);
-                            wRoot.recycle();
-                            if (clicked) break;
-                        }
-                    }
-                }
-            }
+            MediaNotificationListener.toggleSubtitles(this);
         } catch (Exception e) {
-            Log.e(TAG, "Error in tryFindAndClickSubtitleNode", e);
+            Log.e(TAG, "Error in MediaNotificationListener.toggleSubtitles", e);
+            sendSubtitleKeyEvent();
         }
-        return clicked;
+
+        showOsdMessage(I18n.get(this, R.string.toast_subtitles));
     }
 
     private boolean isSubtitleButtonLabel(CharSequence raw) {
@@ -2516,6 +2484,20 @@ public class ButtonMappingService extends AccessibilityService {
         }
     }
 
+    private boolean performTapGesture(int x, int y, long durationMs) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            android.graphics.Path path = new android.graphics.Path();
+            path.moveTo(x, y);
+            android.accessibilityservice.GestureDescription.StrokeDescription stroke =
+                    new android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, durationMs > 0 ? durationMs : 50);
+            android.accessibilityservice.GestureDescription.Builder builder =
+                    new android.accessibilityservice.GestureDescription.Builder();
+            builder.addStroke(stroke);
+            return dispatchGesture(builder.build(), null, null);
+        }
+        return false;
+    }
+
     private void togglePlaybackSpeed() {
         Log.d(TAG, "Executing togglePlaybackSpeed action");
         boolean uiClicked = tryFindAndClickSpeedNode();
@@ -2526,14 +2508,8 @@ public class ButtonMappingService extends AccessibilityService {
             if (root != null) root.recycle();
             String pkgStr = pkg != null ? pkg.toString() : "";
             if (pkgStr.contains("smarttube") || pkgStr.contains("youtube")) {
-                Log.d(TAG, "Speed button not found in active UI, waking playback controls...");
-                try {
-                    if (audioManager != null) {
-                        long now = SystemClock.uptimeMillis();
-                        audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN, 0));
-                        audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_DPAD_DOWN, 0));
-                    }
-                } catch (Exception ignored) {}
+                Log.d(TAG, "Speed button not found in active UI, waking playback controls via screen tap...");
+                performTapGesture(960, 540, 50);
                 handler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
@@ -2547,7 +2523,7 @@ public class ButtonMappingService extends AccessibilityService {
                             }
                         }
                     }
-                }, 200);
+                }, 150);
                 showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
                 return;
             }
@@ -2655,10 +2631,12 @@ public class ButtonMappingService extends AccessibilityService {
                     }
                 }
                 if (target != null) {
-                    Log.d(TAG, "Found speed button in UI, performing click: " + (desc != null ? desc : text));
-                    boolean clicked = target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    Log.d(TAG, "Found speed button in UI, performing click and tap: " + (desc != null ? desc : text));
+                    target.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    performTapGesture(bounds.centerX(), bounds.centerY(), 50);
                     if (target != node) target.recycle();
-                    return clicked;
+                    return true;
                 }
             }
         }
