@@ -2209,7 +2209,18 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void toggleSubtitles() {
-        Log.d(TAG, "Executing clean background toggleSubtitles action");
+        Log.d(TAG, "Executing toggleSubtitles action");
+        boolean uiClicked = tryFindAndClickSubtitleNode();
+
+        if (!uiClicked) {
+            try {
+                MediaNotificationListener.toggleSubtitles(this);
+            } catch (Exception e) {
+                Log.e(TAG, "Error in MediaNotificationListener.toggleSubtitles", e);
+                sendSubtitleKeyEvent();
+            }
+        }
+
         int nextState = 1;
         try {
             ContentResolver resolver = getContentResolver();
@@ -2221,14 +2232,35 @@ public class ButtonMappingService extends AccessibilityService {
             Log.e(TAG, "Failed to toggle accessibility_captioning_enabled", e);
         }
 
-        try {
-            MediaNotificationListener.toggleSubtitles(this);
-        } catch (Exception e) {
-            Log.e(TAG, "Error in MediaNotificationListener.toggleSubtitles", e);
-            sendSubtitleKeyEvent();
-        }
-
         showOsdMessage(I18n.get(this, R.string.toast_subtitles));
+    }
+
+    private boolean tryFindAndClickSubtitleNode() {
+        boolean clicked = false;
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root != null) {
+                clicked = findAndClickSubtitleNode(root);
+                root.recycle();
+            }
+            if (!clicked) {
+                List<AccessibilityWindowInfo> windows = getWindows();
+                if (windows != null) {
+                    for (AccessibilityWindowInfo window : windows) {
+                        if (window == null) continue;
+                        AccessibilityNodeInfo wRoot = window.getRoot();
+                        if (wRoot != null) {
+                            clicked = findAndClickSubtitleNode(wRoot);
+                            wRoot.recycle();
+                            if (clicked) break;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in tryFindAndClickSubtitleNode", e);
+        }
+        return clicked;
     }
 
     private boolean isSubtitleButtonLabel(CharSequence raw) {
