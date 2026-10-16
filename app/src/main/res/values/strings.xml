@@ -633,8 +633,12 @@
     <string name="tt_card_ocr">Visual OCR</string>
     <string name="tt_card_lens">Lens AI</string>
     <string name="tt_show_background">👁 Show background</string>
+    <string name="tt_background_40">👁 Background (40%)</string>
+    <string name="tt_background_max">👁 Background (max)</string>
     <string name="tt_hide_background">👁 Hide background</string>
-    <string name="tt_temporary_show_background">👁 Show background (temporary)</string>
+    <string name="tt_temporary_show_background">👁 Show background (temp)</string>
+    <string name="tt_temporary_background_40">👁 Temp background (40%)</string>
+    <string name="tt_temporary_background_max">👁 Temp background (max)</string>
     <string name="tt_temporary_background_visible">👁 Background visible</string>
     <string name="tt_page_previous">◀ Previous</string>
     <string name="tt_page_next">Next ▶</string>

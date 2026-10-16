@@ -78,8 +78,11 @@ public class TextTranslatorOverlay {
     private View btnClose;
     private View overlayScrim;
     private View drawerPanel;
-    private boolean isTransparencyEnabled;
-    private boolean isTemporaryTransparencyEnabled;
+    public static final int TRANSPARENCY_OPAQUE = 0;
+    public static final int TRANSPARENCY_MEDIUM = 1; // 40% opacity
+    public static final int TRANSPARENCY_MAX = 2;    // Max transparent (~15% permanent, 0% temp)
+    private int transparencyLevel = TRANSPARENCY_OPAQUE;
+    private int temporaryTransparencyLevel = TRANSPARENCY_OPAQUE;
     private final Map<View, GradientDrawable[]> cardBackgrounds = new HashMap<>();
     private TextView textStatus;
     private ScrollView scrollList;
@@ -157,14 +160,19 @@ public class TextTranslatorOverlay {
         }
         if (isShowing) return;
 
-        isTemporaryTransparencyEnabled = false;
+        temporaryTransparencyLevel = TRANSPARENCY_OPAQUE;
 
         windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         if (windowManager == null) return;
 
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         currentEngine = prefs.getInt(PREF_ENGINE, 0);
-        isTransparencyEnabled = prefs.getBoolean(PREF_TRANSPARENCY, false);
+        try {
+            transparencyLevel = prefs.getInt(PREF_TRANSPARENCY, TRANSPARENCY_OPAQUE);
+        } catch (ClassCastException e) {
+            transparencyLevel = prefs.getBoolean(PREF_TRANSPARENCY, false) ? TRANSPARENCY_MAX : TRANSPARENCY_OPAQUE;
+            prefs.edit().putInt(PREF_TRANSPARENCY, transparencyLevel).apply();
+        }
         currentTargetLang = prefs.getString(PREF_LANG, "es");
         if (!isSupportedTargetLanguage(currentTargetLang)) {
             // Migrate the former "original" destination to Spanish, its previous effective target.
@@ -243,7 +251,7 @@ public class TextTranslatorOverlay {
             scrollList = null;
             containerItems = null;
             isShowing = false;
-            isTemporaryTransparencyEnabled = false;
+            temporaryTransparencyLevel = TRANSPARENCY_OPAQUE;
             cardBackgrounds.clear();
             isShowingReplies = false;
             nextContinuationToken = null;
@@ -316,8 +324,8 @@ public class TextTranslatorOverlay {
         });
 
         btnTranslateAll.setOnClickListener(v -> translateAllCurrentItems());
-        btnTransparency.setOnClickListener(v -> setTransparencyEnabled(!isTransparencyEnabled));
-        btnTemporaryTransparency.setOnClickListener(v -> setTemporaryTransparencyEnabled(!isTemporaryTransparencyEnabled));
+        btnTransparency.setOnClickListener(v -> cycleTransparencyLevel());
+        btnTemporaryTransparency.setOnClickListener(v -> cycleTemporaryTransparencyLevel());
         btnPreviousPage.setOnClickListener(v -> showCommentsPage(currentCommentsPage - 1, btnPreviousPage));
         btnNextPage.setOnClickListener(v -> goToNextCommentsPage());
         btnPreviousPage.setOnFocusChangeListener((v, hasFocus) -> setBackgroundAlpha(v, getPillAlpha()));
@@ -1195,29 +1203,50 @@ public class TextTranslatorOverlay {
         for (YouTubeCommentItem item : target) updateCardViews(item);
     }
 
-    private void setTransparencyEnabled(boolean enabled) {
-        if (isTransparencyEnabled == enabled) return;
-        isTransparencyEnabled = enabled;
+    private void cycleTransparencyLevel() {
+        transparencyLevel = (transparencyLevel + 1) % 3;
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .edit().putBoolean(PREF_TRANSPARENCY, enabled).apply();
+                .edit().putInt(PREF_TRANSPARENCY, transparencyLevel).apply();
+        temporaryTransparencyLevel = TRANSPARENCY_OPAQUE;
+        applyTransparencyAppearance();
+    }
+
+    private void cycleTemporaryTransparencyLevel() {
+        temporaryTransparencyLevel = (temporaryTransparencyLevel + 1) % 3;
         applyTransparencyAppearance();
     }
 
     private void setTemporaryTransparencyEnabled(boolean enabled) {
-        if (isTemporaryTransparencyEnabled == enabled) return;
-        isTemporaryTransparencyEnabled = enabled;
+        int target = enabled ? TRANSPARENCY_MAX : TRANSPARENCY_OPAQUE;
+        if (temporaryTransparencyLevel == target) return;
+        temporaryTransparencyLevel = target;
         applyTransparencyAppearance();
     }
 
+    private int getEffectiveTransparencyLevel() {
+        if (temporaryTransparencyLevel > TRANSPARENCY_OPAQUE) {
+            return temporaryTransparencyLevel;
+        }
+        return transparencyLevel;
+    }
+
+    private boolean isTemporaryActive() {
+        return temporaryTransparencyLevel > TRANSPARENCY_OPAQUE;
+    }
+
     private int getPillAlpha() {
-        if (isTemporaryTransparencyEnabled) return 0;
-        return isTransparencyEnabled ? 38 : 255;
+        int level = getEffectiveTransparencyLevel();
+        if (level == TRANSPARENCY_MEDIUM) return 102;
+        if (level == TRANSPARENCY_MAX) return isTemporaryActive() ? 0 : 38;
+        return 255;
     }
 
     private void applyTransparencyAppearance() {
-        int surfaceAlpha = isTemporaryTransparencyEnabled ? 0 : isTransparencyEnabled ? 0x26 : 0xFF;
+        int level = getEffectiveTransparencyLevel();
+        boolean tempActive = isTemporaryActive();
+        int surfaceAlpha = (level == TRANSPARENCY_MEDIUM) ? 102 : (level == TRANSPARENCY_MAX ? (tempActive ? 0 : 0x26) : 0xFF);
         if (overlayScrim != null) {
-            overlayScrim.setBackgroundColor(isTransparencyEnabled || isTemporaryTransparencyEnabled
+            overlayScrim.setBackgroundColor(level > TRANSPARENCY_OPAQUE
                     ? Color.TRANSPARENT : 0x66000000);
         }
         if (drawerPanel != null) {
@@ -1238,14 +1267,36 @@ public class TextTranslatorOverlay {
             applyCardActionTransparency(entry.getKey(), pillAlpha);
         }
         if (btnTransparency != null) {
-            btnTransparency.setText(I18n.get(context, isTransparencyEnabled
-                    ? R.string.tt_hide_background : R.string.tt_show_background));
-            btnTransparency.setTextColor(isTransparencyEnabled ? 0xFFFFCC80 : 0xFFCE93D8);
+            int textRes;
+            int color;
+            if (transparencyLevel == TRANSPARENCY_MEDIUM) {
+                textRes = R.string.tt_background_40;
+                color = 0xFF80D8FF;
+            } else if (transparencyLevel == TRANSPARENCY_MAX) {
+                textRes = R.string.tt_background_max;
+                color = 0xFFFFCC80;
+            } else {
+                textRes = R.string.tt_show_background;
+                color = 0xFFCE93D8;
+            }
+            btnTransparency.setText(I18n.get(context, textRes));
+            btnTransparency.setTextColor(color);
         }
         if (btnTemporaryTransparency != null) {
-            btnTemporaryTransparency.setText(I18n.get(context, isTemporaryTransparencyEnabled
-                    ? R.string.tt_temporary_background_visible : R.string.tt_temporary_show_background));
-            btnTemporaryTransparency.setTextColor(isTemporaryTransparencyEnabled ? 0xFFFFCC80 : 0xFF80CBC4);
+            int textRes;
+            int color;
+            if (temporaryTransparencyLevel == TRANSPARENCY_MEDIUM) {
+                textRes = R.string.tt_temporary_background_40;
+                color = 0xFF80D8FF;
+            } else if (temporaryTransparencyLevel == TRANSPARENCY_MAX) {
+                textRes = R.string.tt_temporary_background_max;
+                color = 0xFFFFCC80;
+            } else {
+                textRes = R.string.tt_temporary_show_background;
+                color = 0xFF80CBC4;
+            }
+            btnTemporaryTransparency.setText(I18n.get(context, textRes));
+            btnTemporaryTransparency.setTextColor(color);
         }
     }
 
@@ -1258,7 +1309,9 @@ public class TextTranslatorOverlay {
     }
 
     private void applyCardBackgroundColors(GradientDrawable[] backgrounds) {
-        int alpha = isTemporaryTransparencyEnabled ? 0 : isTransparencyEnabled ? 0x26 : 0xFF;
+        int level = getEffectiveTransparencyLevel();
+        boolean tempActive = isTemporaryActive();
+        int alpha = (level == TRANSPARENCY_MEDIUM) ? 102 : (level == TRANSPARENCY_MAX ? (tempActive ? 0 : 0x26) : 0xFF);
         backgrounds[0].setColor(Color.argb(alpha, 0x1B, 0x1D, 0x24));
         backgrounds[1].setColor(Color.argb(alpha, 0x2C, 0x32, 0x46));
         backgrounds[2].setColor(Color.argb(alpha, 0x20, 0x2A, 0x38));
