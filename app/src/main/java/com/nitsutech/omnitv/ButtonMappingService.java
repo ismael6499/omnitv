@@ -2217,8 +2217,8 @@ public class ButtonMappingService extends AccessibilityService {
                 MediaNotificationListener.toggleSubtitles(this);
             } catch (Exception e) {
                 Log.e(TAG, "Error in MediaNotificationListener.toggleSubtitles", e);
-                sendSubtitleKeyEvent();
             }
+            sendSubtitleKeyEvent();
         }
 
         int nextState = 1;
@@ -2242,20 +2242,6 @@ public class ButtonMappingService extends AccessibilityService {
             if (root != null) {
                 clicked = findAndClickSubtitleNode(root);
                 root.recycle();
-            }
-            if (!clicked) {
-                List<AccessibilityWindowInfo> windows = getWindows();
-                if (windows != null) {
-                    for (AccessibilityWindowInfo window : windows) {
-                        if (window == null) continue;
-                        AccessibilityNodeInfo wRoot = window.getRoot();
-                        if (wRoot != null) {
-                            clicked = findAndClickSubtitleNode(wRoot);
-                            wRoot.recycle();
-                            if (clicked) break;
-                        }
-                    }
-                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in tryFindAndClickSubtitleNode", e);
@@ -2313,6 +2299,7 @@ public class ButtonMappingService extends AccessibilityService {
 
     private boolean findAndClickSubtitleNode(AccessibilityNodeInfo node) {
         if (node == null) return false;
+        if (!node.isVisibleToUser()) return false;
 
         CharSequence desc = node.getContentDescription();
         CharSequence text = node.getText();
