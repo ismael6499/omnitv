@@ -20,6 +20,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -46,8 +47,27 @@ public class AiSummaryEngine {
     public static final String KEY_CACHED_GEMINI_MODELS = "cached_gemini_models";
     public static final String KEY_CACHED_OPENROUTER_MODELS = "cached_openrouter_models_v1";
     public static final String KEY_REJECTED_OPENROUTER_MODELS = "rejected_openrouter_models_v1";
+    public static final String KEY_OPENROUTER_LAST_WORKING_MODEL = "ai_openrouter_last_working_model";
+    public static final String KEY_OPENROUTER_VISION_LAST_WORKING_MODEL = "ai_openrouter_vision_last_working_model";
 
-    /** Records endpoints OpenRouter explicitly rejected so automatic selection can skip them. */
+    /** In-memory set of models that failed temporarily (timeout, 5xx) during this session so they are not re-attempted immediately. */
+    private static final Set<String> sessionFailedModels = Collections.synchronizedSet(new HashSet<>());
+
+    public static void rememberSessionFailedModel(String modelId) {
+        if (modelId != null && !modelId.trim().isEmpty()) {
+            sessionFailedModels.add(modelId.trim());
+        }
+    }
+
+    public static boolean isSessionFailed(String modelId) {
+        return modelId != null && sessionFailedModels.contains(modelId.trim());
+    }
+
+    public static void clearSessionFailedModels() {
+        sessionFailedModels.clear();
+    }
+
+    /** Records endpoints OpenRouter explicitly rejected so automatic selection can skip them permanently. */
     public static void rememberRejectedOpenRouterModel(SharedPreferences prefs, String modelId) {
         if (prefs == null || modelId == null || modelId.trim().isEmpty()) return;
         try {
@@ -61,6 +81,33 @@ public class AiSummaryEngine {
         }
     }
 
+    public static List<String> getRejectedOpenRouterModels(SharedPreferences prefs) {
+        List<String> list = new ArrayList<>();
+        if (prefs == null) return list;
+        try {
+            JSONArray rejected = new JSONArray(prefs.getString(KEY_REJECTED_OPENROUTER_MODELS, "[]"));
+            for (int i = 0; i < rejected.length(); i++) {
+                String id = rejected.optString(i, "").trim();
+                if (!id.isEmpty() && !list.contains(id)) list.add(id);
+            }
+        } catch (Exception ignored) { }
+        return list;
+    }
+
+    public static void removeRejectedOpenRouterModel(SharedPreferences prefs, String modelId) {
+        if (prefs == null || modelId == null || modelId.trim().isEmpty()) return;
+        try {
+            JSONArray rejected = new JSONArray(prefs.getString(KEY_REJECTED_OPENROUTER_MODELS, "[]"));
+            JSONArray newArr = new JSONArray();
+            for (int i = 0; i < rejected.length(); i++) {
+                String id = rejected.optString(i, "").trim();
+                if (!id.isEmpty() && !id.equals(modelId)) newArr.put(id);
+            }
+            prefs.edit().putString(KEY_REJECTED_OPENROUTER_MODELS, newArr.toString()).apply();
+            sessionFailedModels.remove(modelId.trim());
+        } catch (Exception ignored) { }
+    }
+
     public static boolean isOpenRouterModelRejected(SharedPreferences prefs, String modelId) {
         if (prefs == null || modelId == null) return false;
         try {
@@ -71,7 +118,14 @@ public class AiSummaryEngine {
     }
 
     public static void clearRejectedOpenRouterModels(SharedPreferences prefs) {
-        if (prefs != null) prefs.edit().remove(KEY_REJECTED_OPENROUTER_MODELS).apply();
+        if (prefs != null) {
+            prefs.edit()
+                    .remove(KEY_REJECTED_OPENROUTER_MODELS)
+                    .remove(KEY_OPENROUTER_LAST_WORKING_MODEL)
+                    .remove(KEY_OPENROUTER_VISION_LAST_WORKING_MODEL)
+                    .apply();
+        }
+        clearSessionFailedModels();
     }
 
     public static void rememberOpenRouterRejectionIfEndpoint(SharedPreferences prefs, int responseCode, String body, String modelId) {
@@ -82,7 +136,12 @@ public class AiSummaryEngine {
         if (body == null) return false;
         String message = body.toLowerCase(java.util.Locale.ROOT);
         if (responseCode == 429 && (message.contains("rate-limit")
-                || message.contains("rate limit") || message.contains("temporarily unavailable"))) return true;
+                || message.contains("rate limit") || message.contains("temporarily unavailable")
+                || message.contains("quota"))) return true;
+        if (responseCode == 400 && (message.contains("not support") || message.contains("tool")
+                || message.contains("modality") || message.contains("invalid model")
+                || message.contains("does not support"))) return true;
+        if (responseCode == 404) return true;
         if (responseCode != 403) return false;
         return message.contains("agentic harness")
                 || (message.contains("endpoint") && (message.contains("not available")
@@ -92,6 +151,7 @@ public class AiSummaryEngine {
 
     public static boolean shouldRetryOpenRouterWithNextFreeModel(int responseCode, String body) {
         return isOpenRouterEndpointRejection(responseCode, body) || responseCode == 408
+                || responseCode == 429
                 || responseCode == 500 || responseCode == 502 || responseCode == 503 || responseCode == 504;
     }
 
@@ -151,7 +211,7 @@ public class AiSummaryEngine {
         OpenRouterModel bestScored = null;
         OpenRouterModel firstFree = null;
         for (OpenRouterModel model : models) {
-            if (!model.free || (excludedIds != null && excludedIds.contains(model.id))) continue;
+            if (!model.free || isSessionFailed(model.id) || (excludedIds != null && excludedIds.contains(model.id))) continue;
             if (firstFree == null) firstFree = model;
             if (!Double.isNaN(model.intelligenceIndex)
                     && (bestScored == null || model.intelligenceIndex > bestScored.intelligenceIndex)) {
@@ -165,6 +225,7 @@ public class AiSummaryEngine {
                 : new String[]{"inclusionai/ling-3.1-flash", "google/gemma-4-26b-a4b-it:free"};
         for (String fallback : fallbacks) {
             if (!isOpenRouterModelRejected(prefs, fallback)
+                    && !isSessionFailed(fallback)
                     && (excludedIds == null || !excludedIds.contains(fallback)))
                 return new OpenRouterModel(fallback, fallback, true, vision);
         }
@@ -173,6 +234,10 @@ public class AiSummaryEngine {
 
     public static String resolveOpenRouterModel(SharedPreferences prefs, String configured, boolean vision) {
         if (OPENROUTER_AUTO_FREE_BEST.equals(configured)) {
+            String lastWorking = prefs.getString(vision ? KEY_OPENROUTER_VISION_LAST_WORKING_MODEL : KEY_OPENROUTER_LAST_WORKING_MODEL, "").trim();
+            if (!lastWorking.isEmpty() && !isOpenRouterModelRejected(prefs, lastWorking) && !isSessionFailed(lastWorking)) {
+                return lastWorking;
+            }
             return getBestFreeOpenRouterModel(prefs, vision).id;
         }
         return configured;
@@ -757,8 +822,8 @@ public class AiSummaryEngine {
             conn.setRequestProperty("Authorization", "Bearer " + apiKey);
             conn.setRequestProperty("HTTP-Referer", "https://github.com/ismael6499/omnitv");
             conn.setRequestProperty("X-Title", "OmniTV AI Summary");
-            conn.setConnectTimeout(25000);
-            conn.setReadTimeout(60000);
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(30000);
             conn.setDoOutput(true);
 
             JSONObject body = new JSONObject();
@@ -861,7 +926,14 @@ public class AiSummaryEngine {
 
             if (responseCode != 200) {
                 if (automatic && shouldRetryOpenRouterWithNextFreeModel(responseCode, sb.toString())) {
-                    if (isOpenRouterEndpointRejection(responseCode, sb.toString())) rememberRejectedOpenRouterModel(prefs, model);
+                    if (isOpenRouterEndpointRejection(responseCode, sb.toString())) {
+                        rememberRejectedOpenRouterModel(prefs, model);
+                    } else {
+                        rememberSessionFailedModel(model);
+                    }
+                    if (model.equals(prefs.getString(KEY_OPENROUTER_LAST_WORKING_MODEL, ""))) {
+                        prefs.edit().remove(KEY_OPENROUTER_LAST_WORKING_MODEL).apply();
+                    }
                     OpenRouterModel next = getNextFreeOpenRouterModel(prefs, false, attemptedModels);
                     if (next != null) {
                         String nextModel = next.id;
@@ -884,6 +956,9 @@ public class AiSummaryEngine {
             if (choices != null && choices.length() > 0) {
                 JSONObject msg = choices.getJSONObject(0).optJSONObject("message");
                 if (msg != null) {
+                    if (automatic) {
+                        prefs.edit().putString(KEY_OPENROUTER_LAST_WORKING_MODEL, model).apply();
+                    }
                     String fullText = appendOpenRouterCitations(msg.optString("content", ""), msg, chatLang);
                     parseAndDeliver(fullText, callback);
                     return;
@@ -892,7 +967,11 @@ public class AiSummaryEngine {
 
             postError(callback, "OpenRouter no devolvió contenido.");
         } catch (Exception e) {
-            Log.e(TAG, "Exception calling OpenRouter", e);
+            Log.e(TAG, "Exception calling OpenRouter with model " + model, e);
+            rememberSessionFailedModel(model);
+            if (model.equals(prefs.getString(KEY_OPENROUTER_LAST_WORKING_MODEL, ""))) {
+                prefs.edit().remove(KEY_OPENROUTER_LAST_WORKING_MODEL).apply();
+            }
             OpenRouterModel next = automatic ? getNextFreeOpenRouterModel(prefs, false, attemptedModels) : null;
             if (next != null) {
                 Log.w(TAG, "OpenRouter text request failed for " + model + "; retrying with " + next.id);
@@ -1199,8 +1278,8 @@ public class AiSummaryEngine {
             conn.setRequestProperty("Authorization", "Bearer " + apiKey);
             conn.setRequestProperty("HTTP-Referer", "https://github.com/ismael6499/omnitv");
             conn.setRequestProperty("X-Title", "OmniTV AI Vision");
-            conn.setConnectTimeout(25000);
-            conn.setReadTimeout(60000);
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(30000);
             conn.setDoOutput(true);
 
             JSONObject body = new JSONObject();
@@ -1252,7 +1331,14 @@ public class AiSummaryEngine {
 
             if (responseCode != 200) {
                 if (automatic && shouldRetryOpenRouterWithNextFreeModel(responseCode, sb.toString())) {
-                    if (isOpenRouterEndpointRejection(responseCode, sb.toString())) rememberRejectedOpenRouterModel(prefs, model);
+                    if (isOpenRouterEndpointRejection(responseCode, sb.toString())) {
+                        rememberRejectedOpenRouterModel(prefs, model);
+                    } else {
+                        rememberSessionFailedModel(model);
+                    }
+                    if (model.equals(prefs.getString(KEY_OPENROUTER_VISION_LAST_WORKING_MODEL, ""))) {
+                        prefs.edit().remove(KEY_OPENROUTER_VISION_LAST_WORKING_MODEL).apply();
+                    }
                     OpenRouterModel next = getNextFreeOpenRouterModel(prefs, true, attemptedModels);
                     if (next != null) {
                         String nextModel = next.id;
@@ -1276,6 +1362,9 @@ public class AiSummaryEngine {
             if (choices != null && choices.length() > 0) {
                 JSONObject msg = choices.getJSONObject(0).optJSONObject("message");
                 if (msg != null) {
+                    if (automatic) {
+                        prefs.edit().putString(KEY_OPENROUTER_VISION_LAST_WORKING_MODEL, model).apply();
+                    }
                     String fullText = msg.optString("content", "");
                     parseVisionResponse(fullText, callback);
                     return;
@@ -1285,6 +1374,10 @@ public class AiSummaryEngine {
             mainHandler.post(() -> callback.onError("OpenRouter no devolvió contenido para la imagen."));
         } catch (Exception e) {
             Log.e(TAG, "Exception in callOpenRouterVision", e);
+            rememberSessionFailedModel(model);
+            if (model.equals(prefs.getString(KEY_OPENROUTER_VISION_LAST_WORKING_MODEL, ""))) {
+                prefs.edit().remove(KEY_OPENROUTER_VISION_LAST_WORKING_MODEL).apply();
+            }
             OpenRouterModel next = automatic ? getNextFreeOpenRouterModel(prefs, true, attemptedModels) : null;
             if (next != null) {
                 Log.w(TAG, "OpenRouter Vision request failed for " + model + "; retrying with " + next.id);

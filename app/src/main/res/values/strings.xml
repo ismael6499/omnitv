@@ -659,4 +659,14 @@
     <string name="model_auto_name">Automatic</string>
     <string name="model_auto_free_best">🤖 Automatic: best-scoring free model for this task</string>
     <string name="model_picker_retry_rejected">↻ Retry previously rejected models once</string>
+    <string name="model_picker_manage_rejected">🗑 Discarded models (%1$d) · Manage list</string>
+    <string name="ai_transcript_loading_wait">⏳ Please wait, subtitles are still loading...</string>
+    <string name="ai_transcript_ready_no_subtitles">Ready (no subtitles, analyzing by title/web)</string>
+    <string name="ai_openrouter_rejected_models_btn">   Discarded models: %1$d</string>
+    <string name="ai_openrouter_rejected_title">Discarded OpenRouter models</string>
+    <string name="ai_openrouter_rejected_subtitle">Models that failed permanently and are skipped during auto-selection. You can restore them all or one by one.</string>
+    <string name="ai_openrouter_restore_all">↻ Restore all discarded models</string>
+    <string name="ai_openrouter_rejected_empty">✓ No discarded models</string>
+    <string name="ai_openrouter_model_restored">✓ Model restored: %1$s</string>
+    <string name="ai_openrouter_all_restored">✓ All discarded models have been restored</string>
 </resources>

@@ -659,4 +659,14 @@
     <string name="model_auto_name">Automático</string>
     <string name="model_auto_free_best">🤖 Automático: modelo gratis con mayor índice para esta tarea</string>
     <string name="model_picker_retry_rejected">↻ Reintentar modelos rechazados</string>
+    <string name="model_picker_manage_rejected">🗑 Modelos descartados (%1$d) · Administrar lista</string>
+    <string name="ai_transcript_loading_wait">⏳ Espera un momento, cargando subtítulos...</string>
+    <string name="ai_transcript_ready_no_subtitles">Listo (sin subtítulos, analizando por título/web)</string>
+    <string name="ai_openrouter_rejected_models_btn">   Modelos descartados: %1$d</string>
+    <string name="ai_openrouter_rejected_title">Modelos OpenRouter descartados</string>
+    <string name="ai_openrouter_rejected_subtitle">Modelos que fallaron de forma permanente y se omiten en la selección automática. Podés restaurarlos todos o de a uno.</string>
+    <string name="ai_openrouter_restore_all">↻ Restaurar todos los modelos descartados</string>
+    <string name="ai_openrouter_rejected_empty">✓ No hay modelos descartados</string>
+    <string name="ai_openrouter_model_restored">✓ Modelo restaurado: %1$s</string>
+    <string name="ai_openrouter_all_restored">✓ Se restauraron todos los modelos descartados</string>
 </resources>

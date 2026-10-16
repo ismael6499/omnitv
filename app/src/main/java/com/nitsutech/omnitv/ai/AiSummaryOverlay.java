@@ -29,6 +29,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.nitsutech.omnitv.ButtonMappingService;
+import com.nitsutech.omnitv.I18n;
 import com.nitsutech.omnitv.MediaNotificationListener;
 import com.nitsutech.omnitv.R;
 import com.nitsutech.omnitv.vot.VotCue;
@@ -77,6 +78,11 @@ public class AiSummaryOverlay {
     private TextView btnAiWebSearch;
     private TextView btnPillVisionScan;
     private TextView btnPillWebSearch;
+    private TextView btnPillSummary;
+    private TextView btnPillKeyPoints;
+    private TextView btnPillConclusions;
+    private TextView btnPillMoments;
+    private boolean isTranscriptLoading = false;
 
     // Vision Panel views
     private LinearLayout panelAiVisionOptions;
@@ -230,6 +236,7 @@ public class AiSummaryOverlay {
         }
         overlayView = null;
         isShowing = false;
+        isTranscriptLoading = false;
         currentThinkingView = null;
         currentListeningCard = null;
         textListeningStatus = null;
@@ -346,6 +353,10 @@ public class AiSummaryOverlay {
         btnSuggested1 = overlayView.findViewById(R.id.btn_suggested_1);
         btnSuggested2 = overlayView.findViewById(R.id.btn_suggested_2);
         btnSuggested3 = overlayView.findViewById(R.id.btn_suggested_3);
+        btnPillSummary = overlayView.findViewById(R.id.btn_pill_summary);
+        btnPillKeyPoints = overlayView.findViewById(R.id.btn_pill_key_points);
+        btnPillConclusions = overlayView.findViewById(R.id.btn_pill_conclusions);
+        btnPillMoments = overlayView.findViewById(R.id.btn_pill_moments);
 
         View btnClose = overlayView.findViewById(R.id.btn_ai_close);
         if (btnClose != null) {
@@ -518,24 +529,32 @@ public class AiSummaryOverlay {
 
         // Quick Preset Pills (Top)
         boolean isEn = "en".equalsIgnoreCase(uiLanguage);
-        View btnSummary = overlayView.findViewById(R.id.btn_pill_summary);
-        if (btnSummary != null) {
-            btnSummary.setOnClickListener(v -> executePrompt(context, isEn ? "Give a comprehensive summary of this video structured in key points." : "Haz un resumen completo del video estructurado en puntos clave.", false));
+        if (btnPillSummary != null) {
+            btnPillSummary.setOnClickListener(v -> {
+                if (checkTranscriptLoadingAndNotify(context)) return;
+                executePrompt(context, isEn ? "Give a comprehensive summary of this video structured in key points." : "Haz un resumen completo del video estructurado en puntos clave.", false);
+            });
         }
 
-        View btnKeyPoints = overlayView.findViewById(R.id.btn_pill_key_points);
-        if (btnKeyPoints != null) {
-            btnKeyPoints.setOnClickListener(v -> executePrompt(context, isEn ? "What are the key points and main arguments explained in this video?" : "¿Cuáles son los puntos y argumentos clave explicados en este video?", false));
+        if (btnPillKeyPoints != null) {
+            btnPillKeyPoints.setOnClickListener(v -> {
+                if (checkTranscriptLoadingAndNotify(context)) return;
+                executePrompt(context, isEn ? "What are the key points and main arguments explained in this video?" : "¿Cuáles son los puntos y argumentos clave explicados en este video?", false);
+            });
         }
 
-        View btnConclusions = overlayView.findViewById(R.id.btn_pill_conclusions);
-        if (btnConclusions != null) {
-            btnConclusions.setOnClickListener(v -> executePrompt(context, isEn ? "What are the key takeaways, conclusions and advice shared in this video?" : "¿Cuáles son las conclusiones finales y consejos que da el autor?", false));
+        if (btnPillConclusions != null) {
+            btnPillConclusions.setOnClickListener(v -> {
+                if (checkTranscriptLoadingAndNotify(context)) return;
+                executePrompt(context, isEn ? "What are the key takeaways, conclusions and advice shared in this video?" : "¿Cuáles son las conclusiones finales y consejos que da el autor?", false);
+            });
         }
 
-        View btnMoments = overlayView.findViewById(R.id.btn_pill_moments);
-        if (btnMoments != null) {
-            btnMoments.setOnClickListener(v -> executePrompt(context, isEn ? "Detail the most important moments or sections of this video with timestamps if available." : "Detalla los momentos o temas más importantes del video con marcas de tiempo si están disponibles.", false));
+        if (btnPillMoments != null) {
+            btnPillMoments.setOnClickListener(v -> {
+                if (checkTranscriptLoadingAndNotify(context)) return;
+                executePrompt(context, isEn ? "Detail the most important moments or sections of this video with timestamps if available." : "Detalla los momentos o temas más importantes del video con marcas de tiempo si están disponibles.", false);
+            });
         }
 
         btnPillWebSearch = overlayView.findViewById(R.id.btn_pill_web_search);
@@ -557,9 +576,29 @@ public class AiSummaryOverlay {
         btnSuggested3.setOnFocusChangeListener((v, hasFocus) -> { if (hasFocus) centerViewInScrollView(v); });
 
         // Initial focus on summary pill
-        if (btnSummary != null) {
-            btnSummary.requestFocus();
+        if (btnPillSummary != null) {
+            btnPillSummary.requestFocus();
         }
+    }
+
+    private boolean checkTranscriptLoadingAndNotify(Context ctx) {
+        if (isTranscriptLoading) {
+            Context c = ctx != null ? ctx : (overlayView != null ? overlayView.getContext() : ButtonMappingService.instance);
+            if (c != null) {
+                Toast.makeText(c, I18n.get(c, R.string.ai_transcript_loading_wait), Toast.LENGTH_SHORT).show();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private void setTranscriptButtonsLoading(boolean loading) {
+        this.isTranscriptLoading = loading;
+        float alpha = loading ? 0.45f : 1.0f;
+        if (btnPillSummary != null) btnPillSummary.setAlpha(alpha);
+        if (btnPillKeyPoints != null) btnPillKeyPoints.setAlpha(alpha);
+        if (btnPillConclusions != null) btnPillConclusions.setAlpha(alpha);
+        if (btnPillMoments != null) btnPillMoments.setAlpha(alpha);
     }
 
     private void setupKeyListeners() {
@@ -2048,6 +2087,7 @@ public class AiSummaryOverlay {
         if (isSame) {
             Log.d(TAG, "Reopening same video (" + detectedTitle + " [id: " + detectedId + "]): restoring " + recordedTurns.size() + " conversation turns");
             currentTranscript = lastTranscript;
+            setTranscriptButtonsLoading(false);
             if (isValidVideoId(lastVideoId) && !isValidVideoId(currentVideoId)) {
                 currentVideoId = lastVideoId;
             }
@@ -2071,6 +2111,7 @@ public class AiSummaryOverlay {
         if (btnAiReset != null) btnAiReset.setVisibility(View.GONE);
         saveConversationToPrefs(context);
 
+        setTranscriptButtonsLoading(true);
         textStatus.setText("⏳ Buscando subtítulos con " + providerName + "...");
 
         fetcherExecutor.execute(() -> {
@@ -2135,6 +2176,7 @@ public class AiSummaryOverlay {
             final String finalTrackLang = trackLang;
             mainHandler.post(() -> {
                 if (!isShowing) return;
+                setTranscriptButtonsLoading(false);
                 currentTranscript = finalTranscript;
                 lastTranscript = finalTranscript;
                 currentTrackLang = finalTrackLang;
@@ -2149,7 +2191,7 @@ public class AiSummaryOverlay {
                     int wordCount = finalTranscript.split("\\s+").length;
                     textStatus.setText("✨ " + providerName + " • " + (isEn ? "Transcript loaded (" : "Transcripción cargada (") + wordCount + (isEn ? " words)" : " palabras)"));
                 } else {
-                    textStatus.setText("✨ " + providerName + " • " + (isEn ? "Ready (analyzing by title)" : "Listo (analizando por título)"));
+                    textStatus.setText("✨ " + providerName + " • " + I18n.get(context, R.string.ai_transcript_ready_no_subtitles));
                 }
             });
         });

@@ -281,6 +281,7 @@ public class QuickMenuOverlay {
     private TextView btnAiUiLangToggle;
     private TextView btnAiTranslatorPagerPosition;
     private TextView btnAiApiKeyConfig;
+    private TextView btnAiOpenrouterRejectedModels;
     private TextView btnAiApiHelp;
     private TextView btnAiApply;
 
@@ -802,6 +803,7 @@ public class QuickMenuOverlay {
         btnAiUiLangToggle            = rootView.findViewById(R.id.btn_ai_ui_lang_toggle);
         btnAiTranslatorPagerPosition = rootView.findViewById(R.id.btn_ai_translator_pager_position);
         btnAiApiKeyConfig            = rootView.findViewById(R.id.btn_ai_api_key_config);
+        btnAiOpenrouterRejectedModels = rootView.findViewById(R.id.btn_ai_openrouter_rejected_models);
         btnAiApiHelp                 = rootView.findViewById(R.id.btn_ai_api_help);
         btnAiApply                   = rootView.findViewById(R.id.btn_ai_apply);
 
@@ -3051,6 +3053,13 @@ public class QuickMenuOverlay {
                 }
             });
         }
+        if (btnAiOpenrouterRejectedModels != null) {
+            btnAiOpenrouterRejectedModels.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    showRejectedModelsDialog(v);
+                }
+            });
+        }
         if (btnAiApiHelp != null) {
             btnAiApiHelp.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -3598,6 +3607,16 @@ public class QuickMenuOverlay {
             } else {
                 btnAiApiKeyConfig.setText("   " + prefix + " " + I18n.get(context, R.string.ai_key_unset));
                 btnAiApiKeyConfig.setTextColor(0xFFFFB74D);
+            }
+        }
+
+        if (btnAiOpenrouterRejectedModels != null) {
+            if (provider == 1) {
+                btnAiOpenrouterRejectedModels.setVisibility(View.VISIBLE);
+                java.util.List<String> rejected = com.nitsutech.omnitv.ai.AiSummaryEngine.getRejectedOpenRouterModels(op);
+                btnAiOpenrouterRejectedModels.setText("   " + I18n.get(context, R.string.ai_openrouter_rejected_models_btn, rejected.size()));
+            } else {
+                btnAiOpenrouterRejectedModels.setVisibility(View.GONE);
             }
         }
     }
@@ -4664,12 +4683,12 @@ public class QuickMenuOverlay {
         });
         containerActionPickerItems.addView(autoRow);
         if (autoSelected) selected = autoRow;
-        TextView retryRejectedRow = createModelPickerRow(I18n.get(context, R.string.model_picker_retry_rejected), false);
-        retryRejectedRow.setOnClickListener(v -> {
-            com.nitsutech.omnitv.ai.AiSummaryEngine.clearRejectedOpenRouterModels(getOverlayPrefs());
-            showOpenRouterModelPicker(triggerView, vision, vot);
-        });
-        containerActionPickerItems.addView(retryRejectedRow);
+        java.util.List<String> rejectedList = com.nitsutech.omnitv.ai.AiSummaryEngine.getRejectedOpenRouterModels(prefs);
+        if (!rejectedList.isEmpty()) {
+            TextView manageRejectedRow = createModelPickerRow(I18n.get(context, R.string.model_picker_manage_rejected, rejectedList.size()), false);
+            manageRejectedRow.setOnClickListener(v -> showRejectedModelsDialog(triggerView));
+            containerActionPickerItems.addView(manageRejectedRow);
+        }
         boolean headingFree = false;
         boolean headingPaid = false;
         for (com.nitsutech.omnitv.ai.AiSummaryEngine.OpenRouterModel model : models) {
@@ -4691,6 +4710,62 @@ public class QuickMenuOverlay {
             });
             containerActionPickerItems.addView(row);
         }
+        showModelPicker(selected);
+    }
+
+    private void showRejectedModelsDialog(View triggerView) {
+        if (dialogActionPickerOverlay == null || containerActionPickerItems == null) return;
+        lastActionPickerTriggerView = triggerView;
+        apiKeyInputMode = false;
+        containerActionPickerItems.removeAllViews();
+
+        if (txtActionPickerTitle != null) {
+            txtActionPickerTitle.setText(I18n.get(context, R.string.ai_openrouter_rejected_title));
+            txtActionPickerTitle.setVisibility(View.VISIBLE);
+        }
+        if (txtActionPickerSubtitle != null) {
+            txtActionPickerSubtitle.setText(I18n.get(context, R.string.ai_openrouter_rejected_subtitle));
+            txtActionPickerSubtitle.setVisibility(View.VISIBLE);
+        }
+
+        final SharedPreferences prefs = getOverlayPrefs();
+        java.util.List<String> rejected = com.nitsutech.omnitv.ai.AiSummaryEngine.getRejectedOpenRouterModels(prefs);
+
+        View selected = null;
+        if (!rejected.isEmpty()) {
+            TextView restoreAllRow = createModelPickerRow(I18n.get(context, R.string.ai_openrouter_restore_all), false);
+            restoreAllRow.setTextColor(Color.parseColor("#81C784"));
+            restoreAllRow.setOnClickListener(v -> {
+                com.nitsutech.omnitv.ai.AiSummaryEngine.clearRejectedOpenRouterModels(prefs);
+                ButtonMappingService.showOsdToast(context, I18n.get(context, R.string.ai_openrouter_all_restored));
+                updateAiSummaryConfigPanel();
+                showRejectedModelsDialog(triggerView);
+            });
+            containerActionPickerItems.addView(restoreAllRow);
+            selected = restoreAllRow;
+            addModelPickerHeading(I18n.get(context, R.string.ai_openrouter_rejected_title).toUpperCase(java.util.Locale.ROOT));
+        } else {
+            TextView emptyRow = createModelPickerRow(I18n.get(context, R.string.ai_openrouter_rejected_empty), false);
+            emptyRow.setTextColor(Color.parseColor("#9AA0A6"));
+            emptyRow.setOnClickListener(v -> closeActionPickerDialog());
+            containerActionPickerItems.addView(emptyRow);
+            selected = emptyRow;
+        }
+
+        for (String modelId : rejected) {
+            TextView row = createModelPickerRow("🗑️ " + modelId, false);
+            row.setMinHeight(Math.round(52 * context.getResources().getDisplayMetrics().density));
+            row.setMaxLines(2);
+            row.setEllipsize(TextUtils.TruncateAt.END);
+            row.setOnClickListener(v -> {
+                com.nitsutech.omnitv.ai.AiSummaryEngine.removeRejectedOpenRouterModel(prefs, modelId);
+                ButtonMappingService.showOsdToast(context, I18n.get(context, R.string.ai_openrouter_model_restored, modelId));
+                updateAiSummaryConfigPanel();
+                showRejectedModelsDialog(triggerView);
+            });
+            containerActionPickerItems.addView(row);
+        }
+
         showModelPicker(selected);
     }
 

@@ -1524,6 +1524,22 @@
                         android:clickable="true"
                         android:layout_marginBottom="4dp" />
 
+                    <!-- Modelos descartados de OpenRouter -->
+                    <TextView
+                        android:id="@+id/btn_ai_openrouter_rejected_models"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/card_background"
+                        android:text="@string/ai_openrouter_rejected_models_btn"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:layout_marginBottom="4dp"
+                        android:visibility="gone" />
+
                     <!-- Ayuda / Instrucciones de Vinculacion -->
                     <TextView
                         android:id="@+id/btn_ai_api_help"
