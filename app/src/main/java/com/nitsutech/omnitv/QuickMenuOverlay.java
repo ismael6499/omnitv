@@ -219,6 +219,7 @@ public class QuickMenuOverlay {
     private TextView btnConfigDurationDec;
     private TextView btnConfigDurationInc;
     private TextView txtConfigDuration;
+    private TextView btnCombosSpeedMethod;
     private String configuringButton = null;
 
     // Action Picker Dialog Fields
@@ -523,6 +524,7 @@ public class QuickMenuOverlay {
         btnConfigDurationDec = rootView.findViewById(R.id.btn_config_duration_dec);
         btnConfigDurationInc = rootView.findViewById(R.id.btn_config_duration_inc);
         txtConfigDuration    = rootView.findViewById(R.id.txt_config_duration);
+        btnCombosSpeedMethod = rootView.findViewById(R.id.btn_combos_speed_method);
 
         dialogActionPickerOverlay    = rootView.findViewById(R.id.dialog_action_picker_overlay);
         txtActionPickerTitle         = rootView.findViewById(R.id.txt_action_picker_title);
@@ -1907,6 +1909,11 @@ public class QuickMenuOverlay {
         if (btnConfigDurationInc != null) {
             btnConfigDurationInc.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { adjustDuration(500); }
+            });
+        }
+        if (btnCombosSpeedMethod != null) {
+            btnCombosSpeedMethod.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { toggleSpeedMethod(); }
             });
         }
 
@@ -3648,7 +3655,7 @@ public class QuickMenuOverlay {
         }
 
         addDivider(d);
-        String reorderLabel = isReorderMode ? "OK  Terminar Reordenamiento" : "=  Reordenar Menu";
+        String reorderLabel = isReorderMode ? I18n.get(context, R.string.reorder_finish) : I18n.get(context, R.string.reorder_start);
         int reorderColor    = isReorderMode ? 0xFF4CAF50 : 0xFFAAAAAA;
         TextView reorderBtn = createBtn(reorderLabel, reorderColor, d);
         reorderBtn.setGravity(Gravity.CENTER);
@@ -3668,8 +3675,8 @@ public class QuickMenuOverlay {
         if (isReorderMode) {
             TextView hint = new TextView(context);
             hint.setText(reorderSelectedIndex == -1 
-                ? "Presioná OK en un ítem para moverlo" 
-                : "Mové con ARRIBA/ABAJO. Presioná OK o ATRÁS para soltar.");
+                ? I18n.get(context, R.string.reorder_hint_select) 
+                : I18n.get(context, R.string.reorder_hint_moving));
             hint.setTextColor(Color.argb(230, 255, 200, 80));
             hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
             hint.setGravity(Gravity.CENTER);
@@ -4324,6 +4331,30 @@ public class QuickMenuOverlay {
             double secs = durationMs / 1000.0;
             txtConfigDuration.setText(String.format(java.util.Locale.US, "%.1fs", secs));
         }
+
+        updateSpeedMethodButton();
+    }
+
+    private void toggleSpeedMethod() {
+        SharedPreferences sp = getOverlayPrefs();
+        String current = sp.getString("speed_toggle_method", "bar_click");
+        String next = "fast_forward".equals(current) ? "bar_click" : "fast_forward";
+        sp.edit().putString("speed_toggle_method", next).apply();
+        updateSpeedMethodButton();
+        String name = "fast_forward".equals(next)
+                ? I18n.get(context, R.string.speed_method_fast_forward)
+                : I18n.get(context, R.string.speed_method_bar_click);
+        android.widget.Toast.makeText(context, I18n.get(context, R.string.btn_speed_method_prefix, name), android.widget.Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateSpeedMethodButton() {
+        if (btnCombosSpeedMethod == null) return;
+        SharedPreferences sp = getOverlayPrefs();
+        String method = sp.getString("speed_toggle_method", "bar_click");
+        String name = "fast_forward".equals(method)
+                ? I18n.get(context, R.string.speed_method_fast_forward)
+                : I18n.get(context, R.string.speed_method_bar_click);
+        btnCombosSpeedMethod.setText(I18n.get(context, R.string.btn_speed_method_prefix, name));
     }
 
     private String getActionName(int actionId) {
@@ -6108,6 +6139,7 @@ public class QuickMenuOverlay {
             btnComboInputOk2.setText(I18n.get(context, R.string.combo_input_ok_2, inputOk2 == 0 ? "[ " + I18n.get(context, R.string.status_disabled) + " ]" : getActionName(inputOk2)));
             btnComboInputOk2.setTextColor(inputOk2 == 0 ? 0xFF888888 : 0xFF81D4FA);
         }
+        updateSpeedMethodButton();
     }
 
     private void adjustIntPref(String key, int def, int delta, int min, int max, String actionName) {

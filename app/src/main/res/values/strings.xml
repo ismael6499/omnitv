@@ -81,6 +81,10 @@
     <string name="menu_config_youtube_190">Config  Configure YouTube (190)</string>
     <string name="menu_config_youtube_189">Config  Configure YouTube (189)</string>
     <string name="menu_language">🌐  Language: %s</string>
+    <string name="reorder_finish">OK  Finish Reordering</string>
+    <string name="reorder_start">=  Reorder Menu</string>
+    <string name="reorder_hint_select">Press OK on an item to grab and move it</string>
+    <string name="reorder_hint_moving">Move with UP/DOWN. Press OK or BACK to release.</string>
 
     <!-- Common Status & Modes -->
     <string name="status_enabled">ENABLED</string>
@@ -199,6 +203,9 @@
     <string name="btn_config_quad">   Quadruple Click (4x):  %s</string>
     <string name="btn_config_long">   Long Press:  %s</string>
     <string name="btn_config_reset">[ Reset to Defaults ]</string>
+    <string name="btn_speed_method_prefix">   Speed Toggle Method:  %s</string>
+    <string name="speed_method_bar_click">Fast Bar Click (Auto-Dismiss)</string>
+    <string name="speed_method_fast_forward">Fast Forward (Media Key)</string>
 
     <!-- Subpanels: Button Combos -->
     <string name="combos_title">Button Combos:</string>

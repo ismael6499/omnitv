@@ -312,6 +312,7 @@ public class ButtonMappingService extends AccessibilityService {
     private View frameStepHudView = null;
     private boolean isFrameStepHudActive = false;
     private long mBaseFrameStepPositionMs = -1;
+    private volatile boolean isAutoSpeedBarClickActive = false;
 
     // Quick Brightness Slider fields
     private View brightnessSliderView = null;
@@ -1326,7 +1327,14 @@ public class ButtonMappingService extends AccessibilityService {
             case "ACTION_TOGGLE_SUBTITLES": toggleSubtitles(); break;
             case "ACTION_SKIP_PREVIOUS_VIDEO": skipToPreviousVideo(); break;
             case "ACTION_SKIP_NEXT_VIDEO": skipToNextVideo(); break;
-            case "ACTION_TOGGLE_SPEED": togglePlaybackSpeed(); break;
+            case "ACTION_TOGGLE_SPEED":
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        togglePlaybackSpeed();
+                    }
+                }, 200);
+                break;
             case "ACTION_TEST_MINDFUL_DELAY":
                 showMindfulDelayOverlay("YouTube (Prueba)", "test", 10);
                 break;
@@ -2519,31 +2527,116 @@ public class ButtonMappingService extends AccessibilityService {
 
     private void togglePlaybackSpeed() {
         Log.d(TAG, "Executing togglePlaybackSpeed action");
-        boolean uiClicked = tryFindAndClickSpeedNode();
+        SharedPreferences sp = getSharedPreferences(OVERLAY_PREFS, MODE_PRIVATE);
+        String method = sp.getString("speed_toggle_method", "bar_click");
 
-        if (!uiClicked) {
-            try {
-                MediaNotificationListener.togglePlaybackSpeed(this);
-            } catch (Exception e) {
-                Log.e(TAG, "Error in MediaNotificationListener.togglePlaybackSpeed", e);
-            }
-            sendSpeedToggleKeyEvent();
+        if ("fast_forward".equals(method)) {
+            togglePlaybackSpeedFastForward();
+        } else {
+            togglePlaybackSpeedFastBarClick();
         }
-
-        showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
     }
 
-    private void sendSpeedToggleKeyEvent() {
+    private void togglePlaybackSpeedFastForward() {
+        Log.d(TAG, "Executing togglePlaybackSpeed via FAST_FORWARD");
+        boolean uiClicked = tryFindAndClickSpeedNode();
+        if (uiClicked) {
+            showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
+            return;
+        }
+
+        // Despacho de KEYCODE_MEDIA_FAST_FORWARD a AudioManager (SmartTube: Fast Forward/Rewind -> Speed Toggle)
+        boolean dispatched = false;
         try {
             if (audioManager != null) {
                 long now = SystemClock.uptimeMillis();
                 audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, 0));
                 audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, 0));
+                Log.d(TAG, "Dispatched KEYCODE_MEDIA_FAST_FORWARD via AudioManager");
+                dispatched = true;
             }
         } catch (Exception e) {
-            Log.e(TAG, "Error in sendSpeedToggleKeyEvent", e);
+            Log.e(TAG, "Error dispatching KEYCODE_MEDIA_FAST_FORWARD via AudioManager", e);
         }
+
+        if (!dispatched) {
+            try {
+                MediaNotificationListener.togglePlaybackSpeed(this);
+            } catch (Exception e) {
+                Log.e(TAG, "Error in MediaNotificationListener.togglePlaybackSpeed", e);
+            }
+        }
+
+        showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
     }
+
+    private void togglePlaybackSpeedFastBarClick() {
+        Log.d(TAG, "Executing togglePlaybackSpeed via Fast Bar Click");
+        // 1. Si la barra ya está visible en pantalla, hacer click directo en el botón de velocidad
+        if (tryFindAndClickSpeedNode()) {
+            showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
+            return;
+        }
+
+        isAutoSpeedBarClickActive = true;
+        handler.removeCallbacks(clearAutoSpeedBarClickRunnable);
+        handler.postDelayed(clearAutoSpeedBarClickRunnable, 1500);
+
+        // 2. Abrir la barra con DPAD_UP
+        if (Build.VERSION.SDK_INT >= 33) {
+            performGlobalAction(16); // 16 = GLOBAL_ACTION_DPAD_UP
+        }
+
+        // 3. Buscar y clickear el botón de velocidad y luego cerrar la barra de forma segura
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                boolean clicked = tryFindAndClickSpeedNode();
+                Log.d(TAG, "FastBarClick try 1: clicked=" + clicked);
+                if (clicked) {
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            performGlobalAction(GLOBAL_ACTION_BACK);
+                            handler.postDelayed(clearAutoSpeedBarClickRunnable, 100);
+                        }
+                    }, 80);
+                } else {
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            boolean clicked2 = tryFindAndClickSpeedNode();
+                            Log.d(TAG, "FastBarClick try 2: clicked=" + clicked2);
+                            if (clicked2) {
+                                handler.postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        performGlobalAction(GLOBAL_ACTION_BACK);
+                                        handler.postDelayed(clearAutoSpeedBarClickRunnable, 100);
+                                    }
+                                }, 80);
+                            } else {
+                                Log.w(TAG, "FastBarClick failed to find speed node, NOT sending BACK to avoid exiting video");
+                                if (Build.VERSION.SDK_INT >= 33) {
+                                    performGlobalAction(17); // 17 = GLOBAL_ACTION_DPAD_DOWN
+                                }
+                                handler.postDelayed(clearAutoSpeedBarClickRunnable, 100);
+                            }
+                        }
+                    }, 100);
+                }
+            }
+        }, 120);
+
+        showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
+    }
+
+    private final Runnable clearAutoSpeedBarClickRunnable = new Runnable() {
+        @Override
+        public void run() {
+            isAutoSpeedBarClickActive = false;
+        }
+    };
 
     private boolean tryFindAndClickSpeedNode() {
         boolean clicked = false;
@@ -4485,6 +4578,13 @@ public class ButtonMappingService extends AccessibilityService {
 
         Log.d("OmniKey", "onKeyEvent: code=" + keyCode + " (" + KeyEvent.keyCodeToString(keyCode) + "), action=" + (action == KeyEvent.ACTION_DOWN ? "DOWN" : "UP")
                 + ", repeat=" + event.getRepeatCount() + ", mutePressed=" + muteState.isPressed + ", ytPressed=" + (youtube190State.isPressed || youtube189State.isPressed));
+
+        // 0. Automated Speed Bar Click pass-through (do not intercept navigation while auto-speed toggling)
+        if (isAutoSpeedBarClickActive) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_BACK) {
+                return false;
+            }
+        }
 
         // 0. Quick Brightness Slider Key Interception
         if (isBrightnessSliderActive && !QuickMenuOverlay.getInstance().isShowing()) {
