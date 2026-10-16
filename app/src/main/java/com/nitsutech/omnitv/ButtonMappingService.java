@@ -2527,9 +2527,22 @@ public class ButtonMappingService extends AccessibilityService {
             } catch (Exception e) {
                 Log.e(TAG, "Error in MediaNotificationListener.togglePlaybackSpeed", e);
             }
+            sendSpeedToggleKeyEvent();
         }
 
         showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
+    }
+
+    private void sendSpeedToggleKeyEvent() {
+        try {
+            if (audioManager != null) {
+                long now = SystemClock.uptimeMillis();
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, 0));
+                audioManager.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, 0));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in sendSpeedToggleKeyEvent", e);
+        }
     }
 
     private boolean tryFindAndClickSpeedNode() {

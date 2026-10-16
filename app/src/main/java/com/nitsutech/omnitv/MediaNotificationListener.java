@@ -456,14 +456,29 @@ public class MediaNotificationListener extends NotificationListenerService {
                                 float targetSpeed = (curSpeed > 1.05f) ? 1.0f : customSpeed;
                                 Log.d(TAG, "Setting playback speed on " + mc.getPackageName() + " from " + curSpeed + " to " + targetSpeed);
                                 mc.getTransportControls().setPlaybackSpeed(targetSpeed);
-                                return targetSpeed;
                             }
                         }
+                        long now = android.os.SystemClock.uptimeMillis();
+                        mc.dispatchMediaButtonEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, 0));
+                        mc.dispatchMediaButtonEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP,   android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, 0));
                     }
                 }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error toggling playback speed via MediaController", e);
+        }
+
+        try {
+            if (context != null) {
+                android.media.AudioManager am = (android.media.AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) {
+                    long now = android.os.SystemClock.uptimeMillis();
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, 0));
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP,   android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, 0));
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error toggling playback speed via AudioManager", e);
         }
         return -1f;
     }
