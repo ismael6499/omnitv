@@ -2522,33 +2522,6 @@ public class ButtonMappingService extends AccessibilityService {
         boolean uiClicked = tryFindAndClickSpeedNode();
 
         if (!uiClicked) {
-            AccessibilityNodeInfo root = getRootInActiveWindow();
-            CharSequence pkg = root != null ? root.getPackageName() : null;
-            if (root != null) root.recycle();
-            String pkgStr = pkg != null ? pkg.toString() : "";
-            if (pkgStr.contains("smarttube") || pkgStr.contains("youtube")) {
-                Log.d(TAG, "Speed button not found in active UI, waking playback controls via screen tap...");
-                performTapGesture(960, 540, 50);
-                handler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        boolean secondTry = tryFindAndClickSpeedNode();
-                        Log.d(TAG, "Second try finding speed button after waking controls: " + secondTry);
-                        if (!secondTry) {
-                            try {
-                                MediaNotificationListener.togglePlaybackSpeed(ButtonMappingService.this);
-                            } catch (Exception e) {
-                                Log.e(TAG, "Error in MediaNotificationListener.togglePlaybackSpeed", e);
-                            }
-                        }
-                    }
-                }, 150);
-                showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
-                return;
-            }
-        }
-
-        if (!uiClicked) {
             try {
                 MediaNotificationListener.togglePlaybackSpeed(this);
             } catch (Exception e) {
@@ -2566,20 +2539,6 @@ public class ButtonMappingService extends AccessibilityService {
             if (root != null) {
                 clicked = findAndClickSpeedNode(root);
                 root.recycle();
-            }
-            if (!clicked) {
-                List<AccessibilityWindowInfo> windows = getWindows();
-                if (windows != null) {
-                    for (AccessibilityWindowInfo window : windows) {
-                        if (window == null) continue;
-                        AccessibilityNodeInfo wRoot = window.getRoot();
-                        if (wRoot != null) {
-                            clicked = findAndClickSpeedNode(wRoot);
-                            wRoot.recycle();
-                            if (clicked) break;
-                        }
-                    }
-                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in tryFindAndClickSpeedNode", e);
@@ -2631,32 +2590,31 @@ public class ButtonMappingService extends AccessibilityService {
         boolean match = isSpeedButtonLabel(desc) || isSpeedButtonLabel(text) || isSpeedViewId(viewId);
 
         if (match) {
-            Rect bounds = new Rect();
-            node.getBoundsInScreen(bounds);
-            if (bounds.width() > 0 && bounds.height() > 0) {
-                AccessibilityNodeInfo target = null;
-                if (node.isClickable()) {
-                    target = node;
-                } else {
-                    AccessibilityNodeInfo parent = node.getParent();
-                    if (parent != null) {
-                        CharSequence pClass = parent.getClassName();
-                        String pc = pClass != null ? pClass.toString().toLowerCase(Locale.US) : "";
-                        if (parent.isClickable() && !pc.contains("recycler") && !pc.contains("list") && !pc.contains("adapter")) {
-                            target = parent;
-                        } else {
-                            parent.recycle();
-                        }
+            AccessibilityNodeInfo target = node;
+            while (target != null && !target.isClickable()) {
+                AccessibilityNodeInfo parent = target.getParent();
+                if (target != node) target.recycle();
+                target = parent;
+                if (target != null) {
+                    CharSequence pClass = target.getClassName();
+                    String pc = pClass != null ? pClass.toString().toLowerCase(Locale.US) : "";
+                    if (pc.contains("recycler") || pc.contains("list") || pc.contains("adapter") || pc.contains("card")) {
+                        target.recycle();
+                        target = null;
+                        break;
                     }
                 }
-                if (target != null) {
-                    Log.d(TAG, "Found speed button in UI, performing click and tap: " + (desc != null ? desc : text));
-                    target.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
-                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    performTapGesture(bounds.centerX(), bounds.centerY(), 50);
+            }
+            if (target != null && target.isClickable()) {
+                CharSequence tClass = target.getClassName();
+                String tc = tClass != null ? tClass.toString().toLowerCase(Locale.US) : "";
+                if (!tc.contains("recycler") && !tc.contains("list") && !tc.contains("card")) {
+                    Log.d(TAG, "Found speed button in UI, performing click: " + (desc != null ? desc : text));
+                    boolean clicked = target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                     if (target != node) target.recycle();
-                    return true;
+                    return clicked;
                 }
+                if (target != node) target.recycle();
             }
         }
 
