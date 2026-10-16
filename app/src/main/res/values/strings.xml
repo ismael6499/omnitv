@@ -74,6 +74,7 @@
     <string name="menu_ai_summary_config">⚙️  Configure AI Assistant</string>
     <string name="menu_trigger_comments">🔤  Text Translator</string>
     <string name="menu_trigger_translate">🌐  Translate Screen Now</string>
+    <string name="menu_trigger_speed">⚡  Toggle Speed (SmartTube)</string>
     <string name="menu_translate_config">⚙️  Configure Translator (CTS)</string>
     <string name="menu_button_combos">⚡  Button Combos</string>
     <string name="menu_config_mute">Config  Configure Mute Button</string>

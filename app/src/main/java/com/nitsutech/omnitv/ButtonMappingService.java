@@ -2244,43 +2244,81 @@ public class ButtonMappingService extends AccessibilityService {
         showOsdMessage(I18n.get(this, R.string.toast_subtitles));
     }
 
+    private boolean isSubtitleButtonLabel(CharSequence raw) {
+        if (raw == null) return false;
+        String s = raw.toString().trim().toLowerCase(Locale.US);
+        if (s.isEmpty() || s.length() > 35) return false;
+        if (s.contains("•") || s.contains("|") || s.contains("views") || s.contains("vistas") 
+                || s.contains("subscribers") || s.contains("suscriptores") || s.matches(".*\\d+:\\d+.*")) {
+            return false;
+        }
+        return s.equals("cc")
+                || s.equals("subtitles")
+                || s.equals("subtítulos")
+                || s.equals("subtitulos")
+                || s.equals("captions")
+                || s.equals("subtitles/cc")
+                || s.equals("subtítulos/cc")
+                || s.equals("closed captions")
+                || s.equals("closed captioning")
+                || s.equals("enable closed captioning")
+                || s.equals("disable closed captioning")
+                || s.equals("activar subtítulos")
+                || s.equals("desactivar subtítulos")
+                || s.equals("activar subtitulos")
+                || s.equals("desactivar subtitulos")
+                || s.equals("turn on captions")
+                || s.equals("turn off captions")
+                || s.equals("turn on subtitles")
+                || s.equals("turn off subtitles")
+                || s.equals("audio & subtitles")
+                || s.equals("audio y subtítulos");
+    }
+
+    private boolean isSubtitleViewId(String viewId) {
+        if (viewId == null) return false;
+        String v = viewId.toLowerCase(Locale.US);
+        if (v.contains("title") || v.contains("card") || v.contains("item") || v.contains("thumbnail") || v.contains("channel")) {
+            return false;
+        }
+        return v.contains("btn_cc")
+                || v.contains("exo_subtitles")
+                || v.contains("subtitle_button")
+                || v.contains("button_subtitle")
+                || v.contains("caption_button")
+                || v.contains("button_caption")
+                || v.endsWith(":id/cc")
+                || v.endsWith(":id/subtitles")
+                || v.endsWith(":id/captions");
+    }
+
     private boolean findAndClickSubtitleNode(AccessibilityNodeInfo node) {
         if (node == null) return false;
+        if (!node.isVisibleToUser()) return false;
 
         CharSequence desc = node.getContentDescription();
         CharSequence text = node.getText();
         String viewId = node.getViewIdResourceName();
 
-        boolean match = false;
-        if (desc != null) {
-            String d = desc.toString().toLowerCase(Locale.US);
-            if (d.contains("subtítulo") || d.contains("subtitulo") || d.contains("subtitle") ||
-                d.contains("caption") || d.equals("cc") || d.contains("closed caption")) {
-                match = true;
-            }
-        }
-        if (!match && text != null) {
-            String t = text.toString().trim();
-            if (t.equalsIgnoreCase("CC") || t.equalsIgnoreCase("Subtítulos") || t.equalsIgnoreCase("Subtitles") ||
-                t.equalsIgnoreCase("Captions")) {
-                match = true;
-            }
-        }
-        if (!match && viewId != null) {
-            String v = viewId.toLowerCase(Locale.US);
-            if (v.contains("subtitle") || v.contains("caption") || v.contains("btn_cc") || v.contains("exo_subtitles")) {
-                match = true;
-            }
-        }
+        boolean match = isSubtitleButtonLabel(desc) || isSubtitleButtonLabel(text) || isSubtitleViewId(viewId);
 
         if (match) {
-            AccessibilityNodeInfo target = node;
-            while (target != null && !target.isClickable()) {
-                AccessibilityNodeInfo parent = target.getParent();
-                if (target != node) target.recycle();
-                target = parent;
+            AccessibilityNodeInfo target = null;
+            if (node.isClickable()) {
+                target = node;
+            } else {
+                AccessibilityNodeInfo parent = node.getParent();
+                if (parent != null) {
+                    CharSequence pClass = parent.getClassName();
+                    String pc = pClass != null ? pClass.toString().toLowerCase(Locale.US) : "";
+                    if (parent.isClickable() && !pc.contains("recycler") && !pc.contains("list") && !pc.contains("adapter")) {
+                        target = parent;
+                    } else {
+                        parent.recycle();
+                    }
+                }
             }
-            if (target != null && target.isClickable()) {
+            if (target != null) {
                 Log.d(TAG, "Found subtitle node in UI, performing click: " + (desc != null ? desc : text));
                 boolean clicked = target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                 if (target != node) target.recycle();
@@ -2480,42 +2518,68 @@ public class ButtonMappingService extends AccessibilityService {
         showOsdMessage(I18n.get(this, R.string.osd_toggle_speed));
     }
 
+    private boolean isSpeedButtonLabel(CharSequence raw) {
+        if (raw == null) return false;
+        String s = raw.toString().trim().toLowerCase(Locale.US);
+        if (s.isEmpty() || s.length() > 30) return false;
+        if (s.contains("•") || s.contains("|") || s.contains("views") || s.contains("vistas") 
+                || s.contains("subscribers") || s.contains("suscriptores") || s.contains("need for speed")
+                || s.contains("speedrun") || s.contains("speed run") || s.contains("gameplay")
+                || s.matches(".*\\d+:\\d+.*")) {
+            return false;
+        }
+        return s.equals("video speed")
+                || s.equals("playback speed")
+                || s.equals("speed")
+                || s.equals("velocidad")
+                || s.equals("velocidad de reproducción")
+                || s.equals("velocidad del video")
+                || s.equals("ajustar velocidad")
+                || s.matches("^[0-9]+(\\.[0-9]+)?\\s*x$");
+    }
+
+    private boolean isSpeedViewId(String viewId) {
+        if (viewId == null) return false;
+        String v = viewId.toLowerCase(Locale.US);
+        if (v.contains("title") || v.contains("card") || v.contains("item") || v.contains("thumbnail") || v.contains("channel")) {
+            return false;
+        }
+        return v.contains("btn_speed")
+                || v.contains("video_speed")
+                || v.contains("playback_speed")
+                || v.contains("speed_button")
+                || v.contains("button_speed")
+                || v.endsWith(":id/speed");
+    }
+
     private boolean findAndClickSpeedNode(AccessibilityNodeInfo node) {
         if (node == null) return false;
+        if (!node.isVisibleToUser()) return false;
 
         CharSequence desc = node.getContentDescription();
         CharSequence text = node.getText();
         String viewId = node.getViewIdResourceName();
 
-        boolean match = false;
-        if (desc != null) {
-            String d = desc.toString().toLowerCase(Locale.US);
-            if (d.contains("video speed") || d.contains("playback speed") || d.contains("velocidad") || d.equals("speed")) {
-                match = true;
-            }
-        }
-        if (!match && text != null) {
-            String t = text.toString().toLowerCase(Locale.US).trim();
-            if (t.matches("^[0-9]+(\\.[0-9]+)?x$") || t.equalsIgnoreCase("Speed") || t.equalsIgnoreCase("Velocidad")) {
-                match = true;
-            }
-        }
-        if (!match && viewId != null) {
-            String v = viewId.toLowerCase(Locale.US);
-            if (v.contains("speed") || v.contains("playback_speed") || v.contains("btn_speed")) {
-                match = true;
-            }
-        }
+        boolean match = isSpeedButtonLabel(desc) || isSpeedButtonLabel(text) || isSpeedViewId(viewId);
 
         if (match) {
-            AccessibilityNodeInfo target = node;
-            while (target != null && !target.isClickable()) {
-                AccessibilityNodeInfo parent = target.getParent();
-                if (target != node) target.recycle();
-                target = parent;
+            AccessibilityNodeInfo target = null;
+            if (node.isClickable()) {
+                target = node;
+            } else {
+                AccessibilityNodeInfo parent = node.getParent();
+                if (parent != null) {
+                    CharSequence pClass = parent.getClassName();
+                    String pc = pClass != null ? pClass.toString().toLowerCase(Locale.US) : "";
+                    if (parent.isClickable() && !pc.contains("recycler") && !pc.contains("list") && !pc.contains("adapter")) {
+                        target = parent;
+                    } else {
+                        parent.recycle();
+                    }
+                }
             }
-            if (target != null && target.isClickable()) {
-                Log.d(TAG, "Found speed node in UI, performing click: " + (desc != null ? desc : text));
+            if (target != null) {
+                Log.d(TAG, "Found speed button in UI, performing click: " + (desc != null ? desc : text));
                 boolean clicked = target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                 if (target != node) target.recycle();
                 return clicked;
@@ -4410,7 +4474,19 @@ public class ButtonMappingService extends AccessibilityService {
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    toggleFrameStepHudVisibility();
+                    if (event.getRepeatCount() == 0) {
+                        if (frameStepDownClickCount == 0) {
+                            frameStepDownClickCount = 1;
+                            handler.removeCallbacks(frameStepDownTimeoutRunnable);
+                            handler.postDelayed(frameStepDownTimeoutRunnable, 600);
+                        } else if (frameStepDownClickCount == 1) {
+                            handler.removeCallbacks(frameStepDownTimeoutRunnable);
+                            frameStepDownClickCount = 0;
+                            Log.d(TAG, "Frame Step HUD DPAD_DOWN double-click detected: triggering togglePlaybackSpeed");
+                            togglePlaybackSpeed();
+                            updateFrameStepHudFeedback("⚡ " + I18n.get(this, R.string.osd_toggle_speed));
+                        }
+                    }
                 }
                 return true;
             } else if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE) {
@@ -5214,6 +5290,16 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private boolean isFrameStepHudHidden = false;
+    private int frameStepDownClickCount = 0;
+    private final Runnable frameStepDownTimeoutRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (frameStepDownClickCount == 1) {
+                frameStepDownClickCount = 0;
+                toggleFrameStepHudVisibility();
+            }
+        }
+    };
 
     private void toggleFrameStepHudVisibility() {
         if (frameStepHudView != null) {
@@ -5224,6 +5310,8 @@ public class ButtonMappingService extends AccessibilityService {
     }
 
     private void dismissFrameStepHud() {
+        handler.removeCallbacks(frameStepDownTimeoutRunnable);
+        frameStepDownClickCount = 0;
         handler.removeCallbacks(resetFrameStepFeedbackRunnable);
         handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
         mRapidFrameStepAccumulator = 0;

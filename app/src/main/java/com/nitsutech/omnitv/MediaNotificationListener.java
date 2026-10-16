@@ -306,8 +306,8 @@ public class MediaNotificationListener extends NotificationListenerService {
                                             String a = ca.getAction().toLowerCase(Locale.US);
                                             CharSequence name = ca.getName();
                                             String n = (name != null) ? name.toString().toLowerCase(Locale.US) : "";
-                                            if (a.contains("subtitle") || a.contains("caption") || a.contains("sub") ||
-                                                n.contains("subtitle") || n.contains("subtítulo") || n.contains("caption")) {
+                                            if (a.contains("subtitle") || a.contains("caption") ||
+                                                n.contains("subtitle") || n.contains("subtítulo") || n.contains("subtitulos") || n.contains("caption")) {
                                                 Log.d(TAG, "Triggering MediaController CustomAction for subtitles: " + ca.getAction());
                                                 mc.getTransportControls().sendCustomAction(ca, null);
                                                 handled = true;

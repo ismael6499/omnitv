@@ -40,12 +40,12 @@ public class QuickMenuOverlay {
         "cine_mode", "auto_pause", "screen_off", "system_menu",
         "google_home", "bluetooth", "system_info", "reboot",
         "pause_screen_off", "scheduled_sleep", "cycle_brightness", "mindful_delay", "still_watching",
-        "night_schedule", "oled_saver", "vot", "trigger_ai_summary", "ai_summary", "trigger_comments", "trigger_translate", "translate", "button_combos",
+        "night_schedule", "oled_saver", "vot", "trigger_ai_summary", "ai_summary", "trigger_comments", "trigger_translate", "translate", "trigger_speed", "button_combos",
         "config_mute", "config_youtube_190", "config_youtube_189",
         "developer_options", "language"
     };
 
-    public static final int TOTAL_ACTIONS = 39;
+    public static final int TOTAL_ACTIONS = 40;
     private static final String[] AI_PROVIDER_NAMES = {"Google Gemini Direct", "OpenRouter (Multi-model)"};
     private static final String[] AI_GEMINI_MODELS = {"gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.5-flash"};
     private static final String[] AI_OPENROUTER_MODELS = {
@@ -4027,6 +4027,10 @@ public class QuickMenuOverlay {
                 dismiss();
                 sendServiceAction("ACTION_TRANSLATE_SCREEN");
                 break;
+            case "trigger_speed":
+                dismiss();
+                sendServiceAction("ACTION_TOGGLE_SPEED");
+                break;
             case "translate":
                 if ("translate_config".equals(openSubPanel)) {
                     closeSubPanels();
@@ -4173,6 +4177,7 @@ public class QuickMenuOverlay {
             case "ai_summary": return I18n.get(context, R.string.menu_ai_summary_config);
             case "trigger_comments": return I18n.get(context, R.string.menu_trigger_comments);
             case "trigger_translate": return I18n.get(context, R.string.menu_trigger_translate);
+            case "trigger_speed": return I18n.get(context, R.string.menu_trigger_speed);
             case "translate": return I18n.get(context, R.string.menu_translate_config);
             case "button_combos": return I18n.get(context, R.string.menu_button_combos);
             case "config_mute":        return I18n.get(context, R.string.menu_config_mute);
@@ -4196,6 +4201,7 @@ public class QuickMenuOverlay {
         if ("reboot".equals(id)) return 0xFFFF6B6B;
         if ("mindful_delay".equals(id) || "language".equals(id)) return 0xFF81D4FA;
         if ("ai_summary".equals(id) || "trigger_ai_summary".equals(id) || "trigger_comments".equals(id)) return 0xFF8AB4F8;
+        if ("trigger_speed".equals(id)) return 0xFFFFB74D;
         return Color.WHITE;
     }
 
@@ -4204,7 +4210,7 @@ public class QuickMenuOverlay {
             case "manage_apps": case "timer": case "blue_light":
             case "clock": case "dimmer": case "grayscale": case "cine_mode":
             case "cycle_brightness": case "auto_pause": case "mindful_delay": case "vot": case "trigger_ai_summary": case "ai_summary":
-            case "trigger_comments":
+            case "trigger_comments": case "trigger_translate": case "trigger_speed":
                 return 1;
             case "screen_off": case "pause_screen_off": case "scheduled_sleep":
                 return 2;
