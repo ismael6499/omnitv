@@ -313,6 +313,16 @@ public class ButtonMappingService extends AccessibilityService {
     private boolean isFrameStepHudActive = false;
     private long mBaseFrameStepPositionMs = -1;
     private volatile boolean isAutoSpeedBarClickActive = false;
+    private boolean isWaitingForFrameStepDownRelease = false;
+    private final Runnable triggerSpeedToggleFromHudRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isWaitingForFrameStepDownRelease) {
+                isWaitingForFrameStepDownRelease = false;
+                togglePlaybackSpeed();
+            }
+        }
+    };
 
     // Quick Brightness Slider fields
     private View brightnessSliderView = null;
@@ -2616,14 +2626,31 @@ public class ButtonMappingService extends AccessibilityService {
                                     }
                                 }, 80);
                             } else {
-                                Log.w(TAG, "FastBarClick failed to find speed node, NOT sending BACK to avoid exiting video");
-                                if (Build.VERSION.SDK_INT >= 33) {
-                                    performGlobalAction(17); // 17 = GLOBAL_ACTION_DPAD_DOWN
-                                }
-                                handler.postDelayed(clearAutoSpeedBarClickRunnable, 100);
+                                handler.postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        boolean clicked3 = tryFindAndClickSpeedNode();
+                                        Log.d(TAG, "FastBarClick try 3: clicked=" + clicked3);
+                                        if (clicked3) {
+                                            handler.postDelayed(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    performGlobalAction(GLOBAL_ACTION_BACK);
+                                                    handler.postDelayed(clearAutoSpeedBarClickRunnable, 100);
+                                                }
+                                            }, 80);
+                                        } else {
+                                            Log.w(TAG, "FastBarClick failed to find speed node, NOT sending BACK to avoid exiting video");
+                                            if (Build.VERSION.SDK_INT >= 33) {
+                                                performGlobalAction(17); // 17 = GLOBAL_ACTION_DPAD_DOWN
+                                            }
+                                            handler.postDelayed(clearAutoSpeedBarClickRunnable, 100);
+                                        }
+                                    }
+                                }, 120);
                             }
                         }
-                    }, 100);
+                    }, 120);
                 }
             }
         }, 120);
@@ -2643,8 +2670,29 @@ public class ButtonMappingService extends AccessibilityService {
         try {
             AccessibilityNodeInfo root = getRootInActiveWindow();
             if (root != null) {
-                clicked = findAndClickSpeedNode(root);
+                CharSequence pkg = root.getPackageName();
+                if (pkg == null || !pkg.toString().equals(getPackageName())) {
+                    clicked = findAndClickSpeedNode(root);
+                }
                 root.recycle();
+                if (clicked) return true;
+            }
+
+            if (Build.VERSION.SDK_INT >= 21) {
+                java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = getWindows();
+                if (windows != null) {
+                    for (android.view.accessibility.AccessibilityWindowInfo win : windows) {
+                        AccessibilityNodeInfo winRoot = win.getRoot();
+                        if (winRoot != null) {
+                            CharSequence wPkg = winRoot.getPackageName();
+                            if (wPkg == null || !wPkg.toString().equals(getPackageName())) {
+                                clicked = findAndClickSpeedNode(winRoot);
+                            }
+                            winRoot.recycle();
+                            if (clicked) return true;
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in tryFindAndClickSpeedNode", e);
@@ -4581,6 +4629,12 @@ public class ButtonMappingService extends AccessibilityService {
 
         // 0. Automated Speed Bar Click pass-through (do not intercept navigation while auto-speed toggling)
         if (isAutoSpeedBarClickActive) {
+            if (isWaitingForFrameStepDownRelease && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (action == KeyEvent.ACTION_UP) {
+                    isWaitingForFrameStepDownRelease = false;
+                }
+                return true;
+            }
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_BACK) {
                 return false;
             }
@@ -4627,10 +4681,18 @@ public class ButtonMappingService extends AccessibilityService {
                         } else if (frameStepDownClickCount == 1) {
                             handler.removeCallbacks(frameStepDownTimeoutRunnable);
                             frameStepDownClickCount = 0;
+                            isWaitingForFrameStepDownRelease = true;
                             Log.d(TAG, "Frame Step HUD DPAD_DOWN double-click detected: triggering togglePlaybackSpeed");
-                            togglePlaybackSpeed();
                             updateFrameStepHudFeedback("⚡ " + I18n.get(this, R.string.osd_toggle_speed));
+                            handler.removeCallbacks(triggerSpeedToggleFromHudRunnable);
+                            handler.postDelayed(triggerSpeedToggleFromHudRunnable, 80);
                         }
+                    }
+                } else if (action == KeyEvent.ACTION_UP) {
+                    if (isWaitingForFrameStepDownRelease) {
+                        isWaitingForFrameStepDownRelease = false;
+                        handler.removeCallbacks(triggerSpeedToggleFromHudRunnable);
+                        togglePlaybackSpeed();
                     }
                 }
                 return true;
@@ -5395,7 +5457,8 @@ public class ButtonMappingService extends AccessibilityService {
                             WindowManager.LayoutParams.WRAP_CONTENT,
                             WindowManager.LayoutParams.WRAP_CONTENT,
                             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                    | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                                     | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                                     | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                             PixelFormat.TRANSLUCENT
@@ -5457,6 +5520,8 @@ public class ButtonMappingService extends AccessibilityService {
     private void dismissFrameStepHud() {
         handler.removeCallbacks(frameStepDownTimeoutRunnable);
         frameStepDownClickCount = 0;
+        isWaitingForFrameStepDownRelease = false;
+        handler.removeCallbacks(triggerSpeedToggleFromHudRunnable);
         handler.removeCallbacks(resetFrameStepFeedbackRunnable);
         handler.removeCallbacks(mExecuteBatchedFrameStepRunnable);
         mRapidFrameStepAccumulator = 0;
